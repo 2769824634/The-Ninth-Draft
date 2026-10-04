@@ -4,7 +4,7 @@ import { audio } from '../audio';
 
 const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-export async function boot(root: HTMLElement, ready: Promise<unknown>): Promise<void> {
+export async function boot(root: HTMLElement, ready: Promise<unknown>, lines: string[] = []): Promise<void> {
   const line = document.getElementById('boot-line')!;
   const bar = document.getElementById('boot-bar')!;
   const caption = document.getElementById('boot-caption')!;
@@ -28,7 +28,7 @@ export async function boot(root: HTMLElement, ready: Promise<unknown>): Promise<
   const skip = () => (skipped = true);
   window.addEventListener('keydown', skip, { once: true });
 
-  const steps = ['Establishing secure line', 'Verifying clearance', 'Indexing drawers', 'Ready'];
+  const steps = [...(lines.length ? lines.slice(0, 3) : ['Establishing secure line', 'Verifying clearance', 'Indexing drawers']), 'Ready'];
   const full = 'Clearance confirmed : Visitor';
   if (!reducedMotion()) {
     for (let i = 0; i < steps.length - 1 && !skipped; i++) {

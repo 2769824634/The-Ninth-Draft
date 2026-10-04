@@ -5,7 +5,7 @@
 import * as THREE from 'three';
 import type { ArchiveRecord } from '../types';
 import { Spring, SpringV3, damp } from '../spring';
-import { accessLogTexture, coverTexture, hash, loadPhoto, MANILA, MANILA_DARK, pageTexture, plainTexture, tabTexture } from './textures';
+import { accessLogTexture, coverTexture, hash, inkOf, loadPhoto, MANILA, MANILA_DARK, pageTexture, plainTexture, tabTexture } from './textures';
 
 export const FOLDER = {
   w: 2.9,
@@ -75,7 +75,7 @@ export class Folder {
     back.castShadow = back.receiveShadow = true;
 
     // Tab (part of the back board)
-    const tabMat = new THREE.MeshStandardMaterial({ map: tabTexture(rec.file, seed, rec.stamp === 'TOP SECRET'), roughness: 0.9 });
+    const tabMat = new THREE.MeshStandardMaterial({ map: tabTexture(rec.file, seed, rec.stamp === 'DECLASSIFIED' ? null : inkOf(rec.stamp)), roughness: 0.9 });
     const tab = new THREE.Mesh(box, [edgeMat, edgeMat, edgeMat, edgeMat, tabMat, tabMat]);
     tab.scale.set(tabW, tabH, t);
     const tabX = (tabSlot - 1) * (w - tabW) * 0.42;

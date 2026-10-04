@@ -14,8 +14,9 @@ export class Search {
   private cursor = 0;
   private index: { rec: ArchiveRecord; hay: string }[];
   private lastFocus: HTMLElement | null = null;
+  private emptyT = 0;
 
-  constructor(records: ArchiveRecord[], private categories: Category[], private base: string, private open: (rec: ArchiveRecord) => void) {
+  constructor(records: ArchiveRecord[], private categories: Category[], private base: string, private open: (rec: ArchiveRecord) => void, private onEmpty: () => void = () => {}) {
     this.index = records.map((rec) => ({
       rec,
       hay: [rec.file, rec.title, rec.subtitle, rec.date, rec.place, rec.status, rec.stamp, ...rec.tags, ...rec.fields.map((f) => `${f.label} ${strip(f.value)}`), strip(rec.summary), strip(rec.body)]
@@ -75,6 +76,8 @@ export class Search {
     const terms = q.split(/\s+/).filter(Boolean);
     this.results = this.index.filter((x) => terms.every((t) => x.hay.includes(t))).map((x) => x.rec);
     this.cursor = 0;
+    window.clearTimeout(this.emptyT);
+    if (q && !this.results.length) this.emptyT = window.setTimeout(() => this.onEmpty(), 900);
     this.count.textContent = q ? `${this.results.length} record${this.results.length === 1 ? '' : 's'} match` : `${this.results.length} records in the archive`;
     const mark = (s: string) => {
       let out = esc(s);
