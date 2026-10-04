@@ -16,6 +16,11 @@ const { records, initial, room = 'archive' } = Astro.props;
 const base = import.meta.env.BASE_URL;
 const payload = JSON.stringify({ base, categories: CATEGORIES, records, archivist, initial: initial ?? null, room }).replace(/</g, '\\u003c');
 // One string per pair of files, whichever side names the other
+// Programs chapter page: what the drawer holds, and the years it spans
+const programsNo = String(CATEGORIES.findIndex((c) => c.id === 'programs') + 1).padStart(2, '0');
+const programs = records.filter((r) => r.category === 'programs');
+const years = programs.flatMap((r) => (r.date ?? '').match(/\d{4}/g) ?? []).map(Number);
+const span = years.length ? `${Math.min(...years)} — ${Math.max(...years)}` : '';
 const links = new Set(records.flatMap((r) => r.related.filter((f) => records.some((x) => x.file === f)).map((f) => [r.file, f].sort().join('|')))).size;
 ---
 
@@ -166,6 +171,29 @@ const links = new Set(records.flatMap((r) => r.related.filter((f) => records.som
       ))}
     </ol>
   </section>
+
+  <!-- ===================== PROGRAMS CHAPTER ===================== -->
+  <div class="chapter" id="chapter" aria-hidden="true" hidden>
+    <i class="chapter__block"></i>
+    <i class="chapter__wedge"></i>
+    <i class="chapter__rule"></i>
+    <span class="chapter__no micro">Drawer {programsNo} / Chapter</span>
+    <h2 class="chapter__title">programs</h2>
+    <svg class="chapter__patch" viewBox="0 0 120 120">
+      <defs><path id="patch-arc" d="M60 60m-44 0a44 44 0 1 1 88 0a44 44 0 1 1-88 0" /></defs>
+      <circle cx="60" cy="60" r="56" class="chapter__ring" />
+      <circle cx="60" cy="60" r="34" class="chapter__inner" />
+      <text class="chapter__arc"><textPath href="#patch-arc" textLength="272" lengthAdjust="spacing">ARCHIVE N°9 · PROGRAMS · ARCHIVE N°9 · PROGRAMS ·</textPath></text>
+      <ellipse cx="60" cy="60" rx="30" ry="11" transform="rotate(-24 60 60)" class="chapter__orbit" />
+      <circle cx="60" cy="60" r="6" class="chapter__core" />
+      <circle cx="86" cy="48" r="2.6" class="chapter__sat" />
+    </svg>
+    <div class="chapter__grid micro">
+      <span>{programs.length} programs on file</span>
+      {span && <span>{span}</span>}
+      {programs.length > 0 && <span>{programs[0].file} → {programs[programs.length - 1].file}</span>}
+    </div>
+  </div>
 
   <canvas class="iris" id="iris" aria-hidden="true" hidden></canvas>
 

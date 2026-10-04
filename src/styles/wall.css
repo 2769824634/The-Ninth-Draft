@@ -166,3 +166,123 @@
   .wallhud__hints, .wallhud .kbd { display: none; }
   .archive.no-webgl .wallhud__list { left: var(--edge); top: 12rem; }
 }
+
+/* ==========================================================================
+   Programs chapter page: NASA × Constructivism, the archive's one loud page
+   ========================================================================== */
+.chapter {
+  position: absolute;
+  inset: 0;
+  z-index: 30;
+  overflow: hidden;
+  background: var(--bg);
+  --nasa: #0b3d91;
+  --red: #b8281d;
+  opacity: 0;
+}
+[data-theme='night'] .chapter { --nasa: #5f8be0; --red: #d23d2c; }
+.chapter[hidden] { display: none; }
+.chapter.is-on { opacity: 1; transition: opacity 160ms linear; }
+.chapter.is-off { opacity: 0; transition: opacity 420ms var(--ease); }
+
+.chapter__block {
+  position: absolute;
+  left: -12%;
+  top: 46%;
+  width: 84%;
+  height: 11rem;
+  background: var(--red);
+  transform: translateY(-50%) rotate(-14deg) translateX(-110%);
+  transition: transform 900ms var(--ease);
+}
+.chapter.is-on .chapter__block { transform: translateY(-50%) rotate(-14deg) translateX(0); }
+
+.chapter__wedge {
+  position: absolute;
+  right: 30%;
+  top: 9%;
+  width: 13rem;
+  height: 22rem;
+  background: var(--ink);
+  clip-path: polygon(50% 0, 100% 100%, 0 100%);
+  transform: rotate(18deg) translateY(-140%);
+  transition: transform 1000ms var(--ease) 120ms;
+}
+.chapter.is-on .chapter__wedge { transform: rotate(18deg) translateY(0); }
+
+.chapter__rule {
+  position: absolute;
+  left: var(--edge);
+  right: var(--edge);
+  bottom: 9.6rem;
+  height: 3px;
+  background: var(--nasa);
+  transform-origin: left;
+  transform: scaleX(0);
+  transition: transform 1100ms var(--ease) 200ms;
+}
+.chapter.is-on .chapter__rule { transform: scaleX(1); }
+
+.chapter__no {
+  position: absolute;
+  left: var(--edge);
+  top: 12.6rem;
+}
+.chapter__title {
+  position: absolute;
+  left: var(--edge);
+  bottom: 10.4rem;
+  margin: 0;
+  font-weight: 800;
+  font-stretch: 125%;
+  font-size: clamp(4.5rem, 13vw, 13rem);
+  line-height: .8;
+  letter-spacing: -.035em;
+  text-transform: lowercase;
+  color: var(--ink);
+  font-variation-settings: 'wdth' 62;
+  transition: font-variation-settings 1100ms var(--ease) 80ms;
+}
+.chapter.is-on .chapter__title { font-variation-settings: 'wdth' 125; }
+[data-theme='day'] .chapter__title { mix-blend-mode: multiply; }
+
+.chapter__patch {
+  position: absolute;
+  right: var(--edge);
+  top: 10rem;
+  width: 9.5rem;
+  height: 9.5rem;
+  overflow: visible;
+  transform: rotate(-90deg);
+  opacity: 0;
+  transition: transform 1200ms var(--ease) 250ms, opacity 500ms var(--ease) 250ms;
+}
+.chapter.is-on .chapter__patch { transform: rotate(0); opacity: 1; }
+.chapter__ring { fill: var(--bg); stroke: var(--nasa); stroke-width: 3; }
+.chapter__inner { fill: none; stroke: var(--ink); stroke-width: 1; stroke-dasharray: 2 3; }
+.chapter__arc { font-family: var(--f-mono); font-size: 7.4px; letter-spacing: 1.6px; fill: var(--ink); }
+.chapter__orbit { fill: none; stroke: var(--red); stroke-width: 1.4; }
+.chapter__core { fill: var(--nasa); }
+.chapter__sat { fill: var(--ink); }
+
+.chapter__grid {
+  position: absolute;
+  right: var(--edge);
+  top: 21.6rem;
+  display: grid;
+  justify-items: end;
+  gap: .3rem;
+}
+
+@media (max-width: 900px), (max-aspect-ratio: 1/1) {
+  .chapter__no { top: 6rem; }
+  .chapter__patch { top: 8.4rem; width: 6.5rem; height: 6.5rem; }
+  .chapter__grid { top: 16rem; }
+  .chapter__block { height: 6.5rem; width: 120%; left: -20%; top: 54%; }
+  .chapter__wedge { width: 7rem; height: 12rem; right: 52%; top: 30%; }
+  .chapter__title { bottom: 7rem; font-size: 15.5vw; }
+  .chapter__rule { bottom: 6.4rem; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .chapter__block, .chapter__wedge, .chapter__rule, .chapter__title, .chapter__patch { transition: none; }
+}

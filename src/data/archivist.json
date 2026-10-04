@@ -77,5 +77,6 @@
     "mess": ["I'll pretend that was a theory.", "Interesting arrangement. Heuss will hate it.", "You've moved half the wall. I hope you know where it all goes."],
     "reset": ["Back where I left them. You're welcome.", "Wall restored. Your theory has been filed under 'no'."],
     "leave": ["Back to the drawers. Leave the string where it is.", "Closing the link room. Try not to think about it."]
-  }
+  },
+  "chapter": ["Programs. Where the budgets went to be redacted.", "Programs. Big ideas, bigger invoices.", "Programs. Everything here was a good idea at the time."]
 }
