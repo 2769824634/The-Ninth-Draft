@@ -5,6 +5,8 @@
 import type { ArchiveData, ArchiveRecord } from './types';
 import { Stage } from './scene/stage';
 import { Dossier } from './ui/dossier';
+import { Archivist } from './ui/archivist';
+import { clearanceKey, INK } from './clearance';
 import { Search } from './ui/search';
 import { boot } from './ui/boot';
 import { Roller, decode, swapText } from './ui/text';
@@ -22,6 +24,24 @@ export function start() {
   const sel = categories.map(() => 0);
   let view: 'browse' | 'detail' = 'browse';
   let current: ArchiveRecord | null = null;
+  const voice = new Archivist(data.archivist);
+
+  /** Paint the whole interface in a clearance colour. */
+  const setClearance = (stamp: string) => {
+    const key = clearanceKey(stamp);
+    root.dataset.clr = key;
+    stage?.setClearance(INK[key]);
+  };
+
+  // Flicking through files too fast earns a remark
+  let rushCount = 0;
+  let rushT = 0;
+  const rush = () => {
+    rushCount++;
+    window.clearTimeout(rushT);
+    rushT = window.setTimeout(() => (rushCount = 0), 1600);
+    if (rushCount === 9) voice.say('rush');
+  };
 
   /* ---------------- theme & sound ---------------- */
   const applyTheme = (t: 'day' | 'night', silent = false) => {
@@ -30,7 +50,10 @@ export function start() {
     document.querySelectorAll<HTMLButtonElement>('[data-theme-set]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.themeSet === t)));
     stage?.setTheme(t);
     audio.theme(t === 'night');
-    if (!silent) audio.click();
+    if (!silent) {
+      audio.click();
+      voice.say(t);
+    }
   };
   const applySound = () => {
     const on = prefs.get('sound');
@@ -99,7 +122,9 @@ export function start() {
       $('fc-stamp').textContent = rec.stamp;
       $('fc-date').textContent = rec.date ?? '';
       ($('fc-open') as HTMLButtonElement).disabled = false;
+      setClearance(rec.stamp);
     } else {
+      setClearance('DECLASSIFIED');
       swapText($('fc-file'), `${cat.code}-0000`);
       $('fc-title').textContent = 'Drawer empty';
       $('fc-sub').textContent = 'Add a Markdown file to this category to file a record.';
@@ -116,8 +141,16 @@ export function start() {
     sel[ci] = n ? Math.max(0, Math.min(n - 1, i)) : 0;
     stage?.focus(col, sel[col]);
     renderHud(colChanged);
-    if (colChanged) audio.drawer();
-    else audio.flick();
+    audio.sputnik(categories[col].id === 'programs');
+    if (colChanged) {
+      audio.drawer();
+      audio.tune();
+      if (n) voice.say(`drawer.${categories[col].id}`);
+      else voice.say('emptyDrawer');
+    } else {
+      audio.flick();
+      rush();
+    }
   }
 
   function move(step: number) {
@@ -155,6 +188,8 @@ export function start() {
     dossier.fill(rec, { index: i, total: byCat[ci].length });
     stage?.inspect(rec);
     audio.open();
+    audio.sputnik(rec.category === 'programs');
+    voice.say(`open.${rec.stamp}`, { file: rec.file, title: rec.title });
     if (!already) setTimeout(() => audio.stamp(), 900);
     document.title = `${rec.file} · ${rec.title} — The Ninth Draft`;
     if (push) history.pushState({ file: rec.file }, '', recordUrl(rec));
@@ -170,6 +205,9 @@ export function start() {
     dossier.reset();
     stage?.release();
     audio.close();
+    const back = byCat[col][sel[col]];
+    if (back) setClearance(back.stamp);
+    audio.sputnik(categories[col].id === 'programs');
     document.title = 'The Ninth Draft — Archive';
     if (push) history.pushState({}, '', base);
   }
@@ -193,8 +231,19 @@ export function start() {
     else closeRecord(false);
   });
 
-  const dossier = new Dossier(records, categories, base, (r) => openRecord(r));
-  const search = new Search(records, categories, base, (r) => openRecord(r));
+  let lastDraftVoice = 9;
+  const dossier = new Dossier(records, categories, base, {
+    go: (r) => openRecord(r),
+    draft: (rec, info, byUser) => {
+      setClearance(info.stamp);
+      if (!byUser) return;
+      if (info.n <= 3 && lastDraftVoice > 3) voice.say('draftEarly', { draft: String(info.n).padStart(2, '0') });
+      else if (info.n === 9 && lastDraftVoice < 9) voice.say('draftFinal');
+      lastDraftVoice = info.n;
+    },
+    reveal: () => voice.say('reveal', {}, false),
+  });
+  const search = new Search(records, categories, base, (r) => openRecord(r), () => voice.say('searchEmpty', {}, false));
 
   /* ---------------- controls ---------------- */
   $('fc-open').addEventListener('click', () => {
@@ -208,6 +257,7 @@ export function start() {
     prefs.set('sound', !prefs.get('sound'));
     applySound();
     audio.click();
+    voice.say(prefs.get('sound') ? 'soundOn' : 'soundOff');
   });
   document.querySelectorAll<HTMLButtonElement>('[data-theme-set]').forEach((b) =>
     b.addEventListener('click', () => applyTheme(b.dataset.themeSet as 'day' | 'night')),
@@ -245,6 +295,8 @@ export function start() {
       else if (e.key === 'ArrowRight' || e.key === 'ArrowDown') { e.preventDefault(); stepRecord(1); }
       else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') { e.preventDefault(); stepRecord(-1); }
       else if (['1', '2', '3'].includes(e.key)) dossierTab(Number(e.key));
+      else if (e.key === '[') dossier.stepDraft(-1);
+      else if (e.key === ']') dossier.stepDraft(1);
     }
     if (e.key === 'n' || e.key === 'N') applyTheme(prefs.get('theme') === 'day' ? 'night' : 'day');
   });
@@ -284,6 +336,13 @@ export function start() {
 
   const enter = () => {
     try { sessionStorage.setItem('n9:boot', '1'); } catch { /* ignore */ }
+    let visits = 0;
+    try {
+      visits = Number(localStorage.getItem('n9:visits') || 0) + 1;
+      localStorage.setItem('n9:visits', String(visits));
+    } catch { /* ignore */ }
+    if (!initial) setTimeout(() => voice.say(visits > 1 ? 'welcomeBack' : prefs.get('theme') === 'night' ? 'night' : 'welcome'), 600);
+    audio.sputnik(categories[col].id === 'programs');
     if (initial) setTimeout(() => openRecord(initial, false), 350);
   };
 
@@ -295,6 +354,6 @@ export function start() {
     window.addEventListener('keydown', unlock, { once: true });
     enter();
   } else {
-    void boot(root, fontsReady).then(enter);
+    void boot(root, fontsReady, data.archivist.boot as string[]).then(enter);
   }
 }

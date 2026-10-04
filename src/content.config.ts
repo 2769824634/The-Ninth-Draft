@@ -34,6 +34,21 @@ const records = defineCollection({
     tags: z.array(z.string()).default([]),
     /** Lower numbers come first inside a category. */
     order: z.number().default(100),
+    /**
+     * Optional revision history shown on the draft slider (drafts 1–8; draft 9 is the final file).
+     * Any draft you leave out gets a default label.
+     */
+    drafts: z
+      .array(
+        z.object({
+          n: z.number().int().min(1).max(8),
+          label: z.string().optional(),
+          date: z.string().optional(),
+          by: z.string().optional(),
+          stamp: z.enum(['DRAFT', 'TOP SECRET', 'SECRET', 'CONFIDENTIAL', 'RESTRICTED', 'DECLASSIFIED']).optional(),
+        }),
+      )
+      .default([]),
   }),
 });
 

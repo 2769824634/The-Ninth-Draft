@@ -92,6 +92,7 @@ export class Stage {
   private yaw = new Spring(0, 5);
   private pitch = new Spring(0, 5);
   private lampScale = new Spring(1, 3);
+  private lampTint = new THREE.Color('#ffd29a');
   private fogNear = new Spring(38, 3);
   private fogFar = new Spring(86, 3);
 
@@ -341,6 +342,11 @@ export class Stage {
     this.layout(f ?? undefined);
   }
 
+  /** Tint the night lamp toward the current record's clearance colour. */
+  setClearance(hex: string) {
+    this.lampTint.set('#ffd29a').lerp(new THREE.Color(hex), 0.22);
+  }
+
   setTheme(theme: 'day' | 'night') {
     this.lookTarget = LOOKS[theme];
     if (this.mode === 'browse') {
@@ -474,6 +480,7 @@ export class Stage {
     this.sun.intensity = L.sun;
     this.sun.color.copy(L.sunColor);
     this.lamp.intensity = L.lamp * this.lampScale.update(dt);
+    this.lamp.color.lerp(this.lampTint, damp(2, dt));
     this.lamp.visible = L.lamp > 0.5;
     this.floorMat.opacity = L.shadow;
     this.metalMat.color.copy(L.metal);

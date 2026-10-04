@@ -13,6 +13,7 @@
 @property --line   { syntax: '<color>'; inherits: true; initial-value: rgb(18 19 20 / .16); }
 @property --veil   { syntax: '<color>'; inherits: true; initial-value: rgb(228 227 222 / .82); }
 @property --accent { syntax: '<color>'; inherits: true; initial-value: #b8281d; }
+@property --clr    { syntax: '<color>'; inherits: true; initial-value: #121314; }
 
 :root {
   --f-sans: 'Archivo Variable', 'Archivo', 'Helvetica Neue', Arial, sans-serif;
@@ -39,6 +40,14 @@
   --line: rgb(18 19 20 / .16);
   --veil: rgb(228 227 222 / .82);
   --accent: #b8281d;
+  /* Clearance coding: one colour per classification */
+  --c-top: #b8281d;
+  --c-secret: #b07a0c;
+  --c-conf: #1f4fa3;
+  --c-restr: #55663f;
+  --c-declass: #121314;
+  --c-draft: #6d6a63;
+  --note: #23366e;
   color-scheme: light;
 }
 
@@ -51,5 +60,21 @@
   --line: rgb(235 230 218 / .15);
   --veil: rgb(12 13 15 / .8);
   --accent: #e0503f;
+  --c-top: #e0503f;
+  --c-secret: #e0a43a;
+  --c-conf: #6f98e6;
+  --c-restr: #9db08a;
+  --c-declass: #ebe6da;
+  --c-draft: #9a968d;
+  --note: #9fb4ee;
   color-scheme: dark;
 }
+
+/* Current record's clearance, set on .archive by script */
+.archive { --clr: var(--c-declass); }
+.archive[data-clr='top'] { --clr: var(--c-top); }
+.archive[data-clr='secret'] { --clr: var(--c-secret); }
+.archive[data-clr='conf'] { --clr: var(--c-conf); }
+.archive[data-clr='restr'] { --clr: var(--c-restr); }
+.archive[data-clr='draft'] { --clr: var(--c-draft); }
+.archive { transition: --clr 600ms var(--ease); }

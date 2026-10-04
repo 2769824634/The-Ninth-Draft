@@ -4,11 +4,14 @@
  */
 import * as THREE from 'three';
 import type { ArchiveRecord } from '../types';
+import { INK as CLEARANCE_INK, clearanceKey } from '../clearance';
+
+const inkOf = (stamp: string) => CLEARANCE_INK[clearanceKey(stamp)];
 
 export const MANILA = '#cfbb8f';
+export { inkOf };
 export const MANILA_DARK = '#b9a374';
 const INK = '#1d1b17';
-const RED = '#b3271c';
 
 const MONO = '"IBM Plex Mono", ui-monospace, monospace';
 const SANS = '"Archivo Variable", "Archivo", Arial, sans-serif';
@@ -107,15 +110,15 @@ function paper(g: CanvasRenderingContext2D, w: number, h: number, base: string, 
   g.restore();
 }
 
-function stamp(g: CanvasRenderingContext2D, text: string, x: number, y: number, size: number, angle: number, seed: number) {
+function stamp(g: CanvasRenderingContext2D, text: string, x: number, y: number, size: number, angle: number, seed: number, color = inkOf(text)) {
   g.save();
   g.translate(x, y);
   g.rotate(angle);
   g.font = `700 ${size}px ${MONO}`;
   const tw = g.measureText(text).width;
   const pad = size * 0.45;
-  g.strokeStyle = RED;
-  g.fillStyle = RED;
+  g.strokeStyle = color;
+  g.fillStyle = color;
   g.globalAlpha = 0.82;
   g.lineWidth = size * 0.11;
   g.strokeRect(-tw / 2 - pad, -size * 0.85, tw + pad * 2, size * 1.55);
@@ -249,7 +252,7 @@ export function coverTexture(rec: ArchiveRecord | null, seed: number) {
 /* ======================================================================
    Tab label
    ====================================================================== */
-export function tabTexture(text: string, seed: number, accent = false) {
+export function tabTexture(text: string, seed: number, accent: string | null = null) {
   const W = 512, H = 128;
   const [c, g] = canvas(W, H);
   paper(g, W, H, MANILA, seed, 0.6);
@@ -259,7 +262,7 @@ export function tabTexture(text: string, seed: number, accent = false) {
   g.strokeStyle = 'rgba(0,0,0,.18)';
   g.strokeRect(28, 26, W - 56, H - 46);
   if (accent) {
-    g.fillStyle = RED;
+    g.fillStyle = accent;
     g.fillRect(28, 26, 14, H - 46);
   }
   g.font = `600 54px ${MONO}`;
