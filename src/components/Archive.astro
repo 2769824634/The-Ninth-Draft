@@ -1,0 +1,195 @@
+---
+import { CATEGORIES, type ClientRecord } from '../lib/records';
+import Seal from './Seal.astro';
+import '../styles/hud.css';
+import '../styles/dossier.css';
+import '../styles/overlays.css';
+
+interface Props {
+  records: ClientRecord[];
+  initial?: string;
+}
+const { records, initial } = Astro.props;
+const base = import.meta.env.BASE_URL;
+const payload = JSON.stringify({ base, categories: CATEGORIES, records, initial: initial ?? null }).replace(/</g, '\\u003c');
+---
+
+<div class="archive" id="archive" data-view="browse" data-boot="on">
+  <canvas class="stage" id="stage" aria-hidden="true"></canvas>
+  <div class="veil" aria-hidden="true"></div>
+
+  <!-- Orbital drafting lines: the quiet space-age layer -->
+  <svg class="orbits" viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+    <ellipse cx="1180" cy="430" rx="620" ry="210" transform="rotate(-14 1180 430)" />
+    <ellipse cx="1180" cy="430" rx="460" ry="150" transform="rotate(-14 1180 430)" />
+    <circle cx="1180" cy="430" r="2.5" class="orbits__dot" />
+  </svg>
+
+  <!-- ===================== HUD ===================== -->
+  <header class="brand">
+    <a class="brand__link" href={base} data-nav="home" aria-label="The Ninth Draft — archive overview">
+      <span class="brand__l1">The Ninth Draft</span>
+      <span class="brand__l2">Declassified records</span>
+      <span class="brand__l3">Archive <b>N°9</b></span>
+    </a>
+  </header>
+
+  <nav class="tools" aria-label="Tools">
+    <button class="tool" id="btn-search" type="button">
+      <svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="7" cy="7" r="4.6" /><path d="M10.4 10.4 14 14" /></svg>
+      <span>Index</span><span class="kbd">/</span>
+    </button>
+    <div class="seg" role="group" aria-label="Lighting">
+      <span class="seg__thumb" aria-hidden="true"></span>
+      <button type="button" data-theme-set="day" aria-pressed="true">Day</button>
+      <button type="button" data-theme-set="night" aria-pressed="false">Night</button>
+    </div>
+    <button class="tool tool--sound" id="btn-sound" type="button" aria-pressed="false">
+      <span class="eq" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
+      <span id="sound-label">Sound off</span>
+    </button>
+  </nav>
+
+  <!-- Browse: file panel -->
+  <section class="filecard" id="filecard" aria-live="polite">
+    <div class="filecard__crumb micro"><span>Archive</span><span>/</span><span id="fc-category">Personnel</span></div>
+    <h1 class="filecard__no"><span class="filecard__no-lbl">File no.</span> <span id="fc-file" class="swap">P-0001</span></h1>
+    <div class="filecard__rule"><i></i><span class="micro">Reference area</span></div>
+    <div class="filecard__body">
+      <p class="filecard__title" id="fc-title"></p>
+      <p class="filecard__sub" id="fc-sub"></p>
+      <button class="filecard__open" id="fc-open" type="button">
+        <span>Access file</span>
+        <svg viewBox="0 0 24 12" aria-hidden="true"><path d="M0 6h22M17 1l5 5-5 5" /></svg>
+      </button>
+    </div>
+    <div class="filecard__meta">
+      <span class="stamp-chip" id="fc-stamp">Declassified</span>
+      <span class="micro" id="fc-date"></span>
+    </div>
+  </section>
+
+  <section class="index-sel">
+    <div class="micro">Index / select</div>
+    <div class="index-sel__nums">
+      <span class="roller" id="roll-cur" aria-label="Selected position"></span>
+      <span class="index-sel__slash">/</span>
+      <span class="index-sel__total" id="roll-total">00</span>
+    </div>
+  </section>
+
+  <section class="rail">
+    <div class="rail__ruler">
+      <button type="button" class="rail__arrow" data-step="-1" aria-label="Previous file">
+        <svg viewBox="0 0 12 18" aria-hidden="true"><path d="M6 17V1M1 6l5-5 5 5" /></svg>
+      </button>
+      <div class="ruler" id="ruler" aria-hidden="true"></div>
+      <button type="button" class="rail__arrow" data-step="1" aria-label="Next file">
+        <svg viewBox="0 0 12 18" aria-hidden="true"><path d="M6 1v16M1 12l5 5 5-5" /></svg>
+      </button>
+    </div>
+    <div class="rail__col">
+      <button type="button" class="rail__arrow rail__arrow--h" data-col="-1" aria-label="Previous drawer">
+        <svg viewBox="0 0 18 12" aria-hidden="true"><path d="M17 6H1M6 1 1 6l5 5" /></svg>
+      </button>
+      <div class="rail__colinfo">
+        <span class="micro">Drawer <span id="col-no">01</span> / 0{CATEGORIES.length}</span>
+        <span class="rail__colname" id="col-name">Personnel</span>
+      </div>
+      <button type="button" class="rail__arrow rail__arrow--h" data-col="1" aria-label="Next drawer">
+        <svg viewBox="0 0 18 12" aria-hidden="true"><path d="M1 6h16M12 1l5 5-5 5" /></svg>
+      </button>
+    </div>
+    <div class="rail__hints micro">
+      <span>← → Drawer</span><span>/</span><span>↑ ↓ File</span><span>/</span><span>Enter Open</span>
+    </div>
+  </section>
+
+  <footer class="foot">
+    <span class="foot__status micro"><i></i>Clearance granted</span>
+    <span class="foot__coords micro" id="coords">RA 04h 21m 07s · Dec +61° 12′</span>
+    <span class="foot__clock micro" id="clock">00:00:00</span>
+    <span class="foot__mark">Archive of <b>The Ninth Draft</b><i></i></span>
+  </footer>
+
+  <!-- ===================== DOSSIER ===================== -->
+  <aside class="inspect" aria-hidden="true">
+    <button class="back" id="btn-back" type="button">
+      <svg viewBox="0 0 24 12" aria-hidden="true"><path d="M24 6H2M7 1 2 6l5 5" /></svg>
+      <span>Archive overview</span><span class="kbd">Esc</span>
+    </button>
+    <div class="inspect__no">
+      <span class="inspect__big" id="in-no">No.0001</span>
+      <span class="micro" id="in-cat">Personnel / Internal archive</span>
+      <span class="inspect__drag micro">Drag to inspect <svg viewBox="0 0 18 8" aria-hidden="true"><path d="M1 4h16M4 1 1 4l3 3M14 1l3 3-3 3" /></svg></span>
+    </div>
+  </aside>
+
+  <article class="dossier" id="dossier" aria-hidden="true">
+    <header class="dossier__head">
+      <div class="dossier__crumbs micro"><span id="ds-file">File P-0001</span><span>Reference area</span></div>
+      <h2 class="dossier__title" id="ds-title"></h2>
+      <p class="dossier__sub" id="ds-sub"></p>
+    </header>
+    <dl class="dossier__meta" id="ds-meta"></dl>
+    <div class="tabs" role="tablist">
+      <button role="tab" type="button" data-tab="overview" aria-selected="true"><span>01</span>Overview</button>
+      <button role="tab" type="button" data-tab="record" aria-selected="false"><span>02</span>Record</button>
+      <button role="tab" type="button" data-tab="related" aria-selected="false"><span>03</span>Related</button>
+      <i class="tabs__bar" aria-hidden="true"></i>
+    </div>
+    <div class="dossier__scroll" id="ds-scroll">
+      <section class="pane" data-pane="overview" id="ds-overview"></section>
+      <section class="pane prose" data-pane="record" id="ds-record" hidden></section>
+      <section class="pane" data-pane="related" id="ds-related" hidden></section>
+    </div>
+    <footer class="dossier__foot">
+      <button type="button" class="dossier__step" data-dstep="-1"><svg viewBox="0 0 24 12" aria-hidden="true"><path d="M24 6H2M7 1 2 6l5 5" /></svg><span>Previous</span></button>
+      <span class="micro" id="ds-count">01 / 04</span>
+      <button type="button" class="dossier__step" data-dstep="1"><span>Next</span><svg viewBox="0 0 24 12" aria-hidden="true"><path d="M0 6h22M17 1l5 5-5 5" /></svg></button>
+    </footer>
+  </article>
+
+  <!-- ===================== SEARCH ===================== -->
+  <div class="search" id="search" role="dialog" aria-modal="true" aria-label="Search the archive" hidden>
+    <div class="search__inner">
+      <div class="search__top">
+        <span class="micro">Archive index</span>
+        <button type="button" class="search__close" id="search-close"><span>Close</span><span class="kbd">Esc</span></button>
+      </div>
+      <label class="search__field">
+        <span class="sr-only">Search</span>
+        <input id="search-input" type="search" placeholder="Search names, events, file numbers" autocomplete="off" spellcheck="false" />
+      </label>
+      <div class="search__count micro" id="search-count"></div>
+      <ol class="search__list" id="search-list"></ol>
+    </div>
+  </div>
+
+  <!-- ===================== BOOT ===================== -->
+  <div class="boot" id="boot">
+    <div class="boot__center">
+      <Seal />
+      <div class="boot__id">
+        <span class="boot__dot"></span><span id="boot-line"></span>
+      </div>
+    </div>
+    <button class="boot__enter" id="boot-enter" type="button">
+      <span>Enter archive</span>
+      <svg viewBox="0 0 12 12" aria-hidden="true"><path d="M1 11 11 1M3 1h8v8" /></svg>
+    </button>
+    <div class="boot__progress" aria-hidden="true"><i id="boot-bar"></i></div>
+    <p class="boot__caption micro" id="boot-caption">Establishing secure line</p>
+  </div>
+
+  <noscript>
+    <div class="noscript">This archive needs JavaScript to open its drawers.</div>
+  </noscript>
+</div>
+
+<script type="application/json" id="archive-data" set:html={payload} />
+
+<script>
+  import { start } from '../app/main';
+  start();
+</script>

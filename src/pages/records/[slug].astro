@@ -1,0 +1,17 @@
+---
+import Base from '../../layouts/Base.astro';
+import Archive from '../../components/Archive.astro';
+import { loadRecords } from '../../lib/records';
+
+export async function getStaticPaths() {
+  const records = await loadRecords(import.meta.env.BASE_URL);
+  return records.map((r) => ({ params: { slug: r.slug }, props: { file: r.file, records } }));
+}
+
+const { file, records } = Astro.props;
+const rec = records.find((r) => r.file === file)!;
+---
+
+<Base title={`${rec.file} · ${rec.title} — The Ninth Draft`} description={rec.subtitle ?? rec.title}>
+  <Archive records={records} initial={file} />
+</Base>
