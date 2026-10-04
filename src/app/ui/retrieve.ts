@@ -7,6 +7,7 @@
  */
 import { reducedMotion } from '../prefs';
 import { audio } from '../audio';
+import { t as tr } from '../i18n';
 
 export class Retrieve {
   private el = document.getElementById('ds-retrieve')!;
@@ -33,7 +34,7 @@ export class Retrieve {
     this.el.classList.toggle('has-tip', !!tip);
     this.el.classList.remove('is-done');
     this.el.classList.add('is-on');
-    this.state.textContent = 'Retrieving';
+    this.state.textContent = tr('Retrieving');
 
     const later = (ms: number, fn: () => void) => this.timers.push(window.setTimeout(fn, ms));
     if (reducedMotion()) {
@@ -107,7 +108,7 @@ export class Retrieve {
   }
 
   private finish() {
-    this.state.textContent = 'Retrieved';
+    this.state.textContent = tr('Retrieved');
     this.el.classList.add('is-done');
   }
 }

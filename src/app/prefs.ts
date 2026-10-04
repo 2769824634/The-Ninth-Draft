@@ -2,10 +2,11 @@
 export interface Prefs {
   theme: 'day' | 'night';
   sound: boolean;
+  lang: 'en' | 'zh';
 }
 
 const KEY = 'n9:prefs';
-const defaults: Prefs = { theme: 'day', sound: true };
+const defaults: Prefs = { theme: 'day', sound: true, lang: 'en' };
 
 let state: Prefs = { ...defaults };
 try {

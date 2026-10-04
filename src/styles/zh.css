@@ -1,0 +1,72 @@
+/* ==========================================================================
+   Chinese edition. The Latin faces stay first in every stack, so file
+   numbers, stamps and dates keep their English type; the CJK faces only
+   catch Chinese characters:
+     big titles    站酷酷黑     (--f-display)
+     small UI      寒蝉德黑·窄  (--f-sans, --f-mono)
+     body          寒蝉活宋·復  (--f-serif)   letterpress, slightly uneven
+     SYSTEM        寒蝉点阵     (--f-system)
+     Heuss         汇文仿宋     (--f-note)
+   ========================================================================== */
+
+/* Role fonts that also apply in English (same Latin face, CJK fallback differs) */
+.brand__l1, .brand__l3, .filecard__no, .filecard__title, .dossier__title, .inspect__big,
+.wallhud__title, .wallhud__name, .chapter__title, .rail__colname { font-family: var(--f-display); }
+.rv-note, .nt__text, .nt__by, .slip__init, .drafts__hint { font-family: var(--f-note); }
+.sysmsg { font-family: var(--f-system); }
+
+:root[data-lang='zh'] {
+  /* CJK faces have one weight and no italic: never fake either */
+  font-synthesis: none;
+}
+:root[data-lang='zh'] body { line-break: strict; }
+
+/* Body text: more air, CJK reads better with taller lines and no italics */
+[data-lang='zh'] .lede,
+[data-lang='zh'] .prose { line-height: 1.9; letter-spacing: .02em; }
+[data-lang='zh'] .dossier__sub,
+[data-lang='zh'] .filecard__sub,
+[data-lang='zh'] .voice__line,
+[data-lang='zh'] .retrieve__tip,
+[data-lang='zh'] .rv-note,
+[data-lang='zh'] .rel__title small,
+[data-lang='zh'] .rel-empty,
+[data-lang='zh'] .prose blockquote,
+[data-lang='zh'] .nt__text,
+[data-lang='zh'] .nt__by,
+[data-lang='zh'] .ng__cap,
+[data-lang='zh'] .drafts__hint { font-style: normal; }
+
+/* Titles: KuHei is wide already, so no extra stretch; a touch of tracking */
+[data-lang='zh'] .dossier__title { letter-spacing: .04em; line-height: 1.12; }
+[data-lang='zh'] .filecard__title { letter-spacing: .04em; }
+
+/* Heuss writes a little larger in Chinese; 仿宋 is light */
+[data-lang='zh'] .rv-note { font-size: 1em; }
+[data-lang='zh'] .nt__text { font-size: .98rem; }
+
+/* SYSTEM printout: the bitmap face is drawn on a 7px grid, so keep it on 14px */
+[data-lang='zh'] .sysmsg { font-size: 14px; letter-spacing: .08em; }
+[data-lang='zh'] .sysmsg__tag { letter-spacing: .1em; }
+
+/* Telegram strips stay uppercase-free in Chinese */
+[data-lang='zh'] .tg__strip { letter-spacing: .08em; }
+
+/* Language switch: thumb follows the language, not the lighting */
+[data-theme='night'] .seg--lang .seg__thumb { transform: none; }
+[data-lang='zh'] .seg--lang .seg__thumb { transform: translateX(100%); }
+.seg--lang button[lang='zh-CN'] { font-family: 'N9 KuHei', var(--f-sans); }
+
+/* Brand: the Chinese lines sit on taller glyphs, give them room */
+[data-lang='zh'] .brand__link { line-height: 1.12; }
+[data-lang='zh'] .brand__l2 { margin-top: .3rem; letter-spacing: .12em; }
+[data-lang='zh'] .brand__l3 { margin-top: .2rem; letter-spacing: .08em; font-weight: 400; }
+
+@media (max-width: 900px), (max-aspect-ratio: 1/1) {
+  /* Phone: the language switch shrinks to one key showing the other language */
+  .tools { gap: .7rem; }
+  .brand__l1 { font-size: 1.02rem; }
+  .seg--lang { border: 0; }
+  .seg--lang .seg__thumb, .seg--lang button[aria-pressed='true'] { display: none; }
+  .seg--lang button { padding: .38rem .3rem; color: var(--ink); }
+}

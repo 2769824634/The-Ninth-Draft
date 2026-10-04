@@ -8,6 +8,7 @@ import '../styles/overlays.css';
 import '../styles/wall.css';
 import '../styles/attach.css';
 import '../styles/system.css';
+import '../styles/zh.css';
 
 interface Props {
   records: ClientRecord[];
@@ -43,7 +44,7 @@ const links = new Set(records.flatMap((r) => r.related.filter((f) => records.som
     <a class="brand__link" href={base} data-nav="home" aria-label="The Ninth Draft — archive overview">
       <span class="brand__l1">The Ninth Draft</span>
       <span class="brand__l2">Declassified records</span>
-      <span class="brand__l3">Archive <b>N°9</b></span>
+      <span class="brand__l3"><span>Archive</span> <b>N°9</b></span>
     </a>
   </header>
 
@@ -60,6 +61,11 @@ const links = new Set(records.flatMap((r) => r.related.filter((f) => records.som
       <span class="seg__thumb" aria-hidden="true"></span>
       <button type="button" data-theme-set="day" aria-pressed="true">Day</button>
       <button type="button" data-theme-set="night" aria-pressed="false">Night</button>
+    </div>
+    <div class="seg seg--lang" role="group" aria-label="Language">
+      <span class="seg__thumb" aria-hidden="true"></span>
+      <button type="button" data-lang-set="en" aria-pressed="true" lang="en">EN</button>
+      <button type="button" data-lang-set="zh" aria-pressed="false" lang="zh-CN">中</button>
     </div>
     <button class="tool tool--sound" id="btn-sound" type="button" aria-pressed="false">
       <span class="eq" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
@@ -110,7 +116,7 @@ const links = new Set(records.flatMap((r) => r.related.filter((f) => records.som
         <svg viewBox="0 0 18 12" aria-hidden="true"><path d="M17 6H1M6 1 1 6l5 5" /></svg>
       </button>
       <div class="rail__colinfo">
-        <span class="micro">Drawer <span id="col-no">01</span> / 0{CATEGORIES.length}</span>
+        <span class="micro"><span>Drawer</span> <span id="col-no">01</span> / 0{CATEGORIES.length}</span>
         <span class="rail__colname" id="col-name">Personnel</span>
       </div>
       <button type="button" class="rail__arrow rail__arrow--h" data-col="1" aria-label="Next drawer">
@@ -160,7 +166,7 @@ const links = new Set(records.flatMap((r) => r.related.filter((f) => records.som
     <div class="wallhud__head">
       <span class="micro">Room 02 / Link analysis</span>
       <h1 class="wallhud__title">Red string</h1>
-      <span class="micro">{records.length} records · {links} links · <span id="wall-sweep">Sweep 00</span></span>
+      <span class="micro"><span id="wall-count" data-records={records.length} data-links={links}>{records.length} records · {links} links</span> · <span id="wall-sweep">Sweep 00</span></span>
     </div>
     <div class="wallhud__note" id="wall-note" aria-live="polite">
       <span class="micro" id="wall-note-file">Hover a card to isolate its links</span>
@@ -186,7 +192,7 @@ const links = new Set(records.flatMap((r) => r.related.filter((f) => records.som
     <i class="chapter__block"></i>
     <i class="chapter__wedge"></i>
     <i class="chapter__rule"></i>
-    <span class="chapter__no micro">Drawer {programsNo} / Chapter</span>
+    <span class="chapter__no micro"><span>Drawer</span> {programsNo} / <span>Chapter</span></span>
     <h2 class="chapter__title">programs</h2>
     <svg class="chapter__patch" viewBox="0 0 120 120">
       <defs><path id="patch-arc" d="M60 60m-44 0a44 44 0 1 1 88 0a44 44 0 1 1-88 0" /></defs>
@@ -198,7 +204,7 @@ const links = new Set(records.flatMap((r) => r.related.filter((f) => records.som
       <circle cx="86" cy="48" r="2.6" class="chapter__sat" />
     </svg>
     <div class="chapter__grid micro">
-      <span>{programs.length} programs on file</span>
+      <span id="chapter-count" data-n={programs.length}>{programs.length} programs on file</span>
       {span && <span>{span}</span>}
       {programs.length > 0 && <span>{programs[0].file} → {programs[programs.length - 1].file}</span>}
     </div>
@@ -238,7 +244,7 @@ const links = new Set(records.flatMap((r) => r.related.filter((f) => records.som
     <i class="dossier__thumb" id="ds-thumb" aria-hidden="true"></i>
     <section class="drafts" id="drafts" aria-label="Revision history">
       <div class="drafts__row">
-        <span class="drafts__no">Draft <b id="dr-no">09</b> / 09</span>
+        <span class="drafts__no"><span>Draft</span> <b id="dr-no">09</b> / 09</span>
         <span class="drafts__log micro" id="dr-log">Final · as filed</span>
       </div>
       <p class="drafts__hint" id="dr-hint" hidden></p>

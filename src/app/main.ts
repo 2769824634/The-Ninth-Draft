@@ -16,13 +16,19 @@ import { Search } from './ui/search';
 import { boot } from './ui/boot';
 import { Roller, decode, esc, swapText } from './ui/text';
 import { audio } from './audio';
-import { prefs } from './prefs';
+import { prefs, reducedMotion } from './prefs';
+import { applyRecords, isZh, lang, markDocument, onLang, setLang, t, translateDom, type Lang } from './i18n';
+import { canvasFontsReady } from './scene/textures';
 
 export function start() {
   const data: ArchiveData = JSON.parse(document.getElementById('archive-data')!.textContent!);
   const root = document.getElementById('archive')!;
   const $ = (id: string) => document.getElementById(id)!;
   const { categories, records, base } = data;
+  // Language first: every module below reads the records as they are now
+  markDocument();
+  applyRecords(records);
+  translateDom(root);
 
   const byCat = categories.map((c) => records.filter((r) => r.category === c.id));
   let col = Math.max(0, byCat.findIndex((list) => list.length > 0));
@@ -75,7 +81,7 @@ export function start() {
   const applySound = () => {
     const on = prefs.get('sound');
     $('btn-sound').setAttribute('aria-pressed', String(on));
-    $('sound-label').textContent = on ? 'Sound on' : 'Sound off';
+    $('sound-label').textContent = on ? t('Sound on') : t('Sound off');
     audio.apply();
   };
 
@@ -123,9 +129,9 @@ export function start() {
     const cat = categories[col];
     if (colChanged) {
       buildRuler();
-      swapText($('col-name'), cat.label);
+      swapText($('col-name'), t(cat.label));
       $('col-no').textContent = String(col + 1).padStart(2, '0');
-      swapText($('fc-category'), cat.label);
+      swapText($('fc-category'), t(cat.label));
     }
     $('roll-total').textContent = String(list.length).padStart(2, '0');
     roller.set(list.length ? sel[col] + 1 : 0);
@@ -143,8 +149,8 @@ export function start() {
     } else {
       setClearance('DECLASSIFIED');
       swapText($('fc-file'), `${cat.code}-0000`);
-      $('fc-title').textContent = 'Drawer empty';
-      $('fc-sub').textContent = 'Add a Markdown file to this category to file a record.';
+      $('fc-title').textContent = t('Drawer empty');
+      $('fc-sub').textContent = t('Add a Markdown file to this category to file a record.');
       $('fc-stamp').textContent = '—';
       $('fc-date').textContent = '';
       ($('fc-open') as HTMLButtonElement).disabled = true;
@@ -212,7 +218,7 @@ export function start() {
     dossier.fill(rec, { index: i, total: byCat[ci].length });
     const notes = dossier.noteSpan();
     retrieve.run(
-      `Drawer ${String(ci + 1).padStart(2, '0')} · Folder ${String(i + 1).padStart(2, '0')} · ${rec.file}`,
+      t('Drawer {drawer} · Folder {folder} · {file}', { drawer: String(ci + 1).padStart(2, '0'), folder: String(i + 1).padStart(2, '0'), file: rec.file }),
       notes
         ? voice.pick('retrieve.notes', { drafts: notes })
         : voice.pick(`retrieve.${rec.category}`, { file: rec.file, title: rec.title }) ?? voice.pick('retrieve.any', { file: rec.file }),
@@ -224,7 +230,7 @@ export function start() {
     voice.say(`open.${rec.stamp}`, { file: rec.file, title: rec.title });
     system.opened(rec.stamp);
     if (!already) setTimeout(() => audio.stamp(), 900);
-    document.title = `${rec.file} · ${rec.title} — The Ninth Draft`;
+    document.title = t('{file} · {title} — The Ninth Draft', { file: rec.file, title: rec.title });
     if (push) history.pushState({ file: rec.file }, '', recordUrl(rec));
   }
 
@@ -243,7 +249,7 @@ export function start() {
     const back = byCat[col][sel[col]];
     if (back) setClearance(back.stamp);
     audio.sputnik(categories[col].id === 'programs');
-    document.title = 'The Ninth Draft — Archive';
+    document.title = t('The Ninth Draft — Archive');
     if (push) history.pushState({}, '', base);
   }
 
@@ -272,8 +278,18 @@ export function start() {
 
   /* ---------------- link wall (room 02) ---------------- */
   const note = { file: $('wall-note-file'), title: $('wall-note-title'), linked: $('wall-note-linked') };
-  const idleNote = () => (matchMedia('(pointer: coarse)').matches ? 'Tap a card to isolate its links' : 'Hover a card to isolate its links');
+  const idleNote = () => t(matchMedia('(pointer: coarse)').matches ? 'Tap a card to isolate its links' : 'Hover a card to isolate its links');
   note.file.textContent = idleNote();
+  // What the wall note shows, so it can be rewritten in another language
+  let wallFocus: { rec: ArchiveRecord; linked: ArchiveRecord[] } | null = null;
+  let sweeps = 0;
+  const wallCount = () => {
+    const el = $('wall-count');
+    el.textContent = t('{records} records · {links} links', { records: el.dataset.records ?? '', links: el.dataset.links ?? '' });
+    const ch = document.getElementById('chapter-count');
+    if (ch) ch.textContent = t('{n} programs on file', { n: ch.dataset.n ?? '' });
+  };
+  wallCount();
 
   function ensureWall() {
     if (wall || root.classList.contains('no-webgl')) return wall;
@@ -281,6 +297,7 @@ export function start() {
       wall = new Wall($('wall') as HTMLCanvasElement, data, {
         focus: (rec, linked) => {
           if (!rec) {
+            wallFocus = null;
             note.file.textContent = idleNote();
             note.title.textContent = '';
             note.linked.textContent = '';
@@ -289,11 +306,12 @@ export function start() {
             return;
           }
           setClearance(rec.stamp);
-          note.file.textContent = `${rec.file} · ${rec.stamp} · Grid ${wall?.gridRef(rec.file) ?? ''}`;
+          note.file.textContent = `${rec.file} · ${rec.stamp} · ${t('Grid')} ${wall?.gridRef(rec.file) ?? ''}`;
           note.title.textContent = rec.title;
           note.linked.innerHTML = linked.length
-            ? `Linked to<br>${linked.map((r) => `<b>${esc(r.file)}</b> ${esc(r.title)}`).join('<br>')}`
-            : 'No linked records.';
+            ? `${t('Linked to')}<br>${linked.map((r) => `<b>${esc(r.file)}</b> ${esc(r.title)}`).join('<br>')}`
+            : t('No linked records.');
+          wallFocus = { rec, linked };
           if (linked.length >= 4) voice.say('wall.popular', { file: rec.file, title: rec.title }, false);
           else if (!linked.length) voice.say('wall.alone', { file: rec.file, title: rec.title }, false);
         },
@@ -304,7 +322,8 @@ export function start() {
           if (wall?.rearranged === 6) voice.say('wall.mess');
         },
         swept: (contacts, n) => {
-          $('wall-sweep').textContent = `Sweep ${String(n).padStart(2, '0')}`;
+          sweeps = n;
+          $('wall-sweep').textContent = t('Sweep {n}', { n: String(n).padStart(2, '0') });
           if (n === 3) voice.say('sweep', { count: contacts }, false);
         },
         readout: (text) => {
@@ -334,7 +353,7 @@ export function start() {
       wall?.start();
       root.dataset.room = 'wall';
       if (focusFile) wall?.focus(focusFile, true);
-      document.title = 'Link analysis — The Ninth Draft';
+      document.title = t('Link analysis — The Ninth Draft');
       audio.sputnik(false);
     };
     if (push) history.pushState({ room: 'wall' }, '', `${base}wall/`);
@@ -356,7 +375,7 @@ export function start() {
       boardCoords = null;
       tick();
       root.dataset.room = 'archive';
-      document.title = 'The Ninth Draft — Archive';
+      document.title = t('The Ninth Draft — Archive');
       const back = byCat[col][sel[col]];
       setClearance(back?.stamp ?? 'DECLASSIFIED');
       audio.sputnik(categories[col].id === 'programs');
@@ -394,6 +413,49 @@ export function start() {
     },
   });
   const search = new Search(records, categories, base, (r) => openRecord(r), () => voice.say('searchEmpty', {}, false));
+
+  /* ---------------- language ---------------- */
+  const langButtons = document.querySelectorAll<HTMLButtonElement>('[data-lang-set]');
+  const markLang = () => langButtons.forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.langSet === lang())));
+  markLang();
+  let relangT = 0;
+  onLang(async (l: Lang) => {
+    markLang();
+    audio.click();
+    audio.tune();
+    // Text dips out, changes, comes back: never a hard cut
+    const fading = reducedMotion() ? [] : [...root.querySelectorAll<HTMLElement>('.brand, .tools, .filecard, .index-sel, .rail__colinfo, .rail__hints, .voice, .dossier, .inspect, .wallhud__head, .wallhud__note, .wallhud__hints')];
+    const outs = fading.map((el) => el.animate([{ filter: 'none' }, { filter: 'opacity(0) blur(2px)' }], { duration: 170, easing: 'ease-in', fill: 'forwards' }));
+    const fonts = l === 'zh' ? canvasFontsReady(records.map((r) => `${r.title}${r.zh?.title ?? ''}${r.zh?.subtitle ?? ''}${r.zh?.summary ?? ''}${r.zh?.place ?? ''}${r.zh?.fields.map((f) => f.label + f.value).join('') ?? ''}`).join('')) : Promise.resolve();
+    window.clearTimeout(relangT);
+    relangT = window.setTimeout(async () => {
+      applyRecords(records);
+      translateDom(root);
+      applySound();
+      wallCount();
+      renderHud(true);
+      dossier.relang();
+      if (view === 'detail' && current) document.title = t('{file} · {title} — The Ninth Draft', { file: current.file, title: current.title });
+      else document.title = t(roomTarget === 'wall' ? 'Link analysis — The Ninth Draft' : 'The Ninth Draft — Archive');
+      if (sweeps) $('wall-sweep').textContent = t('Sweep {n}', { n: String(sweeps).padStart(2, '0') });
+      if (wallFocus) {
+        const { rec, linked } = wallFocus;
+        note.file.textContent = `${rec.file} · ${rec.stamp} · ${t('Grid')} ${wall?.gridRef(rec.file) ?? ''}`;
+        note.title.textContent = rec.title;
+        note.linked.innerHTML = linked.length ? `${t('Linked to')}<br>${linked.map((r) => `<b>${esc(r.file)}</b> ${esc(r.title)}`).join('<br>')}` : t('No linked records.');
+      } else note.file.textContent = idleNote();
+      fading.forEach((el, i) => {
+        outs[i].cancel();
+        el.animate([{ filter: 'opacity(0) blur(2px)' }, { filter: 'none' }], { duration: 320, easing: 'ease-out' });
+      });
+      voice.say(l === 'zh' ? 'lang.zh' : 'lang.en');
+      // Paper in the room is retyped once the Chinese glyphs are in
+      await fonts;
+      stage?.relabel();
+      wall?.relabel();
+    }, reducedMotion() ? 0 : 180);
+  });
+  langButtons.forEach((b) => b.addEventListener('click', () => setLang(b.dataset.langSet === 'zh' ? 'zh' : 'en')));
 
   /* ---------------- controls ---------------- */
   $('fc-open').addEventListener('click', () => {
@@ -464,6 +526,7 @@ export function start() {
         const rec = records.find((r) => r.file === wall?.focusedFile);
         if (rec) leaveWall(rec);
       } else if (e.key === 'n' || e.key === 'N') applyTheme(prefs.get('theme') === 'day' ? 'night' : 'day');
+      else if (e.key === 'l' || e.key === 'L') setLang(isZh() ? 'en' : 'zh');
       return;
     }
     if (view === 'browse') {
@@ -484,6 +547,7 @@ export function start() {
       else if (e.key === ']') dossier.stepDraft(1);
     }
     if (e.key === 'n' || e.key === 'N') applyTheme(prefs.get('theme') === 'day' ? 'night' : 'day');
+    if (e.key === 'l' || e.key === 'L') setLang(isZh() ? 'en' : 'zh');
   });
   const dossierTab = (n: number) => dossier.show((['overview', 'record', 'related'] as const)[n - 1]);
 
@@ -512,6 +576,12 @@ export function start() {
   stage?.focus(col, sel[col]);
   renderHud(true);
   stage?.start();
+  // In Chinese, the folders were typed before their glyphs arrived: retype them
+  const allZh = () => records.map((r) => [r.title, r.subtitle, r.place, r.summary, ...r.fields.map((f) => f.label + f.value)].join('')).join('');
+  if (isZh()) void canvasFontsReady(allZh()).then(() => {
+    stage?.relabel();
+    wall?.relabel();
+  });
 
   const initial = data.initial ? records.find((r) => r.file === data.initial) : fromPath();
   const fontsReady = document.fonts?.ready ?? Promise.resolve();
@@ -544,6 +614,6 @@ export function start() {
     window.addEventListener('keydown', unlock, { once: true });
     enter();
   } else {
-    void boot(root, fontsReady, data.archivist.boot as string[]).then(enter);
+    void boot(root, fontsReady, voice.list('boot')).then(enter);
   }
 }

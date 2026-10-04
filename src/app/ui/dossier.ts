@@ -5,6 +5,7 @@ import { audio } from '../audio';
 import { hash, loadPhoto } from '../scene/textures';
 import { halftone, hasPortrait } from '../scene/halftone';
 import { attachmentsHtml, paintNegatives, showDraft } from './attachments';
+import { t } from '../i18n';
 
 type Tab = 'overview' | 'record' | 'related' | 'attachments';
 
@@ -23,13 +24,13 @@ export interface DraftInfo {
 
 /** Resolve what draft `n` of a record looks like, filling gaps with sensible defaults. */
 export function draftInfo(rec: ArchiveRecord, n: number): DraftInfo {
-  if (n >= 9) return { n: 9, label: DEFAULT_LABELS[9], stamp: rec.stamp, dated: true };
+  if (n >= 9) return { n: 9, label: t(DEFAULT_LABELS[9]), stamp: rec.stamp, dated: true };
   const exact = rec.drafts.find((d) => d.n === n);
   const prior = [...rec.drafts].filter((d) => d.n <= n && d.stamp).sort((a, b) => b.n - a.n)[0];
   const fallback = n <= 2 ? 'DRAFT' : rec.stamp === 'DECLASSIFIED' ? 'SECRET' : rec.stamp;
   return {
     n,
-    label: exact?.label ?? DEFAULT_LABELS[n],
+    label: exact?.label ?? t(DEFAULT_LABELS[n]),
     date: exact?.date,
     by: exact?.by,
     stamp: prior?.stamp ?? fallback,
@@ -140,7 +141,7 @@ export class Dossier {
   noteSpan() {
     const d = this.noteDrafts;
     if (!d.length) return '';
-    return d.length === 1 ? `draft ${pad2(d[0])}` : `drafts ${pad2(d[0])}–${pad2(d[d.length - 1])}`;
+    return d.length === 1 ? t('draft {n}', { n: pad2(d[0]) }) : t('drafts {a}–{b}', { a: pad2(d[0]), b: pad2(d[d.length - 1]) });
   }
 
   /** Slim position line beside the scrolling pane (the native bar is hidden). */
@@ -183,13 +184,26 @@ export class Dossier {
     return this.rec;
   }
 
+  /** Redraw the open file in the current language, keeping tab, draft and scroll. */
+  relang() {
+    const rec = this.rec;
+    if (!rec) return;
+    const d = this.draft, top = this.scroller.scrollTop;
+    this.fill(rec, this.pos);
+    if (d !== 9) this.setDraft(d, false);
+    this.scroller.scrollTop = top;
+  }
+
+  private pos = { index: 0, total: 0 };
+
   fill(rec: ArchiveRecord, position: { index: number; total: number }) {
     const first = !this.rec;
     this.rec = rec;
+    this.pos = position;
     const $ = (id: string) => document.getElementById(id)!;
     const cat = this.categories.find((c) => c.id === rec.category)!;
 
-    swapText($('ds-file'), `File ${rec.file}`);
+    swapText($('ds-file'), t('File {file}', { file: rec.file }));
     $('ds-spine').textContent = `Archive terminal // N°9 // ${cat.code}-${rec.file.split('-')[1] ?? rec.file} // ${rec.stamp}`;
     $('ds-barcode').innerHTML = barcode(rec.file);
     $('ds-title').textContent = rec.title;
@@ -199,28 +213,28 @@ export class Dossier {
     const num = rec.file.split('-')[1] ?? rec.file;
     swapText($('in-no'), `No.${num}`);
     swapText($('watermark'), num);
-    $('in-cat').textContent = `${cat.label} / Internal archive`;
+    $('in-cat').textContent = t('{category} / Internal archive', { category: t(cat.label) });
 
     const meta: [string, string, string?][] = [];
-    if (rec.date) meta.push(['Date', esc(rec.date)]);
-    if (rec.place) meta.push(['Place', esc(rec.place)]);
-    meta.push(['Status', esc(rec.status)]);
-    meta.push(['Classification', `<span id="ds-stamp">${esc(rec.stamp)}</span>`, 'is-stamp']);
+    if (rec.date) meta.push([t('Date'), esc(rec.date)]);
+    if (rec.place) meta.push([t('Place'), esc(rec.place)]);
+    meta.push([t('Status'), esc(t(rec.status))]);
+    meta.push([t('Classification'), `<span id="ds-stamp">${esc(rec.stamp)}</span>`, 'is-stamp']);
     for (const f of rec.fields) meta.push([f.label, f.value]);
     $('ds-meta').innerHTML = meta
       .map(([k, v, cls]) => `<div><dt>${k}</dt><dd${cls ? ` class="${cls}"` : ''}>${v}</dd></div>`)
       .join('');
 
     $('ds-overview').innerHTML = `
-      ${hasPortrait(rec) ? `<figure class="portrait"><span class="portrait__frame"></span><figcaption class="micro">${esc(rec.imageCaption ?? (rec.image ? rec.file : 'No photograph on file · Composite'))}</figcaption></figure>` : ''}
-      <div class="micro lede-label">Abstract</div>
+      ${hasPortrait(rec) ? `<figure class="portrait"><span class="portrait__frame"></span><figcaption class="micro">${esc(rec.imageCaption ?? (rec.image ? rec.file : t('No photograph on file · Composite')))}</figcaption></figure>` : ''}
+      <div class="micro lede-label">${t('Abstract')}</div>
       <p class="lede">${rec.summary}</p>
       ${rec.tags.length ? `<div class="tags">${rec.tags.map((t) => `<span>${esc(t)}</span>`).join('')}</div>` : ''}`;
     if (hasPortrait(rec)) void this.portrait(rec);
     $('ds-attach').innerHTML = attachmentsHtml(rec);
-    (this.el.querySelector('[data-tab="attachments"]') as HTMLElement).lastChild!.textContent = `Attached (${rec.attachments.length + 1})`;
+    (this.el.querySelector('[data-tab="attachments"]') as HTMLElement).lastChild!.textContent = t('Attached ({n})', { n: rec.attachments.length + 1 });
     void paintNegatives($('ds-attach'), rec, () => this.rec === rec);
-    $('ds-record').innerHTML = rec.body || '<p class="rel-empty">No further record on file.</p>';
+    $('ds-record').innerHTML = rec.body || `<p class="rel-empty">${t('No further record on file.')}</p>`;
 
     const rel = rec.related
       .map((f) => this.records.find((r) => r.file === f))
@@ -234,13 +248,13 @@ export class Dossier {
             (r) => `<li><a href="${this.base}records/${r.slug}/" data-file="${esc(r.file)}">
               <span class="rel__file">${esc(r.file)}</span>
               <span class="rel__title">${esc(r.title)}${r.subtitle ? `<small>${esc(r.subtitle)}</small>` : ''}</span>
-              <span class="rel__cat">${esc(this.categories.find((c) => c.id === r.category)!.label)}</span>
+              <span class="rel__cat">${esc(t(this.categories.find((c) => c.id === r.category)!.label))}</span>
             </a></li>`,
           )
           .join('')}</ul>`
-      : '<p class="rel-empty">No linked records.</p>';
-    $('ds-related').insertAdjacentHTML('beforeend', `<a class="rel-wall" href="${this.base}wall/" data-wall>Show on the link wall <span class="kbd">W</span></a>`);
-    (this.el.querySelector('[data-tab="related"]') as HTMLElement).lastChild!.textContent = `Related${rel.length ? ` (${rel.length})` : ''}`;
+      : `<p class="rel-empty">${t('No linked records.')}</p>`;
+    $('ds-related').insertAdjacentHTML('beforeend', `<a class="rel-wall" href="${this.base}wall/" data-wall>${t('Show on the link wall')} <span class="kbd">W</span></a>`);
+    (this.el.querySelector('[data-tab="related"]') as HTMLElement).lastChild!.textContent = rel.length ? t('Related ({n})', { n: rel.length }) : t('Related');
 
     // Draft history
     const bar = $('drafts');
@@ -285,11 +299,11 @@ export class Dossier {
     hint.hidden = !this.noteDrafts.length;
     if (this.noteDrafts.length) {
       const here = this.noteDrafts.includes(n);
-      const where = [...this.el.querySelectorAll<HTMLElement>('[data-tab].has-note')].map((b) => b.lastChild!.textContent!.replace(/\s*\(.*/, ''));
+      const where = [...this.el.querySelectorAll<HTMLElement>('[data-tab].has-note')].map((b) => b.lastChild!.textContent!.replace(/\s*[（(].*/, ''));
       hint.classList.toggle('is-here', here);
       hint.innerHTML = here
-        ? `<b>Heuss</b> annotated this draft${where.length ? ` · see ${where.join(', ')}` : ''}`
-        : `<b>Heuss</b> left margin notes in ${this.noteSpan()}`;
+        ? `<b>Heuss</b> ${t('annotated this draft')}${where.length ? ` · ${t('see {tabs}', { tabs: where.join(t(', ')) })}` : ''}`
+        : `<b>Heuss</b> ${t('left margin notes in {drafts}', { drafts: this.noteSpan() })}`;
     }
 
     const info = draftInfo(rec, n);
@@ -310,7 +324,7 @@ export class Dossier {
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
     const c = halftone(photo, rec.file, 168 * dpr, 210 * dpr);
     c.setAttribute('role', 'img');
-    c.setAttribute('aria-label', photo ? `Photograph, ${rec.title}` : `No photograph of ${rec.title} on file`);
+    c.setAttribute('aria-label', photo ? t('Photograph, {title}', { title: rec.title }) : t('No photograph of {title} on file', { title: rec.title }));
     frame.replaceChildren(c);
   }
 

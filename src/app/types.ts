@@ -37,7 +37,16 @@ export interface ArchiveRecord {
   revised: boolean;
   drafts: { n: number; label?: string; date?: string; by?: string; stamp?: string }[];
   attachments: Attachment[];
+  /** Chinese version, merged with the English one (only when a .zh.md exists). */
+  zh?: RecordTexts;
+  /** English texts, kept so the language can be switched back. Set on the client. */
+  en?: RecordTexts;
 }
+
+export type RecordTexts = Pick<
+  ArchiveRecord,
+  'title' | 'subtitle' | 'status' | 'date' | 'place' | 'imageCaption' | 'fields' | 'summary' | 'body' | 'tags' | 'drafts' | 'attachments' | 'revised'
+>;
 
 export type Lines = string[] | Record<string, string[]>;
 export type ArchivistLines = Record<string, Lines>;

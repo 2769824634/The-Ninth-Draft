@@ -140,6 +140,22 @@ export class Folder {
     return tex;
   }
 
+  /** Redraw the typed cover and page (the record's texts changed language). */
+  relabel() {
+    for (const t of [...this.covers.values(), ...this.pages.values()]) t.dispose();
+    this.covers.clear();
+    this.pages.clear();
+    const stamp = this.stampNow;
+    const cover = coverTexture(this.rec, hash(this.rec.file), stamp);
+    this.covers.set(stamp, cover);
+    this.coverMat.map = cover;
+    this.coverMat.needsUpdate = true;
+    if (this.pageReady && this.pageMat.map) {
+      this.pageMat.map = this.pageFor(stamp);
+      this.pageMat.needsUpdate = true;
+    }
+  }
+
   /** Re-stamp the cover and inner page for an earlier draft (cached per classification). */
   setStamp(stamp: string) {
     if (stamp === this.stampNow) return;

@@ -9,6 +9,7 @@ import * as THREE from 'three';
 import type { ArchiveData, ArchiveRecord } from '../types';
 import { Spring, SpringV3, damp } from '../spring';
 import { reducedMotion } from '../prefs';
+import { t } from '../i18n';
 import { boardTexture, CARD, cardTexture, gridTexture, hash, loadPhoto, setMaxAnisotropy, sweepTexture } from './textures';
 
 const KEY = 'n9:wall';
@@ -47,6 +48,10 @@ interface Card {
   dim: Spring;
   links: Link[];
   ping: number;
+  /** What the card texture is drawn from, kept so it can be redrawn (language switch). */
+  label: string;
+  nLinks: number;
+  photo: HTMLImageElement | null;
 }
 
 interface Link {
@@ -240,12 +245,16 @@ export class Wall {
         dim: new Spring(0, 7),
         links: [],
         ping: 0,
+        label,
+        nLinks,
+        photo: null,
       };
       mesh.userData.card = card;
       // Real photographs arrive later; repaint the card once they do
       if (rec.image) {
         void loadPhoto(rec.image).then((img) => {
           if (!img) return;
+          card.photo = img;
           mat.map?.dispose();
           mat.map = cardTexture(rec, label, img, nLinks);
           mat.needsUpdate = true;
@@ -401,6 +410,15 @@ export class Wall {
 
   setTheme(theme: 'day' | 'night') {
     this.lookTarget = LOOKS[theme];
+  }
+
+  /** Redraw every card from its record (the record's texts changed language). */
+  relabel() {
+    for (const c of this.cards) {
+      c.mat.map?.dispose();
+      c.mat.map = cardTexture(c.rec, c.label, c.photo, c.nLinks);
+      c.mat.needsUpdate = true;
+    }
   }
 
   /** Isolate one file's links (null clears). `center` glides the view to it. */
@@ -662,7 +680,7 @@ export class Wall {
       const p = this.raycaster.ray.intersectPlane(new THREE.Plane(new THREE.Vector3(0, 0, 1), 0), new THREE.Vector3());
       if (p && Math.abs(p.x) <= half && Math.abs(p.y) <= this.size.y / 2) {
         const n = (v: number) => `${v < 0 ? '−' : '+'}${Math.abs(v).toFixed(2).padStart(5, '0')}`;
-        text = `X ${n(p.x)} · Y ${n(p.y)} · Grid ${this.ref(p.x, p.y)}`;
+        text = `X ${n(p.x)} · Y ${n(p.y)} · ${t('Grid')} ${this.ref(p.x, p.y)}`;
       }
     }
     if (text !== this.lastRead) {

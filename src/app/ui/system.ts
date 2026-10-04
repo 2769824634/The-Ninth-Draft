@@ -4,11 +4,13 @@
  * spoken by a synthetic female voice when sound is on. Most file openings
  * get nothing, which is what makes the ones that do unsettling.
  */
-import lines from '../../data/system.json';
+import en from '../../data/system.json';
+import zh from '../../data/system.zh.json';
 import { audio } from '../audio';
 import { prefs } from '../prefs';
+import { isZh } from '../i18n';
 
-type Group = Exclude<keyof typeof lines, '_readme'>;
+type Group = Exclude<keyof typeof en, '_readme'>;
 
 /** Chance per event that SYSTEM speaks up. */
 const ODDS: Record<string, number> = {
@@ -21,6 +23,8 @@ const ODDS: Record<string, number> = {
 const COOLDOWN = 25000;
 // Voices that are usually female across macOS, Windows, Chrome and Android
 const FEMALE = /female|samantha|victoria|karen|serena|moira|tessa|fiona|kate|susan|zira|hazel|libby|sonia|aria|jenny|natasha|clara|emma|google uk english female|google us english/i;
+// Mandarin female voices: Tingting / Lili / Yu-shu (Apple), Huihui / Xiaoxiao / Yaoyao (Microsoft), Google 普通话
+const FEMALE_ZH = /female|ting-?ting|lili|yu-?shu|huihui|xiaoxiao|xiaoyi|yaoyao|xiaomo|xiaohan|xiaorui|google\s*普通话|普通话|女/i;
 
 export class System {
   private el = document.getElementById('sysmsg')!;
@@ -43,7 +47,8 @@ export class System {
   say(group: Group, force = false) {
     const now = performance.now();
     if (!force && now - this.last < COOLDOWN) return;
-    const pool = (lines[group] as string[]).filter((l) => l !== this.prev);
+    const lines = (isZh() ? zh : en) as unknown as Record<string, string[]>;
+    const pool = (lines[group] ?? (en as unknown as Record<string, string[]>)[group]).filter((l) => l !== this.prev);
     const text = pool[Math.floor(Math.random() * pool.length)];
     if (!text) return;
     this.last = now;
@@ -66,12 +71,27 @@ export class System {
     // never talk over the numbers station
     if (synth.speaking) return false;
     audio.chirp();
-    const voices = synth.getVoices().filter((v) => /^en/i.test(v.lang));
-    const v = voices.find((x) => FEMALE.test(x.name) && /GB|UK/i.test(x.lang + x.name)) ?? voices.find((x) => FEMALE.test(x.name)) ?? voices[0];
+    const zhMode = isZh();
+    const all = synth.getVoices();
+    let v: SpeechSynthesisVoice | undefined;
+    let female = false;
+    if (zhMode) {
+      // Mainland Mandarin first, then any Chinese voice
+      const voices = all.filter((x) => /^(zh|cmn)/i.test(x.lang));
+      const cn = voices.filter((x) => /CN|Hans/i.test(x.lang));
+      v = cn.find((x) => FEMALE_ZH.test(x.name)) ?? voices.find((x) => FEMALE_ZH.test(x.name)) ?? cn[0] ?? voices[0];
+      female = !!v && FEMALE_ZH.test(v.name);
+    } else {
+      const voices = all.filter((x) => /^en/i.test(x.lang));
+      v = voices.find((x) => FEMALE.test(x.name) && /GB|UK/i.test(x.lang + x.name)) ?? voices.find((x) => FEMALE.test(x.name)) ?? voices[0];
+      female = !!v && FEMALE.test(v.name);
+    }
     const u = new SpeechSynthesisUtterance(text);
     if (v) u.voice = v;
-    u.rate = 0.9;
-    u.pitch = v && FEMALE.test(v.name) ? 0.95 : 1.25;
+    // without a Chinese voice installed, the browser still reads zh-CN with its default
+    u.lang = zhMode ? 'zh-CN' : v?.lang ?? 'en-GB';
+    u.rate = zhMode ? 0.95 : 0.9;
+    u.pitch = female ? 0.95 : 1.25;
     u.volume = 0.55;
     this.el.classList.add('is-speaking');
     u.onend = u.onerror = () => this.el.classList.remove('is-speaking');

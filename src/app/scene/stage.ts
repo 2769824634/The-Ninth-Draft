@@ -343,6 +343,11 @@ export class Stage {
     this.layout(f ?? undefined);
   }
 
+  /** Redraw every folder's typed texts (language switch). */
+  relabel() {
+    for (const f of this.folders.values()) f.relabel();
+  }
+
   /** Show a record's cover as it was stamped in another draft. */
   setCoverStamp(rec: ArchiveRecord, stamp: string) {
     this.folders.get(rec.file)?.setStamp(stamp);

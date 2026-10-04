@@ -26,16 +26,40 @@
     "Daylight. The documents prefer it. They feel less guilty."
   ],
   "drawer": {
-    "personnel": ["Personnel. Mind the names, some of them bite.", "People drawer. Nobody here is who they said they were."],
-    "events": ["Events. Things that happened, allegedly.", "Events drawer. Every date in here was argued over."],
-    "programs": ["Programs. Budgets you will never see.", "Programs. Listen. That beeping is perfectly normal."]
+    "personnel": [
+      "Personnel. Mind the names, some of them bite.",
+      "People drawer. Nobody here is who they said they were."
+    ],
+    "events": [
+      "Events. Things that happened, allegedly.",
+      "Events drawer. Every date in here was argued over."
+    ],
+    "programs": [
+      "Programs. Budgets you will never see.",
+      "Programs. Listen. That beeping is perfectly normal."
+    ]
   },
   "open": {
-    "TOP SECRET": ["{file}. Top secret. I'll pretend I didn't hand you that.", "You are now reading {title}. Officially, you are not."],
-    "SECRET": ["{file}. Secret, but only mildly. Like a surprise party.", "Handle {title} with gloves. Emotional gloves."],
-    "CONFIDENTIAL": ["{file}. Confidential. Which means everyone knows.", "{title}. Read it quietly, the walls are listening."],
-    "RESTRICTED": ["{file}. Restricted. Restricted to people who opened it, apparently.", "Restricted file. Don't tell the restrictions."],
-    "DECLASSIFIED": ["{file}. Declassified. The boring version, naturally.", "{title}. Fully declassified. They checked twice. Badly."]
+    "TOP SECRET": [
+      "{file}. Top secret. I'll pretend I didn't hand you that.",
+      "You are now reading {title}. Officially, you are not."
+    ],
+    "SECRET": [
+      "{file}. Secret, but only mildly. Like a surprise party.",
+      "Handle {title} with gloves. Emotional gloves."
+    ],
+    "CONFIDENTIAL": [
+      "{file}. Confidential. Which means everyone knows.",
+      "{title}. Read it quietly, the walls are listening."
+    ],
+    "RESTRICTED": [
+      "{file}. Restricted. Restricted to people who opened it, apparently.",
+      "Restricted file. Don't tell the restrictions."
+    ],
+    "DECLASSIFIED": [
+      "{file}. Declassified. The boring version, naturally.",
+      "{title}. Fully declassified. They checked twice. Badly."
+    ]
   },
   "draftEarly": [
     "Draft {draft}. Heuss would like that one back.",
@@ -68,17 +92,46 @@
     "Take your time. Nobody else is coming. Probably.",
     "I'll just alphabetise something while you think."
   ],
-  "soundOn": ["Sound on. If you hear numbers, write them down.", "Audio restored. The radio in the corner is not ours."],
-  "soundOff": ["Silence. Exactly how the archive likes it."],
+  "soundOn": [
+    "Sound on. If you hear numbers, write them down.",
+    "Audio restored. The radio in the corner is not ours."
+  ],
+  "soundOff": [
+    "Silence. Exactly how the archive likes it."
+  ],
   "wall": {
-    "enter": ["Mind the string. It's holding more together than the budget is.", "The link room. Everything here is connected, whether it likes it or not.", "Red string. The archive's only reliable filing system."],
-    "popular": ["{file}. Popular. That's rarely good for a file.", "{title} knows a lot of people. Suspicious."],
-    "alone": ["{file}. No connections. Either innocent, or very well filed.", "{title}. Nobody mentions it. Somebody made sure of that."],
-    "mess": ["I'll pretend that was a theory.", "Interesting arrangement. Heuss will hate it.", "You've moved half the wall. I hope you know where it all goes."],
-    "reset": ["Back where I left them. You're welcome.", "Wall restored. Your theory has been filed under 'no'."],
-    "leave": ["Back to the drawers. Leave the string where it is.", "Closing the link room. Try not to think about it."]
+    "enter": [
+      "Mind the string. It's holding more together than the budget is.",
+      "The link room. Everything here is connected, whether it likes it or not.",
+      "Red string. The archive's only reliable filing system."
+    ],
+    "popular": [
+      "{file}. Popular. That's rarely good for a file.",
+      "{title} knows a lot of people. Suspicious."
+    ],
+    "alone": [
+      "{file}. No connections. Either innocent, or very well filed.",
+      "{title}. Nobody mentions it. Somebody made sure of that."
+    ],
+    "mess": [
+      "I'll pretend that was a theory.",
+      "Interesting arrangement. Heuss will hate it.",
+      "You've moved half the wall. I hope you know where it all goes."
+    ],
+    "reset": [
+      "Back where I left them. You're welcome.",
+      "Wall restored. Your theory has been filed under 'no'."
+    ],
+    "leave": [
+      "Back to the drawers. Leave the string where it is.",
+      "Closing the link room. Try not to think about it."
+    ]
   },
-  "chapter": ["Programs. Where the budgets went to be redacted.", "Programs. Big ideas, bigger invoices.", "Programs. Everything here was a good idea at the time."],
+  "chapter": [
+    "Programs. Where the budgets went to be redacted.",
+    "Programs. Big ideas, bigger invoices.",
+    "Programs. Everything here was a good idea at the time."
+  ],
   "retrieve": {
     "notes": [
       "Heuss scribbled in the margins of {drafts}. Slide the drafts back to read them.",
@@ -113,5 +166,15 @@
     "Sweep complete. {count} contacts. All of them paper.",
     "Nothing new on the wall. Nothing new is how it starts.",
     "Scanning the wall again. Old habit. Bad one."
-  ]
+  ],
+  "lang": {
+    "en": [
+      "English. The original. Every lie in its native language.",
+      "Back to English. The footnotes are longer, the excuses are the same."
+    ],
+    "zh": [
+      "Chinese. Same files, same lies, better grammar.",
+      "Switching to Chinese. The translator signed nothing. Wise."
+    ]
+  }
 }

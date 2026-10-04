@@ -7,7 +7,7 @@ import { z } from 'astro/zod';
  * Folder decides nothing; `category` in frontmatter does.
  */
 const records = defineCollection({
-  loader: glob({ pattern: '**/*.md', base: './src/content/records' }),
+  loader: glob({ pattern: ['**/*.md', '!**/*.zh.md'], base: './src/content/records' }),
   schema: z.object({
     /** File number shown everywhere, e.g. "P-0001". Must be unique. */
     file: z.string(),
@@ -74,4 +74,36 @@ const records = defineCollection({
   }),
 });
 
-export const collections = { records };
+/**
+ * Optional Chinese version of a record: `p-0001.zh.md` beside `p-0001.md`.
+ * Only `file` is required; every field left out falls back to the English
+ * original, and so does the body when the file has none. Stamps, file
+ * numbers, dates and links are never translated, so they are not listed.
+ */
+const recordsZh = defineCollection({
+  loader: glob({ pattern: '**/*.zh.md', base: './src/content/records' }),
+  schema: z.object({
+    file: z.string(),
+    title: z.string().optional(),
+    subtitle: z.string().optional(),
+    status: z.string().optional(),
+    date: z.string().optional(),
+    place: z.string().optional(),
+    imageCaption: z.string().optional(),
+    /** Replaces the English list as a whole when given. */
+    fields: z.array(z.object({ label: z.string(), value: z.string() })).optional(),
+    summary: z.string().optional(),
+    tags: z.array(z.string()).optional(),
+    /** Draft labels / signatures by draft number; dates and stamps come from the English file. */
+    drafts: z.array(z.object({ n: z.number().int().min(1).max(8), label: z.string().optional(), by: z.string().optional() })).optional(),
+    /**
+     * Attachments in the same order as the English file. Each entry overrides
+     * the text of the attachment at that position; kind and draft stay English.
+     */
+    attachments: z
+      .array(z.union([z.string(), z.object({ title: z.string().optional(), text: z.string().optional(), date: z.string().optional(), by: z.string().optional() })]))
+      .optional(),
+  }),
+});
+
+export const collections = { records, recordsZh };
