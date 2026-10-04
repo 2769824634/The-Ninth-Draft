@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="amber" data-fx="on">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>THE NINTH DRAFT // 第九稿</title>
+  <meta name="description" content="The Ninth Draft — 一台来自过去的未来终端。">
+  <meta name="theme-color" content="#07040f">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='4' fill='%2307040f'/%3E%3Ctext x='16' y='23' font-family='monospace' font-size='18' font-weight='700' text-anchor='middle' fill='%23ffb000'%3E9%3C/text%3E%3C/svg%3E">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=VT323&family=Share+Tech+Mono&family=Orbitron:wght@500;700;900&family=Noto+Sans+SC:wght@400;700&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="css/tokens.css">
+  <link rel="stylesheet" href="css/base.css">
+  <link rel="stylesheet" href="css/deck.css">
+  <link rel="stylesheet" href="css/crt.css">
+  <link rel="stylesheet" href="css/blocks.css">
+  <link rel="stylesheet" href="css/overlays.css">
+</head>
+<body>
+  <!-- 背景：蒸汽波落日网格 -->
+  <canvas id="bg" aria-hidden="true"></canvas>
+
+  <!-- 主机：卡带未来主义外壳 -->
+  <div class="deck" id="deck">
+    <header class="deck__top">
+      <div class="plate">
+        <span class="plate__logo" aria-hidden="true">9</span>
+        <div class="plate__text">
+          <strong id="brand-title">THE NINTH DRAFT</strong>
+          <small id="brand-sub">DATA TERMINAL</small>
+        </div>
+      </div>
+
+      <div class="stripes" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+
+      <div class="status" aria-label="系统状态">
+        <span class="led led--pwr" title="POWER"></span><span class="status__lbl">PWR</span>
+        <span class="led led--rec" title="REC"></span><span class="status__lbl">REC</span>
+        <span class="lcd" title="磁带计数器"><span class="lcd__lbl">TAPE</span><span id="tape-counter">000</span></span>
+        <span class="lcd" title="系统时间"><span class="lcd__lbl">SYS</span><span id="clock">--:--:--</span></span>
+      </div>
+    </header>
+
+    <div class="deck__body">
+      <nav class="deck__side" aria-label="频道">
+        <div class="cassette" id="cassette" aria-hidden="true">
+          <svg viewBox="0 0 200 128">
+            <rect class="cassette__shell" x="2" y="2" width="196" height="124" rx="8"/>
+            <rect class="cassette__label" x="14" y="12" width="172" height="62" rx="3"/>
+            <rect class="cassette__band" x="14" y="64" width="172" height="10"/>
+            <text class="cassette__title" id="cassette-title" x="22" y="25">CH-01</text>
+            <text class="cassette__side" x="178" y="26" text-anchor="end">A</text>
+            <rect class="cassette__window" x="52" y="32" width="96" height="30" rx="15"/>
+            <g class="reel" id="reel-l" transform="translate(70 47)">
+              <circle r="13" class="reel__hub"/>
+              <path d="M0-13V-6M11.3 6.5 5.2 3M-11.3 6.5-5.2 3" class="reel__teeth"/>
+            </g>
+            <g class="reel" id="reel-r" transform="translate(130 47)">
+              <circle r="13" class="reel__hub"/>
+              <path d="M0-13V-6M11.3 6.5 5.2 3M-11.3 6.5-5.2 3" class="reel__teeth"/>
+            </g>
+            <path class="cassette__base" d="M40 126 50 96h100l10 30"/>
+            <circle class="cassette__hole" cx="70" cy="112" r="4"/>
+            <circle class="cassette__hole" cx="130" cy="112" r="4"/>
+          </svg>
+        </div>
+
+        <ul class="keys" id="keys" role="tablist"></ul>
+
+        <div class="toggles">
+          <button class="toggle" id="btn-theme" type="button" title="切换荧光色 [T]"><span class="toggle__led"></span>PHOSPHOR</button>
+          <button class="toggle" id="btn-fx" type="button" title="CRT 特效开关 [F]"><span class="toggle__led"></span>CRT FX</button>
+          <button class="toggle" id="btn-sound" type="button" title="音效开关 [M]"><span class="toggle__led"></span>AUDIO</button>
+          <button class="toggle" id="btn-console" type="button" title="打开终端 [`]"><span class="toggle__led"></span>CONSOLE</button>
+        </div>
+      </nav>
+
+      <main class="crt" id="crt">
+        <div class="crt__bezel">
+          <div class="crt__screen" id="crt-screen">
+            <div class="crt__scroll" id="screen" tabindex="0" aria-live="polite"></div>
+            <canvas class="crt__noise" id="noise" aria-hidden="true"></canvas>
+            <div class="crt__scanlines" aria-hidden="true"></div>
+            <div class="crt__glare" aria-hidden="true"></div>
+            <div class="crt__osd" id="osd" aria-hidden="true"></div>
+          </div>
+        </div>
+        <div class="crt__chin" aria-hidden="true">
+          <span>MODEL N9-1984</span>
+          <span class="crt__knobs"><i></i><i></i><i></i></span>
+          <span id="chin-ch">CH 01</span>
+        </div>
+      </main>
+    </div>
+
+    <footer class="deck__bottom">
+      <div class="ticker" aria-hidden="true"><div class="ticker__track" id="ticker"></div></div>
+      <div class="hints" aria-hidden="true">
+        <kbd>1-9</kbd> 频道 <kbd>←→</kbd> 切换 <kbd>`</kbd> 终端 <kbd>T</kbd> 色彩
+      </div>
+    </footer>
+  </div>
+
+  <!-- 开机自检 -->
+  <div class="boot" id="boot" aria-hidden="true">
+    <pre class="boot__log" id="boot-log"></pre>
+    <div class="boot__hint">PRESS ANY KEY TO SKIP</div>
+  </div>
+
+  <!-- 命令终端 -->
+  <div class="console" id="console" role="dialog" aria-label="命令终端" hidden>
+    <div class="console__head"><span>N9-OS TERMINAL</span><button type="button" id="console-close" aria-label="关闭">×</button></div>
+    <div class="console__out" id="console-out"></div>
+    <form class="console__form" id="console-form" autocomplete="off">
+      <label for="console-input">&gt;</label>
+      <input id="console-input" spellcheck="false" autocapitalize="off">
+    </form>
+  </div>
+
+  <!-- 内容（你主要编辑的文件） -->
+  <script src="js/content.js"></script>
+  <!-- 引擎 -->
+  <script src="js/core/util.js"></script>
+  <script src="js/core/store.js"></script>
+  <script src="js/fx/audio.js"></script>
+  <script src="js/fx/text.js"></script>
+  <script src="js/fx/background.js"></script>
+  <script src="js/fx/noise.js"></script>
+  <script src="js/core/blocks.js"></script>
+  <script src="js/core/console.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
