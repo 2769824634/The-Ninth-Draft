@@ -113,6 +113,7 @@ export class Stage {
   private pixelRatio = Math.min(window.devicePixelRatio || 1, 1.75);
   private drag = { on: false, x: 0, y: 0, moved: 0, acc: 0 };
   private openTimer = 0;
+  private paused = false;
 
   constructor(private canvas: HTMLCanvasElement, private data: ArchiveData, private on: StageEvents) {
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true, powerPreference: 'high-performance' });
@@ -355,10 +356,21 @@ export class Stage {
     }
   }
 
+  /** Stop drawing while another room is on screen. */
+  pause() {
+    this.paused = true;
+  }
+
+  resume() {
+    if (!this.paused) return;
+    this.paused = false;
+    this.last = performance.now();
+  }
+
   start() {
     const loop = () => {
       this.raf = requestAnimationFrame(loop);
-      this.frame();
+      if (!this.paused) this.frame();
     };
     this.last = performance.now();
     loop();

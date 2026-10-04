@@ -1,0 +1,11 @@
+---
+import Base from '../../layouts/Base.astro';
+import Archive from '../../components/Archive.astro';
+import { loadRecords } from '../../lib/records';
+
+const records = await loadRecords(import.meta.env.BASE_URL);
+---
+
+<Base title="Link analysis — The Ninth Draft" description="Every record in the archive, pinned to one wall and joined by red string.">
+  <Archive records={records} room="wall" />
+</Base>
