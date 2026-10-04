@@ -195,7 +195,7 @@
   position: absolute;
   left: -1.6rem; top: -3px;
   width: 5px; height: 5px;
-  background: var(--ink);
+  background: var(--clr);
 }
 .filecard__rule .micro { margin-top: .9rem; }
 .filecard__body { padding: 1.1rem 0 0 2.6rem; max-width: 26rem; }
@@ -242,8 +242,8 @@
 .stamp-chip {
   display: inline-block;
   padding: .18rem .5rem .14rem;
-  border: 1.5px solid var(--accent);
-  color: var(--accent);
+  border: 1.5px solid var(--clr);
+  color: var(--clr);
   font-family: var(--f-mono);
   font-weight: 500;
   font-size: .6rem;
@@ -347,8 +347,39 @@
   gap: 2rem;
   pointer-events: none;
 }
-.foot__status { display: inline-flex; align-items: center; gap: .6rem; }
-.foot__status i { width: 5px; height: 5px; background: var(--ink-2); }
+/* ARCHIVIST voice line */
+.voice {
+  display: flex;
+  align-items: baseline;
+  gap: 1rem;
+  min-width: 0;
+  max-width: 46vw;
+  margin: 0;
+}
+.voice__who {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: .55rem;
+  font-family: var(--f-mono);
+  font-size: .6rem;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+.voice__who i { width: 6px; height: 6px; background: var(--accent); animation: voice-blink 2.4s steps(1) infinite; }
+@keyframes voice-blink { 50% { opacity: .25; } }
+.voice__line {
+  min-width: 0;
+  font-family: var(--f-serif);
+  font-style: italic;
+  font-size: .82rem;
+  color: var(--ink-2);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.voice.is-speaking .voice__line { color: var(--ink); }
 .foot__coords { margin-left: auto; }
 .foot__mark {
   display: inline-flex;
@@ -394,7 +425,8 @@
   .roller { font-size: 2.2rem; }
   .rail { left: auto; right: var(--edge); bottom: 4.4rem; grid-template-columns: auto; row-gap: 0; }
   .rail__ruler, .rail__hints { display: none; }
-  .foot__coords, .foot__mark { display: none; }
+  .foot__coords, .foot__mark, .foot__clock { display: none; }
+  .voice { max-width: 100%; }
   .orbits { opacity: .4; }
   .veil { background: linear-gradient(0deg, color-mix(in srgb, var(--bg) 92%, transparent) 30%, transparent 62%), linear-gradient(180deg, color-mix(in srgb, var(--bg) 70%, transparent), transparent 22%); }
   .veil::after { background: linear-gradient(0deg, var(--bg) 50%, transparent 62%); }

@@ -1,0 +1,73 @@
+{
+  "_readme": "ARCHIVIST lines. One line is picked at random per event. {title}, {file}, {drawer}, {draft} are filled in automatically. Add as many as you like.",
+  "boot": [
+    "Unlocking the front door",
+    "Pretending to check your clearance",
+    "Dusting the drawers",
+    "Hiding the interesting files"
+  ],
+  "welcome": [
+    "Ah. A visitor. Wipe your shoes, the carpet is classified.",
+    "Welcome to the archive. Touch nothing. Read everything.",
+    "Clearance confirmed. I checked. I didn't, but I said I did."
+  ],
+  "welcomeBack": [
+    "You again. The drawers missed you. I did not.",
+    "Back so soon? Heuss rewrote three files while you were gone.",
+    "Returning visitor detected. Your usual seat is still uncomfortable."
+  ],
+  "night": [
+    "Lights off. The files are more honest in the dark.",
+    "Night shift. Keep your voice down, the redactions are sleeping.",
+    "One lamp, one visitor, a thousand secrets. Cosy."
+  ],
+  "day": [
+    "Lights on. Everyone look busy.",
+    "Daylight. The documents prefer it. They feel less guilty."
+  ],
+  "drawer": {
+    "personnel": ["Personnel. Mind the names, some of them bite.", "People drawer. Nobody here is who they said they were."],
+    "events": ["Events. Things that happened, allegedly.", "Events drawer. Every date in here was argued over."],
+    "programs": ["Programs. Budgets you will never see.", "Programs. Listen. That beeping is perfectly normal."]
+  },
+  "open": {
+    "TOP SECRET": ["{file}. Top secret. I'll pretend I didn't hand you that.", "You are now reading {title}. Officially, you are not."],
+    "SECRET": ["{file}. Secret, but only mildly. Like a surprise party.", "Handle {title} with gloves. Emotional gloves."],
+    "CONFIDENTIAL": ["{file}. Confidential. Which means everyone knows.", "{title}. Read it quietly, the walls are listening."],
+    "RESTRICTED": ["{file}. Restricted. Restricted to people who opened it, apparently.", "Restricted file. Don't tell the restrictions."],
+    "DECLASSIFIED": ["{file}. Declassified. The boring version, naturally.", "{title}. Fully declassified. They checked twice. Badly."]
+  },
+  "draftEarly": [
+    "Draft {draft}. Heuss would like that one back.",
+    "Draft {draft}. Before the lawyers arrived.",
+    "Careful. Draft {draft} still has opinions in it."
+  ],
+  "draftFinal": [
+    "Draft 09. The version everyone agreed on. Not the one that happened.",
+    "Back to the final draft. Safe. Clean. Slightly untrue."
+  ],
+  "reveal": [
+    "You didn't see that.",
+    "I'll put that back. You'll forget it. Deal?",
+    "Ink is temporary. Curiosity is forever."
+  ],
+  "searchEmpty": [
+    "Nothing under that name. Either it never happened, or it worked.",
+    "No records found. That is either reassuring or alarming."
+  ],
+  "emptyDrawer": [
+    "Empty drawer. Someone has been very thorough.",
+    "Nothing here. Yet."
+  ],
+  "rush": [
+    "Slow down. These are made of paper.",
+    "Please stop flicking. The folders have feelings."
+  ],
+  "idle": [
+    "Still there? The dust is starting to settle on you.",
+    "Take your time. Nobody else is coming. Probably.",
+    "I'll just alphabetise something while you think."
+  ],
+  "soundOn": ["Sound on. If you hear numbers, write them down.", "Audio restored. The radio in the corner is not ours."],
+  "soundOff": ["Silence. Exactly how the archive likes it."]
+}

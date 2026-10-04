@@ -1,6 +1,7 @@
 ---
 import { CATEGORIES, type ClientRecord } from '../lib/records';
 import Seal from './Seal.astro';
+import archivist from '../data/archivist.json';
 import '../styles/hud.css';
 import '../styles/dossier.css';
 import '../styles/overlays.css';
@@ -11,7 +12,7 @@ interface Props {
 }
 const { records, initial } = Astro.props;
 const base = import.meta.env.BASE_URL;
-const payload = JSON.stringify({ base, categories: CATEGORIES, records, initial: initial ?? null }).replace(/</g, '\\u003c');
+const payload = JSON.stringify({ base, categories: CATEGORIES, records, archivist, initial: initial ?? null }).replace(/</g, '\\u003c');
 ---
 
 <div class="archive" id="archive" data-view="browse" data-boot="on">
@@ -106,7 +107,7 @@ const payload = JSON.stringify({ base, categories: CATEGORIES, records, initial:
   </section>
 
   <footer class="foot">
-    <span class="foot__status micro"><i></i>Clearance granted</span>
+    <p class="voice" id="voice" aria-live="polite"><span class="voice__who"><i></i>Archivist</span><span class="voice__line" id="voice-line">Clearance granted.</span></p>
     <span class="foot__coords micro" id="coords">RA 04h 21m 07s · Dec +61° 12′</span>
     <span class="foot__clock micro" id="clock">00:00:00</span>
     <span class="foot__mark">Archive of <b>The Ninth Draft</b><i></i></span>
@@ -125,9 +126,11 @@ const payload = JSON.stringify({ base, categories: CATEGORIES, records, initial:
     </div>
   </aside>
 
+  <div class="watermark" id="watermark" aria-hidden="true">0001</div>
+
   <article class="dossier" id="dossier" aria-hidden="true">
     <header class="dossier__head">
-      <div class="dossier__crumbs micro"><span id="ds-file">File P-0001</span><span>Reference area</span></div>
+      <div class="dossier__crumbs micro"><span id="ds-file">File P-0001</span><span class="barcode" id="ds-barcode" aria-hidden="true"></span></div>
       <h2 class="dossier__title" id="ds-title"></h2>
       <p class="dossier__sub" id="ds-sub"></p>
     </header>
@@ -143,6 +146,18 @@ const payload = JSON.stringify({ base, categories: CATEGORIES, records, initial:
       <section class="pane prose" data-pane="record" id="ds-record" hidden></section>
       <section class="pane" data-pane="related" id="ds-related" hidden></section>
     </div>
+    <section class="drafts" id="drafts" aria-label="Revision history">
+      <div class="drafts__row">
+        <span class="drafts__no">Draft <b id="dr-no">09</b> / 09</span>
+        <span class="drafts__log micro" id="dr-log">Final · as filed</span>
+      </div>
+      <div class="drafts__ticks">
+        <input id="dr-range" type="range" min="1" max="9" step="1" value="9" aria-label="Draft number" />
+        <i class="drafts__rail"></i>
+        <span class="drafts__marks" id="dr-marks"></span>
+        <i class="drafts__cur" id="dr-cur"></i>
+      </div>
+    </section>
     <footer class="dossier__foot">
       <button type="button" class="dossier__step" data-dstep="-1"><svg viewBox="0 0 24 12" aria-hidden="true"><path d="M24 6H2M7 1 2 6l5 5" /></svg><span>Previous</span></button>
       <span class="micro" id="ds-count">01 / 04</span>

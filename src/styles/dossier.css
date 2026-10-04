@@ -33,7 +33,7 @@
 .inspect__no {
   position: absolute;
   left: var(--edge);
-  bottom: 9rem;
+  bottom: 11.4rem;
   display: grid;
   gap: .4rem;
 }
@@ -44,7 +44,7 @@
   line-height: 1;
   font-variant-numeric: tabular-nums;
 }
-.inspect__drag { display: inline-flex; align-items: center; gap: .8rem; margin-top: 2rem; }
+.inspect__drag { display: inline-flex; align-items: center; gap: .8rem; margin-top: 1rem; }
 .inspect__drag svg { width: 1.1rem; fill: none; stroke: currentColor; stroke-width: 1.2; }
 
 /* ---------- Dossier column ---------- */
@@ -74,6 +74,114 @@
 .archive[data-view='detail'] .dossier > :nth-child(3) { transition-delay: 540ms; }
 .archive[data-view='detail'] .dossier > :nth-child(4) { transition-delay: 620ms; }
 .archive[data-view='detail'] .dossier > :nth-child(5) { transition-delay: 700ms; }
+.archive[data-view='detail'] .dossier > :nth-child(6) { transition-delay: 780ms; }
+
+/* Clearance strip down the dossier's left edge */
+.dossier::before {
+  content: '';
+  position: absolute;
+  left: -1.6rem;
+  top: 11.5rem;
+  bottom: 3.8rem;
+  width: 3px;
+  background: var(--clr);
+  transform: scaleY(0);
+  transform-origin: top;
+  transition: transform 300ms var(--ease);
+}
+.archive[data-view='detail'] .dossier::before { transform: scaleY(1); transition: transform 1.1s var(--ease) 400ms; }
+
+/* Giant file number behind the dossier */
+.watermark {
+  position: absolute;
+  z-index: 2;
+  right: calc(var(--edge) - .4rem);
+  top: 4.2rem;
+  font-family: var(--f-sans);
+  font-weight: 800;
+  font-stretch: 62%;
+  font-size: 15rem;
+  line-height: 1;
+  letter-spacing: -.02em;
+  color: color-mix(in srgb, var(--clr) 7%, transparent);
+  pointer-events: none;
+  opacity: 0;
+  transform: translateY(2rem);
+  transition: opacity 400ms var(--ease), transform 1s var(--ease);
+  font-variant-numeric: tabular-nums;
+}
+.archive[data-view='detail'] .watermark { opacity: 1; transform: none; transition: opacity 1.2s var(--ease) 300ms, transform 1.4s var(--ease) 300ms; }
+
+.barcode { display: inline-block; height: .9rem; }
+.barcode svg { display: block; height: 100%; width: auto; fill: var(--ink-2); }
+
+/* ---------- Draft slider ---------- */
+/* Desktop: the slider sits under the folder, bottom-left, as part of the object */
+.drafts {
+  position: fixed;
+  left: var(--edge);
+  bottom: 4.4rem;
+  width: min(27rem, 32vw);
+}
+.drafts[hidden] { display: none; }
+.drafts__row { display: flex; justify-content: space-between; align-items: baseline; gap: 1rem; }
+.drafts__no { font-size: 1.15rem; font-weight: 300; font-variant-numeric: tabular-nums; }
+.drafts__no b { font-weight: 800; }
+.drafts__log { text-align: right; }
+.drafts__ticks { position: relative; height: 1.9rem; margin: .4rem 0 .6rem; }
+.drafts__ticks input {
+  position: absolute; inset: 0; width: 100%; height: 100%; margin: 0;
+  opacity: 0; cursor: ew-resize; z-index: 2;
+}
+.drafts__rail { position: absolute; left: 0; right: 0; bottom: .45rem; height: 1px; background: var(--ink-3); }
+.drafts__marks i { position: absolute; bottom: .45rem; width: 1px; height: .5rem; background: var(--ink-3); transform: translateX(-50%); }
+.drafts__marks i.is-dated { height: .85rem; background: var(--ink); }
+.drafts__cur {
+  position: absolute; bottom: .2rem; width: 3px; height: 1.5rem;
+  background: var(--clr); transform: translateX(-50%);
+  transition: left 380ms var(--ease), background-color 400ms var(--ease);
+}
+.drafts__ticks input:focus-visible ~ .drafts__cur { outline: 1px solid var(--ink); outline-offset: 3px; }
+
+/* ---------- Revision marks ---------- */
+.rv { transition: color 500ms var(--ease), background-color 500ms var(--ease); }
+.rv.is-gone { display: none; }
+.rv.is-new { background: color-mix(in srgb, var(--c-conf) 14%, transparent); box-decoration-break: clone; -webkit-box-decoration-break: clone; }
+.rv.is-struck {
+  text-decoration: line-through;
+  text-decoration-color: var(--accent);
+  text-decoration-thickness: 1.5px;
+  color: var(--ink-3);
+}
+.rv[data-redact] > span { transition: color 420ms var(--ease), background-color 420ms var(--ease); }
+.rv.is-redacted > span {
+  color: transparent;
+  background: var(--ink);
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+  padding: 0 .12em;
+  cursor: help;
+}
+.rv.is-redacted:hover > span { color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, transparent); }
+
+/* Margin note: handwritten aside, signed Heuss */
+.rv-note {
+  display: block;
+  margin: .6em 0 .9em auto;
+  max-width: 82%;
+  padding-left: .8em;
+  border-left: 1px solid color-mix(in srgb, var(--note) 50%, transparent);
+  font-family: var(--f-serif);
+  font-style: italic;
+  font-size: .92em;
+  line-height: 1.45;
+  color: var(--note);
+  transform: rotate(-1.2deg);
+  transform-origin: left;
+}
+.rv-note.is-gone { display: none; }
+.rv-note__by { display: block; margin-top: .2em; font-size: .9em; opacity: .8; }
+.lede .rv-note { font-size: .86em; }
 
 .dossier__crumbs { display: flex; justify-content: space-between; }
 .dossier__title {
@@ -115,7 +223,7 @@
   font-weight: 500;
   overflow-wrap: anywhere;
 }
-.dossier__meta .is-stamp { color: var(--accent); font-family: var(--f-mono); letter-spacing: .1em; font-size: .74rem; }
+.dossier__meta .is-stamp { color: var(--clr); font-family: var(--f-mono); letter-spacing: .1em; font-size: .74rem; transition: color 400ms var(--ease); }
 
 /* Tabs */
 .tabs {
@@ -142,7 +250,7 @@
   bottom: -1px;
   left: 0;
   height: 2px;
-  background: var(--ink);
+  background: var(--clr);
   transition: transform 520ms var(--ease), width 520ms var(--ease);
 }
 
@@ -271,6 +379,9 @@
 @media (max-width: 900px), (max-aspect-ratio: 1/1) {
   .back { top: 6.4rem; }
   .inspect__no { display: none; }
+  .watermark { display: none; }
+  .drafts { position: static; width: auto; padding-top: .8rem; border-top: 1px solid var(--line); }
+  .dossier::before { display: none; }
   .dossier {
     top: 46%;
     left: 0;
@@ -290,8 +401,20 @@
     visibility: visible;
     transition: opacity 600ms var(--ease) 200ms, visibility 0s;
   }
+  /* One scrolling column on phones: no nested scroll areas */
+  .archive[data-view='detail'] .dossier { overflow-y: auto; overscroll-behavior: contain; display: block; }
+  .dossier__scroll { overflow: visible; mask-image: none; flex: none; padding-bottom: 1rem; }
+  .dossier__foot { padding-bottom: .4rem; }
   .dossier__title { font-size: 1.6rem; margin-top: .8rem; }
   .dossier__sub { padding-bottom: .9rem; }
   .dossier__meta { gap: .8rem 1.2rem; margin-top: 1rem; }
   .tabs { margin-top: 1.1rem; }
+}
+
+.rv.is-redacted.is-open > span { color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, transparent); }
+
+/* Personnel files lead with the person: wider, heavier name */
+.dossier__title[data-category='personnel'] { font-stretch: 116%; font-size: 2.6rem; }
+@media (max-width: 900px), (max-aspect-ratio: 1/1) {
+  .dossier__title[data-category='personnel'] { font-size: 1.8rem; }
 }

@@ -23,11 +23,17 @@ export interface ArchiveRecord {
   body: string;
   related: string[];
   tags: string[];
+  revised: boolean;
+  drafts: { n: number; label?: string; date?: string; by?: string; stamp?: string }[];
 }
+
+export type Lines = string[] | Record<string, string[]>;
+export type ArchivistLines = Record<string, Lines>;
 
 export interface ArchiveData {
   base: string;
   categories: Category[];
   records: ArchiveRecord[];
+  archivist: ArchivistLines;
   initial: string | null;
 }

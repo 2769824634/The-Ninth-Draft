@@ -25,6 +25,9 @@ export interface ClientRecord {
   body: string;
   related: string[];
   tags: string[];
+  /** True when the record carries revision marks or a draft history. */
+  revised: boolean;
+  drafts: { n: number; label?: string; date?: string; by?: string; stamp?: string }[];
 }
 
 const esc = (s: string) =>
@@ -34,7 +37,27 @@ const esc = (s: string) =>
 const redact = (html: string) =>
   html.replace(/\|\|(.+?)\|\|/g, '<span class="redact" tabindex="0" aria-label="Redacted passage"><span>$1</span></span>');
 
-const inline = (s: string) => redact(esc(s));
+/** Name signed under every margin note. */
+export const NOTE_SIGNATURE = 'Heuss';
+
+/**
+ * Revision marks (see README):
+ *   [[+5: text]]       added in draft 5
+ *   [[-6: text]]       struck out in draft 6, gone afterwards
+ *   [[#3-7: text]]     blacked out in drafts 3–7 (a single number means "from then on")
+ *   [[note 4-6: text]] margin note visible in drafts 4–6 (a single number means that draft only)
+ */
+const REV = /\[\[\s*(\+|-|#|note\s+)(\d)(?:\s*-\s*(\d))?\s*:\s*([\s\S]+?)\]\]/g;
+const revise = (html: string) =>
+  html.replace(REV, (_m, kind: string, a: string, b: string | undefined, text: string) => {
+    const k = kind.trim();
+    if (k === '+') return `<span class="rv" data-add="${a}">${text}</span>`;
+    if (k === '-') return `<span class="rv" data-del="${a}">${text}</span>`;
+    if (k === '#') return `<span class="rv" data-redact="${a}-${b ?? 9}"><span>${text}</span></span>`;
+    return `<span class="rv-note" data-note="${a}-${b ?? a}"><span class="rv-note__t">${text}</span><span class="rv-note__by">— ${NOTE_SIGNATURE}</span></span>`;
+  });
+
+const inline = (s: string) => revise(redact(esc(s)));
 
 export const slugOf = (file: string) => file.toLowerCase();
 
@@ -58,10 +81,13 @@ export async function loadRecords(base: string): Promise<ClientRecord[]> {
       imageCaption: data.imageCaption,
       fields: data.fields.map((f) => ({ label: esc(f.label), value: inline(f.value) })),
       summary: inline(data.summary),
-      body: redact(rendered?.html ?? ''),
+      body: revise(redact(rendered?.html ?? '')),
       related: data.related,
       tags: data.tags,
-    }));
+      revised: false,
+      drafts: data.drafts,
+    }))
+    .map((r) => ({ ...r, revised: r.drafts.length > 0 || /class="rv/.test(r.summary + r.body + r.fields.map((f) => f.value).join('')) }));
 
   const files = new Set<string>();
   for (const r of records) {

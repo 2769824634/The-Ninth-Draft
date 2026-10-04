@@ -123,6 +123,47 @@ function tone(freq: number, dur: number, { type = 'sine' as OscillatorType, vol 
 
 const live = () => !!ctx && prefs.get('sound');
 
+/* ---------- Sputnik: faint alternating beeps while the Programs drawer is open ---------- */
+let sputnikTimer = 0;
+let sputnikOn = false;
+function sputnikTick(k: number) {
+  if (!sputnikOn) return;
+  if (live() && !document.hidden) {
+    tone(k % 2 ? 840 : 1000, 0.3, { type: 'sine', vol: 0.035 });
+  }
+  sputnikTimer = window.setTimeout(() => sputnikTick(k + 1), 600);
+}
+
+/* ---------- Numbers station: chime, then a voice reading five-figure groups ---------- */
+let stationTimer = 0;
+const POACHER = [659, 659, 587, 523, 587, 659, 784, 659]; // a folk tune, played on a tired music box
+function numbersStation() {
+  if (!live() || document.hidden || !ctx) return scheduleStation();
+  const t0 = 0.2;
+  noise(1.2, { f0: 600, f1: 1800, q: 0.5, vol: 0.12, attack: 0.4, delay: 0 });
+  POACHER.forEach((f, i) => tone(f, 0.32, { type: 'triangle', vol: 0.05, delay: t0 + 0.9 + i * 0.34 }));
+  const synth = window.speechSynthesis;
+  if (synth && typeof SpeechSynthesisUtterance !== 'undefined') {
+    const words = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'niner'];
+    const group = Array.from({ length: 5 }, () => words[Math.floor(Math.random() * 10)]).join('. ');
+    window.setTimeout(() => {
+      if (!live()) return;
+      const u = new SpeechSynthesisUtterance(`${group}. ${group}.`);
+      const v = synth.getVoices().find((x) => /en[-_]GB/i.test(x.lang)) ?? synth.getVoices().find((x) => /^en/i.test(x.lang));
+      if (v) u.voice = v;
+      u.rate = 0.72;
+      u.pitch = 0.55;
+      u.volume = 0.28;
+      synth.speak(u);
+    }, (t0 + 0.9 + POACHER.length * 0.34 + 0.6) * 1000);
+  }
+  scheduleStation();
+}
+function scheduleStation() {
+  window.clearTimeout(stationTimer);
+  stationTimer = window.setTimeout(numbersStation, 80000 + Math.random() * 70000);
+}
+
 export const audio = {
   /** Must be called from a user gesture. */
   unlock() {
@@ -133,7 +174,13 @@ export const audio = {
   apply() {
     if (!ctx) return;
     const on = prefs.get('sound');
-    if (on) startAmbient();
+    if (on) {
+      startAmbient();
+      scheduleStation();
+    } else {
+      window.clearTimeout(stationTimer);
+      window.speechSynthesis?.cancel();
+    }
     master.gain.setTargetAtTime(on ? 0.9 : 0, ctx.currentTime, on ? 0.6 : 0.15);
   },
   theme(night: boolean) {
@@ -143,6 +190,18 @@ export const audio = {
   flick() {
     if (!live()) return;
     noise(0.07, { f0: 3800, f1: 1800, q: 0.9, vol: 0.32 });
+  },
+  sputnik(on: boolean) {
+    if (on === sputnikOn) return;
+    sputnikOn = on;
+    window.clearTimeout(sputnikTimer);
+    if (on) sputnikTimer = window.setTimeout(() => sputnikTick(0), 900);
+  },
+  /** Radio dial between stations: static sweep plus a heterodyne whistle. */
+  tune() {
+    if (!live()) return;
+    noise(0.55, { f0: 500, f1: 2600, q: 0.9, vol: 0.18, attack: 0.05 });
+    tone(1800, 0.45, { type: 'sine', vol: 0.025, to: 600 });
   },
   drawer() {
     if (!live()) return;
