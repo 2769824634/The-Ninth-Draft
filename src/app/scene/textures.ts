@@ -14,9 +14,26 @@ export { inkOf };
 export const MANILA_DARK = '#b9a374';
 const INK = '#1d1b17';
 
-const MONO = '"IBM Plex Mono", ui-monospace, monospace';
-const SANS = '"Archivo Variable", "Archivo", Arial, sans-serif';
-const SERIF = '"Source Serif 4 Variable", Georgia, serif';
+// Chinese text typed onto paper uses the letterpress Song; headings use KuHei
+const MONO = '"IBM Plex Mono", "N9 HuoSong", ui-monospace, monospace';
+const SANS = '"Archivo Variable", "Archivo", "N9 KuHei", "N9 DIN Bold", Arial, sans-serif';
+const SERIF = '"Source Serif 4 Variable", "N9 HuoSong", Georgia, serif';
+
+/** Families a canvas may need for Chinese; see `canvasFontsReady`. */
+export const CJK_CANVAS_FONTS = ['N9 HuoSong', 'N9 KuHei', 'N9 DIN Bold'];
+
+/**
+ * Canvas text does not trigger web font loading, and the Chinese faces only
+ * load on demand (unicode-range). Load the glyphs for `text` before drawing.
+ */
+export async function canvasFontsReady(text: string) {
+  if (!document.fonts || !/[\u3000-\u9fff\uff00-\uffef]/.test(text)) return;
+  try {
+    await Promise.all(CJK_CANVAS_FONTS.map((f) => document.fonts.load(`20px "${f}"`, text)));
+  } catch {
+    /* draw with whatever is there */
+  }
+}
 
 let maxAniso = 4;
 export const setMaxAnisotropy = (n: number) => (maxAniso = n);
@@ -155,20 +172,43 @@ function typed(g: CanvasRenderingContext2D, text: string, x: number, y: number, 
   return cx;
 }
 
+/** CJK characters break anywhere; Latin words break at spaces. */
+const CJK_CHAR = /[\u2E80-\u9FFF\uF900-\uFAFF\uFF00-\uFFEF]/;
+// Never start a line with these
+const NO_START = /^[，。、；：？！）》」』】,.;:?!)]/;
+
 function wrap(g: CanvasRenderingContext2D, text: string, maxW: number) {
-  const words = text.split(/\s+/);
+  const tokens = text.match(/[\u2E80-\u9FFF\uF900-\uFAFF\uFF00-\uFFEF]|[^\s\u2E80-\u9FFF\uF900-\uFAFF\uFF00-\uFFEF]+|\s+/g) ?? [];
   const lines: string[] = [];
   let line = '';
-  for (const w of words) {
-    const t = line ? `${line} ${w}` : w;
-    if (g.measureText(t).width > maxW && line) {
-      lines.push(line);
-      line = w;
+  for (const tok of tokens) {
+    if (/^\s+$/.test(tok)) {
+      if (line) line += ' ';
+      continue;
+    }
+    const t = line + tok;
+    if (g.measureText(t.trimEnd()).width > maxW && line.trim() && !NO_START.test(tok)) {
+      lines.push(line.trimEnd());
+      line = tok;
     } else line = t;
   }
-  if (line) lines.push(line);
+  if (line.trim()) lines.push(line.trimEnd());
   return lines;
 }
+
+/** Trim `text` with an ellipsis so it fits `maxW` in `font`. */
+function fit(g: CanvasRenderingContext2D, text: string, maxW: number, font: string) {
+  g.save();
+  g.font = font;
+  let out = text;
+  if (g.measureText(out).width > maxW) {
+    while (out.length > 1 && g.measureText(out + '…').width > maxW) out = out.slice(0, -1);
+    out = out.trimEnd() + '…';
+  }
+  g.restore();
+  return out;
+}
+const isCjk = (s: string) => CJK_CHAR.test(s);
 
 const plain = (html: string) => html.replace(/<span class="redact"[^>]*><span>(.*?)<\/span><\/span>/g, (_, t) => '█'.repeat(Math.min(14, t.length))).replace(/<[^>]+>/g, '').replace(/&amp;/g, '&').replace(/&#39;/g, "'").replace(/&quot;/g, '"').replace(/&lt;/g, '<').replace(/&gt;/g, '>');
 
@@ -220,15 +260,10 @@ export function coverTexture(rec: ArchiveRecord | null, seed: number, stampText 
   if (rec) {
     const s = hash(rec.file);
     typed(g, rec.file, 70, 226, 44, s);
-    g.font = `500 40px ${MONO}`;
-    const t = rec.title.toUpperCase();
-    typed(g, t.length > 34 ? t.slice(0, 33) + '…' : t, 70, 334, 38, s + 1);
-    if (rec.date) typed(g, rec.date, 70, 444, 28, s + 2);
-    if (rec.place) typed(g, rec.place, 546, 444, 28, s + 3);
-    if (rec.subtitle) {
-      const st = rec.subtitle.length > 52 ? rec.subtitle.slice(0, 51) + '…' : rec.subtitle;
-      typed(g, st, 70, 554, 24, s + 4);
-    }
+    typed(g, fit(g, rec.title.toUpperCase(), W - 150, `500 38px ${MONO}`), 70, 334, 38, s + 1);
+    if (rec.date) typed(g, fit(g, rec.date, 420, `500 28px ${MONO}`), 70, 444, 28, s + 2);
+    if (rec.place) typed(g, fit(g, rec.place, 410, `500 28px ${MONO}`), 546, 444, 28, s + 3);
+    if (rec.subtitle) typed(g, fit(g, rec.subtitle, W - 150, `500 24px ${MONO}`), 70, 554, 24, s + 4);
     stamp(g, stampText ?? rec.stamp, W - 250, 210, 46, -0.12 - (s % 7) * 0.01, s);
     // handwritten-ish archive mark
     g.save();
@@ -323,17 +358,19 @@ export function pageTexture(rec: ArchiveRecord, photo: HTMLImageElement | null, 
   g.fillText('SUMMARY OF RECORD', tx, 92);
   g.fillRect(tx, 104, W - tx - 64, 2);
   let y = 152;
-  typed(g, rec.title.toUpperCase().slice(0, 30), tx, y, 26, s + 6);
+  typed(g, fit(g, rec.title.toUpperCase(), W - tx - 70, `500 26px ${MONO}`), tx, y, 26, s + 6);
   y += 44;
   g.font = `500 19px ${MONO}`;
-  const lines = wrap(g, plain(rec.summary), W - tx - 70).slice(0, 9);
+  // Chinese runs denser: one more line, a touch more leading
+  const lh = isCjk(rec.summary) ? 33 : 31;
+  const lines = wrap(g, plain(rec.summary), W - tx - 70).slice(0, isCjk(rec.summary) ? 8 : 9);
   for (const [i, l] of lines.entries()) {
-    typed(g, l, tx, y + i * 31, 19, s + 20 + i);
+    typed(g, l, tx, y + i * lh, 19, s + 20 + i);
   }
-  y += lines.length * 31 + 30;
+  y += lines.length * lh + 30;
   for (const f of rec.fields.slice(0, 3)) {
     if (y > H - 80) break;
-    typed(g, `${plain(f.label).toUpperCase()}: ${plain(f.value)}`.slice(0, 40), tx, y, 18, s + y);
+    typed(g, fit(g, `${plain(f.label).toUpperCase()}: ${plain(f.value)}`, W - tx - 70, `500 18px ${MONO}`), tx, y, 18, s + y);
     y += 30;
   }
   stamp(g, stampText, W - 230, H - 86, 30, 0.08, s + 3);

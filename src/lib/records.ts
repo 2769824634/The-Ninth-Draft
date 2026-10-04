@@ -39,7 +39,15 @@ export interface ClientRecord {
   revised: boolean;
   drafts: { n: number; label?: string; date?: string; by?: string; stamp?: string }[];
   attachments: ClientAttachment[];
+  /** Chinese version, already merged with the English original (present only when a .zh.md exists). */
+  zh?: RecordTexts;
 }
+
+/** The parts of a record that change with the language. */
+export type RecordTexts = Pick<
+  ClientRecord,
+  'title' | 'subtitle' | 'status' | 'date' | 'place' | 'imageCaption' | 'fields' | 'summary' | 'body' | 'tags' | 'drafts' | 'attachments' | 'revised'
+>;
 
 const esc = (s: string) =>
   s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
@@ -72,8 +80,11 @@ const inline = (s: string) => revise(redact(esc(s)));
 
 export const slugOf = (file: string) => file.toLowerCase();
 
+const hasMarks = (r: Pick<ClientRecord, 'summary' | 'body' | 'fields'>) => /class="rv/.test(r.summary + r.body + r.fields.map((f) => f.value).join(''));
+
 export async function loadRecords(base: string): Promise<ClientRecord[]> {
   const entries = await getCollection('records');
+  const zhEntries = await getCollection('recordsZh');
   const order = (c: string) => CATEGORIES.findIndex((x) => x.id === c);
 
   const records = entries
@@ -103,7 +114,48 @@ export async function loadRecords(base: string): Promise<ClientRecord[]> {
           : { ...a, title: a.title && esc(a.title), text: inline(a.text), date: a.date && esc(a.date), by: a.by && esc(a.by) },
       ),
     }))
-    .map((r) => ({ ...r, revised: r.drafts.length > 0 || /class="rv/.test(r.summary + r.body + r.fields.map((f) => f.value).join('')) }));
+    .map((r) => ({ ...r, revised: r.drafts.length > 0 || hasMarks(r) }));
+
+  // Chinese versions: every field falls back to the English one
+  for (const { data, rendered } of zhEntries) {
+    const r = records.find((x) => x.file === data.file);
+    if (!r) {
+      console.warn(`[archive] Chinese version for missing record ${data.file}`);
+      continue;
+    }
+    const zhBody = rendered?.html?.trim();
+    const zh: RecordTexts = {
+      title: data.title ?? r.title,
+      subtitle: data.subtitle ?? r.subtitle,
+      status: data.status ?? r.status,
+      date: data.date ?? r.date,
+      place: data.place ?? r.place,
+      imageCaption: data.imageCaption ?? r.imageCaption,
+      fields: data.fields ? data.fields.map((f) => ({ label: esc(f.label), value: inline(f.value) })) : r.fields,
+      summary: data.summary ? inline(data.summary) : r.summary,
+      body: zhBody ? revise(redact(zhBody)) : r.body,
+      tags: data.tags ?? r.tags,
+      drafts: r.drafts.map((d) => {
+        const t = data.drafts?.find((x) => x.n === d.n);
+        return t ? { ...d, label: t.label ?? d.label, by: t.by ?? d.by } : d;
+      }),
+      attachments: r.attachments.map((a, i) => {
+        const t = data.attachments?.[i];
+        if (!t) return a;
+        if (typeof t === 'string') return { ...a, text: inline(t) };
+        return {
+          ...a,
+          title: t.title ? esc(t.title) : a.title,
+          text: t.text ? inline(t.text) : a.text,
+          date: t.date ? esc(t.date) : a.date,
+          by: t.by ? esc(t.by) : a.by,
+        };
+      }),
+      revised: false,
+    };
+    zh.revised = zh.drafts.length > 0 || hasMarks(zh);
+    r.zh = zh;
+  }
 
   const files = new Set<string>();
   for (const r of records) {

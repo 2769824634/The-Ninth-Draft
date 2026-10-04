@@ -16,9 +16,17 @@
 @property --clr    { syntax: '<color>'; inherits: true; initial-value: #121314; }
 
 :root {
-  --f-sans: 'Archivo Variable', 'Archivo', 'Helvetica Neue', Arial, sans-serif;
-  --f-mono: 'IBM Plex Mono', ui-monospace, Menlo, monospace;
-  --f-serif: 'Source Serif 4 Variable', 'Source Serif 4', Georgia, serif;
+  /* Each Latin face is followed by its Chinese counterpart (only CJK characters
+     reach it, so the English site never loads them). A face missing a rare
+     character hands it to the next Chinese face, not to a system font. */
+  --f-sans: 'Archivo Variable', 'Archivo', 'N9 DIN', 'N9 KuHei', 'Helvetica Neue', Arial, sans-serif;
+  /* Big titles only: KuHei turns to mud below ~16px, so small UI text uses DIN */
+  --f-display: 'Archivo Variable', 'Archivo', 'N9 KuHei', 'N9 DIN Bold', 'Helvetica Neue', Arial, sans-serif;
+  --f-mono: 'IBM Plex Mono', 'N9 DIN', 'N9 KuHei', ui-monospace, Menlo, monospace;
+  --f-serif: 'Source Serif 4 Variable', 'Source Serif 4', 'N9 HuoSong', Georgia, serif;
+  /* Heuss's hand and the SYSTEM printout have their own Chinese faces */
+  --f-note: 'Source Serif 4 Variable', 'Source Serif 4', 'N9 Fangsong', Georgia, serif;
+  --f-system: 'IBM Plex Mono', 'N9 Bitmap', ui-monospace, Menlo, monospace;
 
   --ease: cubic-bezier(.16, 1, .3, 1);
   --ease-io: cubic-bezier(.65, 0, .35, 1);

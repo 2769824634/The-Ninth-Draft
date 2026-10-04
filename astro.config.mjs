@@ -1,5 +1,6 @@
 // @ts-check
 import { defineConfig } from 'astro/config';
+import zhFonts from './integrations/zh-fonts.mjs';
 
 // GitHub Pages: https://2769824634.github.io/The-Ninth-Draft/
 export default defineConfig({
@@ -9,4 +10,5 @@ export default defineConfig({
   vite: { build: { chunkSizeWarningLimit: 1200 } },
   build: { format: 'directory' },
   devToolbar: { enabled: false },
+  integrations: [zhFonts()],
 });

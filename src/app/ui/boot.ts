@@ -1,6 +1,7 @@
 /** Boot: the seal draws itself, clearance is confirmed, the visitor enters. */
 import { reducedMotion } from '../prefs';
 import { audio } from '../audio';
+import { t } from '../i18n';
 
 const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
@@ -28,8 +29,8 @@ export async function boot(root: HTMLElement, ready: Promise<unknown>, lines: st
   const skip = () => (skipped = true);
   window.addEventListener('keydown', skip, { once: true });
 
-  const steps = [...(lines.length ? lines.slice(0, 3) : ['Establishing secure line', 'Verifying clearance', 'Indexing drawers']), 'Ready'];
-  const full = 'Clearance confirmed : Visitor';
+  const steps = [...(lines.length ? lines.slice(0, 3) : [t('Establishing secure line'), t('Verifying clearance'), t('Indexing drawers')]), t('Ready')];
+  const full = t('Clearance confirmed : Visitor');
   if (!reducedMotion()) {
     for (let i = 0; i < steps.length - 1 && !skipped; i++) {
       caption.textContent = steps[i];
@@ -49,7 +50,7 @@ export async function boot(root: HTMLElement, ready: Promise<unknown>, lines: st
   } else line.textContent = full;
 
   enter.classList.add('is-ready');
-  caption.textContent = 'Press Enter or click to open the archive';
+  caption.textContent = t('Press Enter or click to open the archive');
 
   await new Promise<void>((resolve) => {
     const go = () => {

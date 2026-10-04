@@ -2,6 +2,7 @@
 import type { ArchiveRecord, Category } from '../types';
 import { esc } from './text';
 import { audio } from '../audio';
+import { t } from '../i18n';
 
 const strip = (html: string) => html.replace(/<[^>]+>/g, ' ').replace(/&[a-z#0-9]+;/gi, ' ');
 
@@ -17,9 +18,12 @@ export class Search {
   private emptyT = 0;
 
   constructor(records: ArchiveRecord[], private categories: Category[], private base: string, private open: (rec: ArchiveRecord) => void, private onEmpty: () => void = () => {}) {
+    // Both languages are searchable, whichever one is showing
     this.index = records.map((rec) => ({
       rec,
-      hay: [rec.file, rec.title, rec.subtitle, rec.date, rec.place, rec.status, rec.stamp, ...rec.tags, ...rec.fields.map((f) => `${f.label} ${strip(f.value)}`), strip(rec.summary), strip(rec.body)]
+      hay: [rec.en ?? rec, rec.zh]
+        .flatMap((x) => (x ? [x.title, x.subtitle, x.date, x.place, x.status, ...x.tags, ...x.fields.map((f) => `${f.label} ${strip(f.value)}`), strip(x.summary), strip(x.body)] : []))
+        .concat(rec.file, rec.stamp)
         .filter(Boolean)
         .join(' ')
         .toLowerCase(),
@@ -78,7 +82,8 @@ export class Search {
     this.cursor = 0;
     window.clearTimeout(this.emptyT);
     if (q && !this.results.length) this.emptyT = window.setTimeout(() => this.onEmpty(), 900);
-    this.count.textContent = q ? `${this.results.length} record${this.results.length === 1 ? '' : 's'} match` : `${this.results.length} records in the archive`;
+    const n = this.results.length;
+    this.count.textContent = q ? t(n === 1 ? '{n} record matches' : '{n} records match', { n }) : t('{n} records in the archive', { n });
     const mark = (s: string) => {
       let out = esc(s);
       for (const t of terms) {
@@ -92,7 +97,7 @@ export class Search {
         (r, i) => `<li><a href="${this.base}records/${r.slug}/" data-file="${esc(r.file)}" aria-selected="${i === 0}">
           <span class="rel__file">${mark(r.file)}</span>
           <span class="rel__title">${mark(r.title)}${r.subtitle ? `<small>${mark(r.subtitle)}</small>` : ''}</span>
-          <span class="rel__cat">${esc(this.categories.find((c) => c.id === r.category)!.label)}</span>
+          <span class="rel__cat">${esc(t(this.categories.find((c) => c.id === r.category)!.label))}</span>
         </a></li>`,
       )
       .join('');

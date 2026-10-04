@@ -17,6 +17,7 @@
   },
   "devDependencies": {
     "@types/three": "^0.186.0",
+    "subset-font": "^2.9.0",
     "typescript": "^7.0.2"
   }
 }

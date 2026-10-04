@@ -8,11 +8,14 @@ import type { ArchiveRecord, Attachment } from '../types';
 import { hash, loadPhoto } from '../scene/textures';
 import { halftone } from '../scene/halftone';
 import { esc } from './text';
+import { isZh, t } from '../i18n';
 
 /** Same archivist who signs the margin notes. */
 const NOTE_BY = 'Heuss';
 
 const pad = (n: number) => String(n).padStart(2, '0');
+
+const KIND: Record<string, string> = { note: 'Memo', telegram: 'Telegram', ticket: 'Ticket', clipping: 'Press clipping', negative: 'Contact strip' };
 
 /** Small deterministic jitter per file + slot, so a file always lies the same way. */
 const jitter = (seed: number, k: number) => ((Math.imul(seed ^ (k * 2654435761), 1597334677) >>> 0) % 1000) / 1000 - 0.5;
@@ -30,39 +33,45 @@ function routingSlip(rec: ArchiveRecord) {
   const rows: { n: number; what: string; date: string; who: string }[] = [];
   const dated = [...rec.drafts].sort((a, b) => a.n - b.n);
   if (dated.length) {
-    for (const d of dated) rows.push({ n: d.n, what: `Draft ${pad(d.n)}${d.label ? ` · ${esc(d.label)}` : ''}`, date: esc(d.date ?? '—'), who: initials(d.by) });
+    for (const d of dated) rows.push({ n: d.n, what: `${t('Draft {n}', { n: pad(d.n) })}${d.label ? ` · ${esc(d.label)}` : ''}`, date: esc(d.date ?? '—'), who: initials(d.by) });
   } else {
-    rows.push({ n: 1, what: 'Registry', date: rec.category === 'personnel' ? '—' : esc(rec.date?.split(/\s*[–-]\s*/)[0] ?? '—'), who: 'R.' });
-    rows.push({ n: 5, what: 'Records office', date: '—', who: initials() });
+    rows.push({ n: 1, what: t('Registry'), date: rec.category === 'personnel' ? '—' : esc(rec.date?.split(/\s*[–-]\s*/)[0] ?? '—'), who: 'R.' });
+    rows.push({ n: 5, what: t('Records office'), date: '—', who: initials() });
   }
-  rows.push({ n: 9, what: 'Draft 09 · Filed', date: '—', who: initials() });
-  const xref = rec.related.length ? `<p class="slip__x">Cross-filed: ${rec.related.map(esc).join(', ')}</p>` : '';
+  rows.push({ n: 9, what: t('Draft 09 · Filed'), date: '—', who: initials() });
+  const xref = rec.related.length ? `<p class="slip__x">${t('Cross-filed:')} ${rec.related.map(esc).join(', ')}</p>` : '';
   return `
-    <span class="slip__head"><b>Routing slip</b><span>No. ${1000 + (hash(rec.file) % 9000)}</span></span>
-    <span class="slip__file">File ${esc(rec.file)}</span>
+    <span class="slip__head"><b>${t('Routing slip')}</b><span>No. ${1000 + (hash(rec.file) % 9000)}</span></span>
+    <span class="slip__file">${t('File {file}', { file: esc(rec.file) })}</span>
     <table class="slip__rows">
-      <thead><tr><th>Route</th><th>Date</th><th>Init.</th></tr></thead>
+      <thead><tr><th>${t('Route')}</th><th>${t('Date')}</th><th>${t('Init.')}</th></tr></thead>
       <tbody>${rows.map((r) => `<tr data-draft="${r.n}"><td>${r.what}</td><td>${r.date}</td><td class="slip__init">${r.who}</td></tr>`).join('')}</tbody>
     </table>
     ${xref}`;
 }
 
-/** Telegrams have no full stops, only STOP. Leaves tags alone. */
-const telegraphese = (html: string) => html.replace(/\.(?=\s|$|<)/g, ' STOP').replace(/(?<!STOP)\s*$/, ' STOP');
+/**
+ * Telegrams have no full stops, only STOP (Chinese telegrams spelt it 完 at the
+ * end, and used spaces for everything else). Leaves tags alone.
+ */
+const telegraphese = (html: string) =>
+  isZh() && /[\u4e00-\u9fff]/.test(html)
+    ? html.replace(/[。，；]/g, '　').replace(/\s*$/, '　完')
+    : html.replace(/\.(?=\s|$|<)/g, ' STOP').replace(/(?<!STOP)\s*$/, ' STOP');
 
 function body(a: Attachment, rec: ArchiveRecord, i: number) {
   const date = a.date ? `<span class="clip__date">${a.date}</span>` : '';
   switch (a.kind) {
     case 'telegram':
       return `
-        <span class="tg__head"><b>Telegram</b>${date}</span>
+        <span class="tg__head"><b>${t('Telegram')}</b>${date}</span>
         ${a.title ? `<span class="tg__route">${a.title}</span>` : ''}
         <span class="tg__strip">${telegraphese(a.text)}</span>`;
     case 'ticket':
       return `
         <span class="tk__stub"><span>No.</span><b>${String(hash(rec.file + i) % 100000).padStart(5, '0')}</b></span>
         <span class="tk__main">
-          <span class="tk__title">${a.title ?? 'Admit one'}</span>
+          <span class="tk__title">${a.title ?? t('Admit one')}</span>
           <span class="tk__text">${a.text}</span>
           ${date}
         </span>`;
@@ -86,14 +95,14 @@ function body(a: Attachment, rec: ArchiveRecord, i: number) {
 export function attachmentsHtml(rec: ArchiveRecord) {
   const s = hash(rec.file);
   const items = [
-    `<button type="button" class="clip clip--slip" style="--r:${(jitter(s, 0) * 3).toFixed(2)}deg" aria-label="Routing slip">${routingSlip(rec)}</button>`,
+    `<button type="button" class="clip clip--slip" style="--r:${(jitter(s, 0) * 3).toFixed(2)}deg" aria-label="${t('Routing slip')}">${routingSlip(rec)}</button>`,
     ...rec.attachments.map(
       (a, i) =>
-        `<button type="button" class="clip clip--${a.kind}" ${a.draft ? `data-draft="${a.draft}"` : ''} style="--r:${(jitter(s, i + 1) * 5).toFixed(2)}deg;--y:${(jitter(s, i + 11) * 0.8).toFixed(2)}rem" aria-label="${a.kind}">${body(a, rec, i)}</button>`,
+        `<button type="button" class="clip clip--${a.kind}" ${a.draft ? `data-draft="${a.draft}"` : ''} style="--r:${(jitter(s, i + 1) * 5).toFixed(2)}deg;--y:${(jitter(s, i + 11) * 0.8).toFixed(2)}rem" aria-label="${t(KIND[a.kind])}">${body(a, rec, i)}</button>`,
     ),
   ];
   return `
-    <div class="micro lede-label clips-label">Attachments (${items.length})</div>
+    <div class="micro lede-label clips-label">${t('Attachments ({n})', { n: items.length })}</div>
     <div class="clips">${items.join('')}</div>`;
 }
 

@@ -5,6 +5,8 @@
 import type { ArchivistLines } from '../types';
 import { reducedMotion } from '../prefs';
 import { audio } from '../audio';
+import { isZh } from '../i18n';
+import zhLines from '../../data/archivist.zh.json';
 
 type Vars = Record<string, string | number>;
 
@@ -25,7 +27,7 @@ export class Archivist {
   /** Pick a line for an event. `key` may be "open.SECRET" style for nested groups. */
   pick(key: string, vars: Vars = {}): string | null {
     const [group, sub] = key.split('.');
-    const g = this.lines[group];
+    const g = (isZh() ? (zhLines as unknown as ArchivistLines) : this.lines)[group];
     const list = Array.isArray(g) ? g : sub && g ? g[sub] : null;
     if (!list || !list.length) return null;
     const prev = this.last.get(key);
@@ -33,6 +35,12 @@ export class Archivist {
     const raw = pool[Math.floor(Math.random() * pool.length)];
     this.last.set(key, raw);
     return raw.replace(/\{(\w+)\}/g, (_, k) => String(vars[k] ?? ''));
+  }
+
+  /** A whole group of lines in the current language (e.g. the boot sequence). */
+  list(group: string): string[] {
+    const g = (isZh() ? (zhLines as unknown as ArchivistLines) : this.lines)[group];
+    return Array.isArray(g) ? g : [];
   }
 
   /** Say something. `priority` lines interrupt; others wait for a quiet moment. */
