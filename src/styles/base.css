@@ -1,0 +1,92 @@
+*, *::before, *::after { box-sizing: border-box; }
+
+html {
+  font-size: clamp(13px, 1.0417vw, 20px);
+  -webkit-text-size-adjust: 100%;
+  transition: --bg var(--t-3) var(--ease), --bg-2 var(--t-3) var(--ease), --ink var(--t-3) var(--ease),
+    --ink-2 var(--t-3) var(--ease), --ink-3 var(--t-3) var(--ease), --line var(--t-3) var(--ease),
+    --veil var(--t-3) var(--ease), --accent var(--t-3) var(--ease);
+}
+
+html, body { height: 100%; }
+
+body {
+  margin: 0;
+  overflow: hidden;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--f-sans);
+  font-size: 1rem;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-synthesis: none;
+}
+
+button {
+  appearance: none;
+  border: 0;
+  background: none;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+
+a { color: inherit; }
+
+::selection { background: var(--ink); color: var(--bg); }
+
+:focus-visible { outline: 1px solid var(--accent); outline-offset: 4px; }
+
+/* Shared micro-typography */
+.micro {
+  font-family: var(--f-mono);
+  font-size: .62rem;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+.kbd {
+  display: inline-grid;
+  place-items: center;
+  min-width: 1.15rem;
+  height: 1.15rem;
+  padding: 0 .3rem;
+  border: 1px solid var(--line);
+  font-family: var(--f-mono);
+  font-size: .55rem;
+  color: var(--ink-3);
+}
+
+.sr-only {
+  position: absolute; width: 1px; height: 1px; overflow: hidden;
+  clip: rect(0 0 0 0); white-space: nowrap;
+}
+
+/* Character swap: each glyph rolls vertically inside its own clip box. */
+.swap { display: inline-flex; flex-wrap: wrap; }
+.swap__c {
+  position: relative;
+  display: inline-block;
+  overflow: hidden;
+  vertical-align: top;
+  height: 1.12em;
+  line-height: 1.12;
+}
+.swap__c > span {
+  display: block;
+  transition: transform 560ms var(--ease);
+  transition-delay: calc(var(--i, 0) * 18ms);
+}
+.swap__c > span + span { position: absolute; inset: 100% 0 auto; }
+.swap__c.is-rolled > span { transform: translateY(-100%); }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    transition-duration: 1ms !important;
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}
