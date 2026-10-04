@@ -1,0 +1,74 @@
+/* ==========================================================================
+   设计令牌 —— 改这里就能整体换肤
+   ========================================================================== */
+:root {
+  /* 字体 */
+  --font-crt: "VT323", "Share Tech Mono", ui-monospace, monospace;
+  --font-mono: "Share Tech Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  --font-display: "Orbitron", "Share Tech Mono", sans-serif;
+  --font-cjk: "Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif;
+
+  /* 空间 */
+  --void: #07040f;              /* 宇宙底色 */
+  --sky-top: #0b0420;
+  --sky-mid: #2a0b4a;
+  --horizon: #ff3ea5;
+
+  /* 硬件外壳（卡带未来主义：枪灰塑料 + 橙色条纹） */
+  --case-hi: #3a3a44;
+  --case: #26262e;
+  --case-lo: #15151a;
+  --case-edge: #0b0b0e;
+  --label: #c9c0ae;             /* 米色铭牌 */
+  --label-ink: #1b1a17;
+  --stripe-1: #ffcf3f;
+  --stripe-2: #ff9a1f;
+  --stripe-3: #ff5a1f;
+  --stripe-4: #d61f4a;
+
+  /* 蒸汽波霓虹 */
+  --neon-pink: #ff3ea5;
+  --neon-cyan: #3ef2ff;
+  --neon-violet: #9b5cff;
+
+  /* 荧光屏（由主题覆盖） */
+  --fg: #ffb000;
+  --fg-rgb: 255 176 0;
+  --fg-dim: rgb(var(--fg-rgb) / .62);
+  --fg-faint: rgb(var(--fg-rgb) / .18);
+  --accent: #ff3ea5;
+  --accent-rgb: 255 62 165;
+  --screen-bg: #120a02;
+  --glow: 0 0 2px rgb(var(--fg-rgb) / .9), 0 0 10px rgb(var(--fg-rgb) / .45), 0 0 24px rgb(var(--fg-rgb) / .2);
+
+  /* 动效 */
+  --ease-out: cubic-bezier(.16, 1, .3, 1);
+  --ease-snap: cubic-bezier(.7, 0, .2, 1);
+  --t-fast: 140ms;
+  --t-med: 320ms;
+
+  --radius: 6px;
+  --gutter: clamp(10px, 2vw, 22px);
+}
+
+/* ---- 荧光主题 ---- */
+[data-theme="amber"] {
+  --fg: #ffb000; --fg-rgb: 255 176 0;
+  --accent: #ff3ea5; --accent-rgb: 255 62 165;
+  --screen-bg: #130a02;
+}
+[data-theme="green"] {
+  --fg: #4dff7a; --fg-rgb: 77 255 122;
+  --accent: #e6ff3e; --accent-rgb: 230 255 62;
+  --screen-bg: #031208;
+}
+[data-theme="vapor"] {
+  --fg: #ff7ad9; --fg-rgb: 255 122 217;
+  --accent: #3ef2ff; --accent-rgb: 62 242 255;
+  --screen-bg: #12041a;
+}
+[data-theme="ice"] {
+  --fg: #8fe9ff; --fg-rgb: 143 233 255;
+  --accent: #ffcf3f; --accent-rgb: 255 207 63;
+  --screen-bg: #020c14;
+}
