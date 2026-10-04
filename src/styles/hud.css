@@ -157,6 +157,37 @@
 }
 [data-theme='night'] .seg__thumb { transform: translateX(100%); }
 
+.tool--lang { gap: .5rem; }
+/* Two sheets, original and its copy: they trade places when the language changes */
+.tool--lang .pg { transition: transform 520ms var(--ease); }
+.tool--lang .pg--b { transform: translate(0, 0); }
+[data-lang='zh'] .tool--lang .pg--a { transform: translate(4px, 3px); }
+[data-lang='zh'] .tool--lang .pg--b { transform: translate(-4px, -3px); }
+.tool--lang:hover .pg--a { transform: translate(-.6px, -.6px); }
+[data-lang='zh'] .tool--lang:hover .pg--a { transform: translate(4.6px, 3.6px); }
+.lang__pair { display: inline-flex; align-items: baseline; gap: .28rem; }
+.lang__pair i { font-style: normal; color: var(--ink-3); opacity: .6; }
+.lang__pair b {
+  position: relative;
+  font-weight: inherit;
+  color: var(--ink-3);
+  transition: color 320ms var(--ease);
+}
+.lang__pair b::after {
+  content: '';
+  position: absolute;
+  left: 0; right: 0; bottom: -.32rem;
+  height: 2px;
+  background: var(--clr);
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 420ms var(--ease);
+}
+[data-lang='en'] .lang__pair b[lang='en'],
+[data-lang='zh'] .lang__pair b[lang='zh-CN'] { color: var(--ink); }
+[data-lang='en'] .lang__pair b[lang='en']::after,
+[data-lang='zh'] .lang__pair b[lang='zh-CN']::after { transform: scaleX(1); }
+
 .eq { display: inline-flex; align-items: flex-end; gap: 2px; height: .8rem; }
 .eq i { width: 2px; height: 25%; background: currentColor; transition: height 300ms var(--ease); }
 .tool--sound[aria-pressed='true'] .eq i { animation: eq 1.1s var(--ease-io) infinite alternate; }
@@ -405,6 +436,7 @@
   .tool span:not(.kbd):not(.eq) { display: none; }
   .tool .kbd { display: none; }
   .seg button { padding: .38rem .6rem; }
+  .tool--lang .lang__pair { display: none; }
   .filecard {
     top: auto;
     left: var(--edge);

@@ -52,21 +52,12 @@
 /* Telegram strips stay uppercase-free in Chinese */
 [data-lang='zh'] .tg__strip { letter-spacing: .08em; }
 
-/* Language switch: thumb follows the language, not the lighting */
-[data-theme='night'] .seg--lang .seg__thumb { transform: none; }
-[data-lang='zh'] .seg--lang .seg__thumb { transform: translateX(100%); }
-.seg--lang button[lang='zh-CN'] { font-family: 'N9 KuHei', var(--f-sans); }
-
 /* Brand: the Chinese lines sit on taller glyphs, give them room */
 [data-lang='zh'] .brand__link { line-height: 1.12; }
 [data-lang='zh'] .brand__l2 { margin-top: .3rem; letter-spacing: .12em; }
 [data-lang='zh'] .brand__l3 { margin-top: .2rem; letter-spacing: .08em; font-weight: 400; }
 
 @media (max-width: 900px), (max-aspect-ratio: 1/1) {
-  /* Phone: the language switch shrinks to one key showing the other language */
   .tools { gap: .7rem; }
   .brand__l1 { font-size: 1.02rem; }
-  .seg--lang { border: 0; }
-  .seg--lang .seg__thumb, .seg--lang button[aria-pressed='true'] { display: none; }
-  .seg--lang button { padding: .38rem .3rem; color: var(--ink); }
 }
