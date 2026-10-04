@@ -2,12 +2,14 @@
  * The link room: every record pinned to a cork board, joined by red string
  * wherever one file names another in `related`. Strings are simulated rope
  * (verlet), so they sag and swing when a card is dragged.
+ * Over it sits the tactical layer: a stencilled map grid, a sweep that
+ * pings each card it passes, and lock-on brackets around the focused file.
  */
 import * as THREE from 'three';
 import type { ArchiveData, ArchiveRecord } from '../types';
 import { Spring, SpringV3, damp } from '../spring';
 import { reducedMotion } from '../prefs';
-import { boardTexture, CARD, cardTexture, hash, loadPhoto, setMaxAnisotropy } from './textures';
+import { boardTexture, CARD, cardTexture, gridTexture, hash, loadPhoto, setMaxAnisotropy, sweepTexture } from './textures';
 
 const KEY = 'n9:wall';
 const CARD_Z = 0.03;
@@ -15,12 +17,21 @@ const LIFT = 0.42;
 const SEGMENTS = 16;
 const STRING_W = 0.024;
 const PIN_Y = CARD.h / 2 - 0.12;
+/** Map grid cell, in board units. */
+const CELL = 2;
+const SWEEP_W = 3.2;
+const SWEEP_S = 6.5;
+const SWEEP_REST = 4;
 
 export interface WallEvents {
   focus(rec: ArchiveRecord | null, linked: ArchiveRecord[]): void;
   pick(rec: ArchiveRecord): void;
   lift(): void;
   moved(): void;
+  /** A sweep finished: how many cards it touched, and which sweep this was. */
+  swept(contacts: number, n: number): void;
+  /** Board coordinates under the pointer, or null when off the board. */
+  readout(text: string | null): void;
 }
 
 interface Card {
@@ -35,6 +46,7 @@ interface Card {
   lift: Spring;
   dim: Spring;
   links: Link[];
+  ping: number;
 }
 
 interface Link {
@@ -94,6 +106,20 @@ export class Wall {
   private pointers = new Map<number, { x: number; y: number }>();
   private drag: { card: Card | null; off: THREE.Vector2; moved: number; x: number; y: number; pinch: number; touch: boolean } | null = null;
   private dragged = new Set<string>();
+
+  private sweep!: THREE.Mesh;
+  private sweepTex!: THREE.Texture;
+  private sweepT = 0;
+  private sweepX = -Infinity;
+  private sweeps = 0;
+  private contacts = 0;
+  private reticle!: THREE.LineSegments;
+  private retMat = new THREE.LineBasicMaterial({ color: '#f0e4c4', transparent: true, opacity: 0, depthWrite: false });
+  private retScale = new Spring(1, 9);
+  private retOn = new Spring(0, 10);
+  private readAt = 0;
+  private overCanvas = false;
+  private lastRead: string | null = '';
 
   private raf = 0;
   private running = false;
@@ -157,12 +183,39 @@ export class Wall {
     bar(fw, this.size.y, -this.size.x / 2 - fw / 2, 0);
     bar(fw, this.size.y, this.size.x / 2 + fw / 2, 0);
 
+    // Grid stencil and sweep band, just above the cork
+    const grid = new THREE.Mesh(
+      new THREE.PlaneGeometry(this.size.x, this.size.y),
+      new THREE.MeshBasicMaterial({ map: gridTexture(this.size.x, this.size.y, CELL), transparent: true, depthWrite: false }),
+    );
+    grid.position.z = 0.002;
+    this.scene.add(grid);
+    this.sweepTex = sweepTexture();
+    this.sweepTex.repeat.x = this.size.x / SWEEP_W;
+    this.sweep = new THREE.Mesh(
+      new THREE.PlaneGeometry(this.size.x, this.size.y),
+      new THREE.MeshBasicMaterial({ map: this.sweepTex, color: '#f3dfa8', transparent: true, opacity: 0.32, blending: THREE.AdditiveBlending, depthWrite: false }),
+    );
+    this.sweep.position.z = 0.004;
+    this.scene.add(this.sweep);
+    this.reticle = this.makeReticle();
+    this.scene.add(this.reticle);
+
+    const linkCount = new Map<string, Set<string>>();
+    for (const r of records) {
+      for (const f of r.related) {
+        if (f === r.file || !layout.has(f)) continue;
+        (linkCount.get(r.file) ?? linkCount.set(r.file, new Set()).get(r.file)!).add(f);
+        (linkCount.get(f) ?? linkCount.set(f, new Set()).get(f)!).add(r.file);
+      }
+    }
     const saved = this.saved();
     const geo = new THREE.BoxGeometry(CARD.w, CARD.h, 0.012);
     const edge = new THREE.MeshStandardMaterial({ color: '#d9d2bf', roughness: 0.95 });
     for (const rec of records) {
       const label = categories.find((c) => c.id === rec.category)?.label ?? '';
-      const mat = new THREE.MeshStandardMaterial({ map: cardTexture(rec, label), roughness: 0.88 });
+      const nLinks = linkCount.get(rec.file)?.size ?? 0;
+      const mat = new THREE.MeshStandardMaterial({ map: cardTexture(rec, label, null, nLinks), roughness: 0.88, emissive: '#ffe2a0', emissiveIntensity: 0 });
       const mesh = new THREE.Mesh(geo, [edge, edge, edge, edge, mat, edge]);
       mesh.castShadow = mesh.receiveShadow = true;
       const pin = new THREE.Group();
@@ -186,6 +239,7 @@ export class Wall {
         lift: new Spring(0, 10),
         dim: new Spring(0, 7),
         links: [],
+        ping: 0,
       };
       mesh.userData.card = card;
       // Real photographs arrive later; repaint the card once they do
@@ -193,7 +247,7 @@ export class Wall {
         void loadPhoto(rec.image).then((img) => {
           if (!img) return;
           mat.map?.dispose();
-          mat.map = cardTexture(rec, label, img);
+          mat.map = cardTexture(rec, label, img, nLinks);
           mat.needsUpdate = true;
         });
       }
@@ -239,6 +293,37 @@ export class Wall {
     a.links.push(link);
     b.links.push(link);
     return link;
+  }
+
+  /** Lock-on brackets: four corners, drawn around whichever card is focused. */
+  private makeReticle() {
+    const w = CARD.w / 2 + 0.16, h = CARD.h / 2 + 0.16, k = 0.26;
+    const v: number[] = [];
+    for (const [sx, sy] of [[-1, -1], [1, -1], [1, 1], [-1, 1]]) {
+      const x = sx * w, y = sy * h;
+      v.push(x, y, 0, x - sx * k, y, 0, x, y, 0, x, y - sy * k, 0);
+    }
+    // centre ticks on the long edges
+    v.push(0, h + 0.06, 0, 0, h - 0.06, 0, 0, -h + 0.06, 0, 0, -h - 0.06, 0);
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.Float32BufferAttribute(v, 3));
+    const r = new THREE.LineSegments(geo, this.retMat);
+    r.renderOrder = 2;
+    r.visible = false;
+    return r;
+  }
+
+  /** Map reference ("C-04") for a point on the board. */
+  private ref(x: number, y: number) {
+    const col = Math.floor((x + this.size.x / 2) / CELL);
+    const row = Math.floor((this.size.y / 2 - y) / CELL) + 1;
+    return `${String.fromCharCode(65 + (Math.max(0, col) % 26))}-${String(Math.max(1, row)).padStart(2, '0')}`;
+  }
+
+  /** Map reference of a card where it is pinned now. */
+  gridRef(file: string) {
+    const c = this.byFile.get(file);
+    return c ? this.ref(c.pos.x.target, c.pos.y.target) : '';
   }
 
   /**
@@ -359,6 +444,11 @@ export class Wall {
   private setFocus(card: Card | null) {
     if (card === this.focused) return;
     this.focused = card;
+    if (card) {
+      this.retScale.set(this.reduce ? 1 : 1.35);
+      this.retScale.target = 1;
+    }
+    this.retOn.target = card ? 1 : 0;
     const hot = new Set<Card>();
     if (card) {
       hot.add(card);
@@ -500,13 +590,29 @@ export class Wall {
     this.lamp.position.lerp(new THREE.Vector3(lampAt.x + 1.5, lampAt.y + 3, 9), damp(3, dt));
     this.lamp.target.position.lerp(new THREE.Vector3(lampAt.x, lampAt.y, 0), damp(3, dt));
 
+    this.tactical(dt, now);
+
     const dayInk = L.hemi > 0.7;
     for (const c of this.cards) {
       c.pos.update(dt);
       c.lift.update(dt);
       const dim = c.dim.update(dt);
       c.mat.color.setScalar(1 - dim * (dayInk ? 0.55 : 0.7));
+      c.ping = Math.max(0, c.ping - dt * 1.3);
+      c.mat.emissiveIntensity = c.ping * c.ping * (dayInk ? 0.12 : 0.14);
       this.place(c);
+    }
+    // brackets ride on the focused card, closing in when it is first picked
+    const f = this.focused;
+    const on = this.retOn.update(dt);
+    const sc = this.retScale.update(dt);
+    this.reticle.visible = on > 0.01;
+    this.retMat.opacity = on * 0.85;
+    if (f) {
+      this.reticle.position.copy(f.group.position);
+      this.reticle.position.z += 0.03;
+      this.reticle.rotation.z = f.group.rotation.z;
+      this.reticle.scale.setScalar(sc * f.group.scale.x);
     }
     for (const l of this.links) {
       this.simulate(l, dt);
@@ -518,6 +624,56 @@ export class Wall {
     }
 
     this.renderer.render(this.scene, this.camera);
+  }
+
+  /** Sweep band across the board, pings, and the coordinate readout. */
+  private tactical(dt: number, now: number) {
+    const half = this.size.x / 2;
+    if (this.reduce) {
+      this.sweep.visible = false;
+    } else {
+      this.sweepT += dt;
+      const span = this.size.x + SWEEP_W * 2;
+      const run = Math.min(1, this.sweepT / SWEEP_S);
+      const x = -half - SWEEP_W + run * span;
+      this.sweep.visible = run < 1;
+      this.sweepTex.offset.x = (SWEEP_W - half - x) / SWEEP_W;
+      for (const c of this.cards) {
+        const cx = c.pos.value.x;
+        if (cx > this.sweepX && cx <= x) {
+          c.ping = 1;
+          this.contacts++;
+        }
+      }
+      this.sweepX = x;
+      if (this.sweepT >= SWEEP_S + SWEEP_REST) {
+        this.sweeps++;
+        this.on.swept(this.contacts, this.sweeps);
+        this.sweepT = 0;
+        this.sweepX = -Infinity;
+        this.contacts = 0;
+      }
+    }
+    if (now - this.readAt < 120) return;
+    this.readAt = now;
+    let text: string | null = null;
+    if (this.overCanvas) {
+      this.raycaster.setFromCamera(this.pointer, this.camera);
+      const p = this.raycaster.ray.intersectPlane(new THREE.Plane(new THREE.Vector3(0, 0, 1), 0), new THREE.Vector3());
+      if (p && Math.abs(p.x) <= half && Math.abs(p.y) <= this.size.y / 2) {
+        const n = (v: number) => `${v < 0 ? '−' : '+'}${Math.abs(v).toFixed(2).padStart(5, '0')}`;
+        text = `X ${n(p.x)} · Y ${n(p.y)} · Grid ${this.ref(p.x, p.y)}`;
+      }
+    }
+    if (text !== this.lastRead) {
+      this.lastRead = text;
+      this.on.readout(text);
+    }
+  }
+
+  /** Sweeps completed since the room was built. */
+  get sweepCount() {
+    return this.sweeps;
   }
 
   /* ------------------------------------------------------------------ */
@@ -545,6 +701,7 @@ export class Wall {
     c.addEventListener('pointermove', (e) => {
       const r = c.getBoundingClientRect();
       this.pointer.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
+      this.overCanvas = true;
       if (this.pointers.has(e.pointerId)) this.pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
       const d = this.drag;
       if (!d) {
@@ -627,6 +784,7 @@ export class Wall {
     c.addEventListener('pointerup', end);
     c.addEventListener('pointercancel', end);
     c.addEventListener('pointerleave', (e) => {
+      this.overCanvas = false;
       if (e.pointerType === 'mouse' && !this.drag) this.hover(null);
     });
 

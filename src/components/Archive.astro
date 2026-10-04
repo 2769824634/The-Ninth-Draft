@@ -6,6 +6,7 @@ import '../styles/hud.css';
 import '../styles/dossier.css';
 import '../styles/overlays.css';
 import '../styles/wall.css';
+import '../styles/attach.css';
 
 interface Props {
   records: ClientRecord[];
@@ -151,7 +152,7 @@ const links = new Set(records.flatMap((r) => r.related.filter((f) => records.som
     <div class="wallhud__head">
       <span class="micro">Room 02 / Link analysis</span>
       <h1 class="wallhud__title">Red string</h1>
-      <span class="micro">{records.length} records · {links} links</span>
+      <span class="micro">{records.length} records · {links} links · <span id="wall-sweep">Sweep 00</span></span>
     </div>
     <div class="wallhud__note" id="wall-note" aria-live="polite">
       <span class="micro" id="wall-note-file">Hover a card to isolate its links</span>
@@ -199,6 +200,13 @@ const links = new Set(records.flatMap((r) => r.related.filter((f) => records.som
 
   <article class="dossier" id="dossier" aria-hidden="true">
     <header class="dossier__head">
+      <div class="retrieve" id="ds-retrieve" aria-hidden="true">
+        <div class="retrieve__in">
+          <div class="retrieve__row micro"><b id="rt-state">Retrieving</b><span id="rt-path"></span><span class="retrieve__pct" id="rt-pct">000%</span></div>
+          <div class="retrieve__bar"><i id="rt-bar"></i></div>
+          <p class="retrieve__tip"><span class="micro">Archivist tip</span><span id="rt-tip"></span></p>
+        </div>
+      </div>
       <div class="dossier__crumbs micro"><span id="ds-file">File P-0001</span><span class="barcode" id="ds-barcode" aria-hidden="true"></span></div>
       <h2 class="dossier__title" id="ds-title"></h2>
       <p class="dossier__sub" id="ds-sub"></p>

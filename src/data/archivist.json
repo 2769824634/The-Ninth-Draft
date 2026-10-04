@@ -78,5 +78,35 @@
     "reset": ["Back where I left them. You're welcome.", "Wall restored. Your theory has been filed under 'no'."],
     "leave": ["Back to the drawers. Leave the string where it is.", "Closing the link room. Try not to think about it."]
   },
-  "chapter": ["Programs. Where the budgets went to be redacted.", "Programs. Big ideas, bigger invoices.", "Programs. Everything here was a good idea at the time."]
+  "chapter": ["Programs. Where the budgets went to be redacted.", "Programs. Big ideas, bigger invoices.", "Programs. Everything here was a good idea at the time."],
+  "retrieve": {
+    "any": [
+      "Drag the draft slider back to read what we said before we said this.",
+      "Black bars can be clicked. I'd rather you didn't, but they can.",
+      "Press W to see who {file} knows. Everyone knows someone.",
+      "Things clipped to a file can be lifted. Put them back the way you found them.",
+      "The routing slip shows who touched {file}. Mostly Heuss. It's always Heuss.",
+      "If a page is missing, it was never here. That's the policy, not a tip."
+    ],
+    "personnel": [
+      "Personnel files lead with the face. When there is no face, I improvise.",
+      "{title}. Filed under people. People are the hardest thing to file.",
+      "Fetching {file}. Somebody had it out on loan. Somebody always does."
+    ],
+    "events": [
+      "Events are filed by date. Dates are the only thing in here that don't change.",
+      "{file}. It happened. The question is which draft says how.",
+      "Fetching {file}. The drawer sticks on this one. I've never asked why."
+    ],
+    "programs": [
+      "Programs have budgets. Budgets have black bars. Mind the black bars.",
+      "{title}. Somebody's career is in this folder. Possibly yours.",
+      "Fetching {file}. The Programs cabinet is heavier than it looks."
+    ]
+  },
+  "sweep": [
+    "Sweep complete. {count} contacts. All of them paper.",
+    "Nothing new on the wall. Nothing new is how it starts.",
+    "Scanning the wall again. Old habit. Bad one."
+  ]
 }

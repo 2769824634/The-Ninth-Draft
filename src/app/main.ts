@@ -7,6 +7,7 @@ import { Stage } from './scene/stage';
 import { Wall } from './scene/wall';
 import { Iris } from './ui/iris';
 import { Chapter } from './ui/chapter';
+import { Retrieve } from './ui/retrieve';
 import { Dossier } from './ui/dossier';
 import { Archivist } from './ui/archivist';
 import { clearanceKey, INK } from './clearance';
@@ -31,9 +32,13 @@ export function start() {
   let roomTarget: 'archive' | 'wall' = 'archive';
   root.dataset.room = 'archive';
   let wall: Wall | null = null;
+  /** On the link wall, the footer shows board coordinates instead of the sky. */
+  let boardCoords: string | null = null;
+  const clock = $('clock'), coords = $('coords');
   const iris = new Iris($('iris') as HTMLCanvasElement);
   const chapter = new Chapter();
   const voice = new Archivist(data.archivist);
+  const retrieve = new Retrieve();
 
   /** Paint the whole interface in a clearance colour. */
   const setClearance = (stamp: string) => {
@@ -203,6 +208,10 @@ export function start() {
     $('dossier').setAttribute('aria-hidden', 'false');
     document.querySelector('.inspect')!.setAttribute('aria-hidden', 'false');
     dossier.fill(rec, { index: i, total: byCat[ci].length });
+    retrieve.run(
+      `Drawer ${String(ci + 1).padStart(2, '0')} · Folder ${String(i + 1).padStart(2, '0')} · ${rec.file}`,
+      voice.pick(`retrieve.${rec.category}`, { file: rec.file, title: rec.title }) ?? voice.pick('retrieve.any', { file: rec.file }),
+    );
     stage?.inspect(rec);
     audio.open();
     audio.sputnik(rec.category === 'programs');
@@ -220,6 +229,7 @@ export function start() {
     $('dossier').setAttribute('aria-hidden', 'true');
     document.querySelector('.inspect')!.setAttribute('aria-hidden', 'true');
     dossier.reset();
+    retrieve.cancel();
     restoreCover();
     stage?.release();
     audio.close();
@@ -272,7 +282,7 @@ export function start() {
             return;
           }
           setClearance(rec.stamp);
-          note.file.textContent = `${rec.file} · ${rec.stamp}`;
+          note.file.textContent = `${rec.file} · ${rec.stamp} · Grid ${wall?.gridRef(rec.file) ?? ''}`;
           note.title.textContent = rec.title;
           note.linked.innerHTML = linked.length
             ? `Linked to<br>${linked.map((r) => `<b>${esc(r.file)}</b> ${esc(r.title)}`).join('<br>')}`
@@ -285,6 +295,15 @@ export function start() {
         moved: () => {
           audio.pin();
           if (wall?.rearranged === 6) voice.say('wall.mess');
+        },
+        swept: (contacts, n) => {
+          $('wall-sweep').textContent = `Sweep ${String(n).padStart(2, '0')}`;
+          if (n === 3) voice.say('sweep', { count: contacts }, false);
+        },
+        readout: (text) => {
+          boardCoords = text;
+          if (text) coords.textContent = text;
+          else tick();
         },
       });
       wall.setTheme(prefs.get('theme'));
@@ -326,6 +345,8 @@ export function start() {
     void iris.run(() => {
       wall?.stop();
       stage?.resume();
+      boardCoords = null;
+      tick();
       root.dataset.room = 'archive';
       document.title = 'The Ninth Draft — Archive';
       const back = byCat[col][sel[col]];
@@ -461,13 +482,13 @@ export function start() {
   }, { passive: true });
 
   /* ---------------- clock & coordinates ---------------- */
-  const clock = $('clock'), coords = $('coords');
   const tick = () => {
     const d = new Date();
     const p = (n: number) => String(n).padStart(2, '0');
     clock.textContent = `${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
     // Local sidereal-ish drift: right ascension advances with the clock.
     const ra = (d.getHours() * 3600 + d.getMinutes() * 60 + d.getSeconds()) * 1.0027;
+    if (boardCoords && roomTarget === 'wall') return;
     coords.textContent = `RA ${p(Math.floor(ra / 3600) % 24)}h ${p(Math.floor(ra / 60) % 60)}m ${p(Math.floor(ra) % 60)}s · Dec +61° 12′`;
   };
   tick();

@@ -431,7 +431,10 @@ export function drawerLabel(no: string, name: string, range: string) {
    ====================================================================== */
 export const CARD = { w: 2.05, h: 1.36 };
 
-export function cardTexture(rec: ArchiveRecord, categoryLabel: string, photo: HTMLImageElement | null = null) {
+/** Threat pips per classification, for the tactical marker on wall cards. */
+const THREAT: Record<string, number> = { 'TOP SECRET': 4, SECRET: 3, CONFIDENTIAL: 2, RESTRICTED: 1, DECLASSIFIED: 0 };
+
+export function cardTexture(rec: ArchiveRecord, categoryLabel: string, photo: HTMLImageElement | null = null, links = 0) {
   const W = 768, H = Math.round((768 * CARD.h) / CARD.w);
   const [c, g] = canvas(W, H);
   const s = hash(rec.file);
@@ -492,8 +495,96 @@ export function cardTexture(rec: ArchiveRecord, categoryLabel: string, photo: HT
     const sub = wrap(g, rec.subtitle, textW)[0] ?? '';
     g.fillText(sub, 48, 186 + lines.length * 52 + 18);
   }
+  // tactical marker, bottom left: target brackets, threat pips, link count
+  {
+    const x = 48, y = H - 70, bw = 236, bh = 40, k = 10;
+    g.strokeStyle = 'rgba(29,27,23,.7)';
+    g.lineWidth = 2;
+    g.beginPath();
+    for (const [cx, cy, dx, dy] of [[x, y, 1, 1], [x + bw, y, -1, 1], [x, y + bh, 1, -1], [x + bw, y + bh, -1, -1]]) {
+      g.moveTo(cx + dx * k, cy);
+      g.lineTo(cx, cy);
+      g.lineTo(cx, cy + dy * k);
+    }
+    g.stroke();
+    const tl = THREAT[rec.stamp] ?? 0;
+    for (let i = 0; i < 4; i++) {
+      g.save();
+      g.translate(x + 22 + i * 18, y + bh / 2);
+      g.rotate(Math.PI / 4);
+      g.fillStyle = i < tl ? ink : 'transparent';
+      g.strokeStyle = i < tl ? ink : 'rgba(29,27,23,.45)';
+      g.lineWidth = 1.5;
+      g.fillRect(-5, -5, 10, 10);
+      g.strokeRect(-5, -5, 10, 10);
+      g.restore();
+    }
+    g.font = `500 21px ${MONO}`;
+    g.fillStyle = 'rgba(29,27,23,.78)';
+    g.fillText(`TL${tl} · LNK ${String(links).padStart(2, '0')}`, x + 98, y + bh / 2 + 7);
+  }
   stamp(g, rec.stamp, W - 170, H - 62, 24, -0.08 - (s % 5) * 0.012, s);
   return toTexture(c);
+}
+
+/** Map grid stencilled over the board: faint lines, crosses at every node, edge labels. */
+export function gridTexture(w: number, h: number, cell: number) {
+  const W = 2048, H = Math.max(256, Math.round((2048 * h) / w));
+  const [c, g] = canvas(W, H);
+  const px = W / w;
+  const cols = Math.ceil(w / cell), rows = Math.ceil(h / cell);
+  g.strokeStyle = 'rgba(240, 228, 196, .07)';
+  g.lineWidth = 1.5;
+  for (let i = 1; i < cols; i++) {
+    g.beginPath();
+    g.moveTo(i * cell * px, 0);
+    g.lineTo(i * cell * px, H);
+    g.stroke();
+  }
+  for (let j = 1; j < rows; j++) {
+    g.beginPath();
+    g.moveTo(0, j * cell * px);
+    g.lineTo(W, j * cell * px);
+    g.stroke();
+  }
+  g.strokeStyle = 'rgba(240, 228, 196, .32)';
+  g.lineWidth = 2;
+  const k = 0.09 * px;
+  for (let i = 1; i < cols; i++) {
+    for (let j = 1; j < rows; j++) {
+      const x = i * cell * px, y = j * cell * px;
+      g.beginPath();
+      g.moveTo(x - k, y);
+      g.lineTo(x + k, y);
+      g.moveTo(x, y - k);
+      g.lineTo(x, y + k);
+      g.stroke();
+    }
+  }
+  g.font = `500 ${Math.round(0.16 * px)}px ${MONO}`;
+  g.fillStyle = 'rgba(240, 228, 196, .4)';
+  for (let i = 0; i < cols; i++) g.fillText(String.fromCharCode(65 + (i % 26)), (i + 0.5) * cell * px - 0.05 * px, 0.28 * px);
+  for (let j = 0; j < rows; j++) g.fillText(String(j + 1).padStart(2, '0'), 0.12 * px, (j + 0.5) * cell * px + 0.06 * px);
+  const t = toTexture(c);
+  t.colorSpace = THREE.NoColorSpace;
+  return t;
+}
+
+/** Radar sweep band: transparent, brightening to a hard leading edge on the right. */
+export function sweepTexture() {
+  const [c, g] = canvas(512, 4);
+  // the last texels stay clear: the band is clamped, so its edge pixel paints the whole board ahead
+  const grd = g.createLinearGradient(0, 0, 500, 0);
+  grd.addColorStop(0, 'rgba(255,255,255,0)');
+  grd.addColorStop(0.85, 'rgba(255,255,255,.28)');
+  grd.addColorStop(0.96, 'rgba(255,255,255,.75)');
+  grd.addColorStop(0.98, 'rgba(255,255,255,1)');
+  grd.addColorStop(1, 'rgba(255,255,255,0)');
+  g.fillStyle = grd;
+  g.fillRect(0, 0, 500, 4);
+  const t = new THREE.CanvasTexture(c);
+  t.wrapS = t.wrapT = THREE.ClampToEdgeWrapping;
+  return t;
 }
 
 /** Dark cork board with a painted steel frame lip. */

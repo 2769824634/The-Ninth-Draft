@@ -8,6 +8,16 @@ export const CATEGORIES = [
 
 export type CategoryId = (typeof CATEGORIES)[number]['id'];
 
+export interface ClientAttachment {
+  kind: 'note' | 'telegram' | 'ticket' | 'clipping' | 'negative';
+  title?: string;
+  /** HTML (redactions allowed). */
+  text: string;
+  date?: string;
+  by?: string;
+  draft?: number;
+}
+
 export interface ClientRecord {
   file: string;
   slug: string;
@@ -28,6 +38,7 @@ export interface ClientRecord {
   /** True when the record carries revision marks or a draft history. */
   revised: boolean;
   drafts: { n: number; label?: string; date?: string; by?: string; stamp?: string }[];
+  attachments: ClientAttachment[];
 }
 
 const esc = (s: string) =>
@@ -86,6 +97,11 @@ export async function loadRecords(base: string): Promise<ClientRecord[]> {
       tags: data.tags,
       revised: false,
       drafts: data.drafts,
+      attachments: data.attachments.map((a) =>
+        typeof a === 'string'
+          ? { kind: 'note' as const, text: inline(a) }
+          : { ...a, title: a.title && esc(a.title), text: inline(a.text), date: a.date && esc(a.date), by: a.by && esc(a.by) },
+      ),
     }))
     .map((r) => ({ ...r, revised: r.drafts.length > 0 || /class="rv/.test(r.summary + r.body + r.fields.map((f) => f.value).join('')) }));
 

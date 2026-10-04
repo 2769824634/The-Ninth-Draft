@@ -1,3 +1,14 @@
+export type AttachmentKind = 'note' | 'telegram' | 'ticket' | 'clipping' | 'negative';
+
+export interface Attachment {
+  kind: AttachmentKind;
+  title?: string;
+  text: string;
+  date?: string;
+  by?: string;
+  draft?: number;
+}
+
 export type CategoryId = 'personnel' | 'events' | 'programs';
 
 export interface Category {
@@ -25,6 +36,7 @@ export interface ArchiveRecord {
   tags: string[];
   revised: boolean;
   drafts: { n: number; label?: string; date?: string; by?: string; stamp?: string }[];
+  attachments: Attachment[];
 }
 
 export type Lines = string[] | Record<string, string[]>;
