@@ -80,6 +80,11 @@
   },
   "chapter": ["Programs. Where the budgets went to be redacted.", "Programs. Big ideas, bigger invoices.", "Programs. Everything here was a good idea at the time."],
   "retrieve": {
+    "notes": [
+      "Heuss scribbled in the margins of {drafts}. Slide the drafts back to read them.",
+      "Mind the margins in {drafts}. Heuss had opinions.",
+      "There are notes in {drafts}. Heuss signs everything, even the things he shouldn't."
+    ],
     "any": [
       "Drag the draft slider back to read what we said before we said this.",
       "Black bars can be clicked. I'd rather you didn't, but they can.",

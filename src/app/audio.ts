@@ -268,4 +268,26 @@ export const audio = {
     if (!live()) return;
     noise(0.015, { f0: 2600 + Math.random() * 1400, q: 5, vol: 0.09 });
   },
+  /** Two short tones before SYSTEM speaks, like an intercom opening. */
+  chirp() {
+    if (!live()) return;
+    tone(1560, 0.07, { type: 'sine', vol: 0.05 });
+    tone(1170, 0.1, { type: 'sine', vol: 0.05, delay: 0.09 });
+  },
+  /**
+   * Terminal power-up: relays close, the transformer hum swells, the tube
+   * whines up, and a two-note chime says the archive is listening.
+   * `short` skips the relays (returning visitors).
+   */
+  powerUp(short = false) {
+    if (!live()) return;
+    const d = short ? 0 : 0.42;
+    if (!short) for (let i = 0; i < 6; i++) noise(0.02, { f0: 2200 + i * 380, q: 4, vol: 0.2, delay: i * 0.06 + Math.random() * 0.02 });
+    tone(48, 1.4, { type: 'sawtooth', vol: 0.09, to: 96, delay: d });
+    tone(96, 1.1, { type: 'triangle', vol: 0.05, to: 120, delay: d + 0.1 });
+    tone(5200, 0.9, { type: 'sine', vol: 0.008, to: 7800, delay: d + 0.2 });
+    noise(0.7, { f0: 300, f1: 2400, q: 0.6, vol: 0.08, attack: 0.3, delay: d });
+    tone(880, 0.5, { type: 'sine', vol: 0.06, delay: d + 1.05 });
+    tone(1318, 0.8, { type: 'sine', vol: 0.05, delay: d + 1.25 });
+  },
 };

@@ -1,8 +1,9 @@
 /**
  * Retrieval strip: when a file is opened, the ARCHIVIST "fetches" it. A thin
  * segmented bar fills in uneven steps (somebody is walking to a cabinet),
- * a tip prints underneath, then the strip folds away. Purely decorative:
- * the dossier is readable the whole time.
+ * a tip prints underneath, then the strip folds away. The dossier below is
+ * revealed in step with the bar (`onProgress`): what has loaded is what
+ * you can read.
  */
 import { reducedMotion } from '../prefs';
 import { audio } from '../audio';
@@ -15,8 +16,16 @@ export class Retrieve {
   private state = document.getElementById('rt-state')!;
   private tip = document.getElementById('rt-tip')!;
   private timers: number[] = [];
+  private onProgress: (p: number) => void = () => {};
+  /** Displayed progress eases toward the step target, so the reveal glides. */
+  private shown = 1;
+  private target = 1;
+  private raf = 0;
+  private lastT = 0;
 
-  run(path: string, tip: string | null) {
+  run(path: string, tip: string | null, onProgress: (p: number) => void = () => {}) {
+    this.flush();
+    this.onProgress = onProgress;
     this.timers.forEach((t) => window.clearTimeout(t));
     this.timers = [];
     this.path.textContent = path;
@@ -57,12 +66,44 @@ export class Retrieve {
   cancel() {
     this.timers.forEach((t) => window.clearTimeout(t));
     this.timers = [];
+    this.flush();
     this.el.classList.remove('is-on');
   }
 
   private set(v: number) {
-    this.bar.style.transform = `scaleX(${v / 100})`;
+    this.target = v / 100;
     this.pct.textContent = `${String(v).padStart(3, '0')}%`;
+    if (v === 0 || reducedMotion()) {
+      this.shown = this.target;
+      this.paint();
+      return;
+    }
+    if (!this.raf) {
+      this.lastT = performance.now();
+      this.raf = requestAnimationFrame(this.glide);
+    }
+  }
+
+  private glide = (t: number) => {
+    const dt = Math.min(0.1, (t - this.lastT) / 1000);
+    this.lastT = t;
+    this.shown += (this.target - this.shown) * Math.min(1, dt * 14);
+    if (Math.abs(this.target - this.shown) < 0.002) this.shown = this.target;
+    this.paint();
+    this.raf = this.shown === this.target ? 0 : requestAnimationFrame(this.glide);
+  };
+
+  private paint() {
+    this.bar.style.transform = `scaleX(${this.shown})`;
+    this.onProgress(this.shown);
+  }
+
+  /** Finish any reveal in progress at once (a new file is coming in). */
+  private flush() {
+    cancelAnimationFrame(this.raf);
+    this.raf = 0;
+    this.shown = this.target = 1;
+    this.onProgress(1);
   }
 
   private finish() {

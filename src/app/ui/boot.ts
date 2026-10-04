@@ -67,7 +67,8 @@ export async function boot(root: HTMLElement, ready: Promise<unknown>, lines: st
   });
 
   audio.unlock();
-  audio.stamp();
+  audio.powerUp();
+  window.setTimeout(() => audio.stamp(), 1700);
   root.dataset.boot = 'off';
   setTimeout(() => cancelAnimationFrame(raf), 1000);
 }
