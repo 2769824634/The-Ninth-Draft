@@ -8,6 +8,7 @@ import { Wall } from './scene/wall';
 import { Iris } from './ui/iris';
 import { Chapter } from './ui/chapter';
 import { Retrieve } from './ui/retrieve';
+import { System } from './ui/system';
 import { Dossier } from './ui/dossier';
 import { Archivist } from './ui/archivist';
 import { clearanceKey, INK } from './clearance';
@@ -39,6 +40,7 @@ export function start() {
   const chapter = new Chapter();
   const voice = new Archivist(data.archivist);
   const retrieve = new Retrieve();
+  const system = new System();
 
   /** Paint the whole interface in a clearance colour. */
   const setClearance = (stamp: string) => {
@@ -208,14 +210,19 @@ export function start() {
     $('dossier').setAttribute('aria-hidden', 'false');
     document.querySelector('.inspect')!.setAttribute('aria-hidden', 'false');
     dossier.fill(rec, { index: i, total: byCat[ci].length });
+    const notes = dossier.noteSpan();
     retrieve.run(
       `Drawer ${String(ci + 1).padStart(2, '0')} · Folder ${String(i + 1).padStart(2, '0')} · ${rec.file}`,
-      voice.pick(`retrieve.${rec.category}`, { file: rec.file, title: rec.title }) ?? voice.pick('retrieve.any', { file: rec.file }),
+      notes
+        ? voice.pick('retrieve.notes', { drafts: notes })
+        : voice.pick(`retrieve.${rec.category}`, { file: rec.file, title: rec.title }) ?? voice.pick('retrieve.any', { file: rec.file }),
+      (p) => dossier.reveal(p),
     );
     stage?.inspect(rec);
     audio.open();
     audio.sputnik(rec.category === 'programs');
     voice.say(`open.${rec.stamp}`, { file: rec.file, title: rec.title });
+    system.opened(rec.stamp);
     if (!already) setTimeout(() => audio.stamp(), 900);
     document.title = `${rec.file} · ${rec.title} — The Ninth Draft`;
     if (push) history.pushState({ file: rec.file }, '', recordUrl(rec));
@@ -332,6 +339,7 @@ export function start() {
     };
     if (push) history.pushState({ room: 'wall' }, '', `${base}wall/`);
     voice.say('wall.enter');
+    system.maybe('wall', 0.35);
     if (instant) {
       swap();
       void iris.reveal();
@@ -373,11 +381,17 @@ export function start() {
       stage?.setCoverStamp(rec, info.stamp);
       restamped = rec;
       if (!byUser) return;
-      if (info.n <= 3 && lastDraftVoice > 3) voice.say('draftEarly', { draft: String(info.n).padStart(2, '0') });
+      if (info.n <= 3 && lastDraftVoice > 3) {
+        voice.say('draftEarly', { draft: String(info.n).padStart(2, '0') });
+        system.maybe('early', 0.4);
+      }
       else if (info.n === 9 && lastDraftVoice < 9) voice.say('draftFinal');
       lastDraftVoice = info.n;
     },
-    reveal: () => voice.say('reveal', {}, false),
+    reveal: () => {
+      voice.say('reveal', {}, false);
+      system.maybe('reveal', 0.35);
+    },
   });
   const search = new Search(records, categories, base, (r) => openRecord(r), () => voice.say('searchEmpty', {}, false));
 
@@ -513,6 +527,7 @@ export function start() {
       localStorage.setItem('n9:visits', String(visits));
     } catch { /* ignore */ }
     if (!initial && data.room !== 'wall') setTimeout(() => voice.say(visits > 1 ? 'welcomeBack' : prefs.get('theme') === 'night' ? 'night' : 'welcome'), 600);
+    if (!seen) system.say('boot', true);
     if (data.room === 'wall') enterWall(null, false, true);
     else audio.sputnik(categories[col].id === 'programs');
     if (initial) setTimeout(() => openRecord(initial, false), 350);
@@ -521,7 +536,10 @@ export function start() {
   if (seen) {
     root.dataset.boot = 'off';
     // Audio needs a gesture; unlock on the first one.
-    const unlock = () => audio.unlock();
+    const unlock = () => {
+      audio.unlock();
+      audio.powerUp(true);
+    };
     window.addEventListener('pointerdown', unlock, { once: true });
     window.addEventListener('keydown', unlock, { once: true });
     enter();

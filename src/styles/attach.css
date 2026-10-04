@@ -37,7 +37,7 @@
   background: repeating-linear-gradient(90deg, var(--clr) 0 9px, transparent 9px 12px);
   transform: scaleX(0);
   transform-origin: left;
-  transition: transform 180ms var(--ease);
+  transition: none;
 }
 .retrieve.is-done .retrieve__bar i { animation: retrieved 600ms steps(2) 2; }
 @keyframes retrieved { 50% { opacity: .35; } }

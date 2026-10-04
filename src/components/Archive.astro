@@ -7,6 +7,7 @@ import '../styles/dossier.css';
 import '../styles/overlays.css';
 import '../styles/wall.css';
 import '../styles/attach.css';
+import '../styles/system.css';
 
 interface Props {
   records: ClientRecord[];
@@ -121,6 +122,13 @@ const links = new Set(records.flatMap((r) => r.related.filter((f) => records.som
     </div>
   </section>
 
+  <!-- SYSTEM: the archive's machine voice, cold and occasional -->
+  <div class="sysmsg" id="sysmsg" role="status" aria-live="polite">
+    <span class="sysmsg__tag">System</span>
+    <span class="sysmsg__line" id="sysmsg-line"></span>
+    <span class="sysmsg__wave" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span>
+  </div>
+
   <footer class="foot">
     <p class="voice" id="voice" aria-live="polite"><span class="voice__who"><i></i>Archivist</span><span class="voice__line" id="voice-line">Clearance granted.</span></p>
     <span class="foot__coords micro" id="coords">RA 04h 21m 07s · Dec +61° 12′</span>
@@ -199,6 +207,8 @@ const links = new Set(records.flatMap((r) => r.related.filter((f) => records.som
   <canvas class="iris" id="iris" aria-hidden="true" hidden></canvas>
 
   <article class="dossier" id="dossier" aria-hidden="true">
+    <span class="dossier__spine micro" id="ds-spine" aria-hidden="true">Archive terminal // N°9</span>
+    <i class="dossier__scan" aria-hidden="true"></i>
     <header class="dossier__head">
       <div class="retrieve" id="ds-retrieve" aria-hidden="true">
         <div class="retrieve__in">
@@ -216,18 +226,22 @@ const links = new Set(records.flatMap((r) => r.related.filter((f) => records.som
       <button role="tab" type="button" data-tab="overview" aria-selected="true"><span>01</span>Overview</button>
       <button role="tab" type="button" data-tab="record" aria-selected="false"><span>02</span>Record</button>
       <button role="tab" type="button" data-tab="related" aria-selected="false"><span>03</span>Related</button>
+      <button role="tab" type="button" data-tab="attachments" aria-selected="false"><span>04</span>Attached</button>
       <i class="tabs__bar" aria-hidden="true"></i>
     </div>
     <div class="dossier__scroll" id="ds-scroll">
       <section class="pane" data-pane="overview" id="ds-overview"></section>
       <section class="pane prose" data-pane="record" id="ds-record" hidden></section>
       <section class="pane" data-pane="related" id="ds-related" hidden></section>
+      <section class="pane" data-pane="attachments" id="ds-attach" hidden></section>
     </div>
+    <i class="dossier__thumb" id="ds-thumb" aria-hidden="true"></i>
     <section class="drafts" id="drafts" aria-label="Revision history">
       <div class="drafts__row">
         <span class="drafts__no">Draft <b id="dr-no">09</b> / 09</span>
         <span class="drafts__log micro" id="dr-log">Final · as filed</span>
       </div>
+      <p class="drafts__hint" id="dr-hint" hidden></p>
       <div class="drafts__ticks">
         <input id="dr-range" type="range" min="1" max="9" step="1" value="9" aria-label="Draft number" />
         <i class="drafts__rail"></i>

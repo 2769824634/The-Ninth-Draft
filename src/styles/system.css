@@ -1,0 +1,267 @@
+/* ==========================================================================
+   System layer (Arknights): the terminal frame around the archive.
+   Chamfered black tags, square index markers, hazard stripes in the
+   clearance colour, a vertical spine label, and the SYSTEM notice bar.
+   Everything takes its colour from --clr, so it follows the file.
+   ========================================================================== */
+
+/* ---------- SYSTEM notice: cold machine voice, top centre ---------- */
+.sysmsg {
+  position: absolute;
+  z-index: 30;
+  top: 1.6rem;
+  left: 50%;
+  display: flex;
+  align-items: stretch;
+  max-width: min(36rem, calc(100vw - 2rem));
+  background: var(--ink);
+  color: var(--bg);
+  font-family: var(--f-mono);
+  font-size: .66rem;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  clip-path: polygon(0 0, calc(100% - .7rem) 0, 100% .7rem, 100% 100%, .7rem 100%, 0 calc(100% - .7rem));
+  pointer-events: none;
+  opacity: 0;
+  transform: translate(-50%, -140%);
+  transition: transform 520ms var(--ease-io), opacity 360ms var(--ease);
+}
+.sysmsg.is-on {
+  opacity: 1;
+  transform: translate(-50%, 0);
+  transition: transform 640ms cubic-bezier(.3, 1.35, .5, 1), opacity 200ms var(--ease);
+}
+.sysmsg__tag {
+  display: grid;
+  place-items: center;
+  padding: 0 .8rem;
+  background: var(--clr);
+  color: #f2efe6;
+  font-weight: 600;
+  letter-spacing: .18em;
+}
+[data-theme='night'] .sysmsg__tag { color: #0c0d0f; }
+.sysmsg__line { padding: .62rem .9rem .58rem; line-height: 1.4; }
+.sysmsg__wave { display: flex; align-items: center; gap: 2px; padding-right: .9rem; }
+.sysmsg__wave i { width: 2px; height: 3px; background: currentColor; opacity: .5; }
+.sysmsg.is-speaking .sysmsg__wave i { animation: syswave 420ms ease-in-out infinite alternate; }
+.sysmsg__wave i:nth-child(2) { animation-delay: -120ms; }
+.sysmsg__wave i:nth-child(3) { animation-delay: -260ms; }
+.sysmsg__wave i:nth-child(4) { animation-delay: -60ms; }
+.sysmsg__wave i:nth-child(5) { animation-delay: -330ms; }
+@keyframes syswave { to { height: 11px; opacity: 1; } }
+
+/* ---------- Dossier frame ---------- */
+/* Vertical spine label beside the clearance strip */
+.dossier__spine {
+  position: absolute;
+  left: -2.9rem;
+  top: 11.5rem;
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  white-space: nowrap;
+  color: var(--ink-3);
+  letter-spacing: .22em;
+}
+.dossier__spine::after {
+  content: '';
+  display: inline-block;
+  width: .4rem;
+  height: .4rem;
+  margin-top: .8rem;
+  background: var(--clr);
+}
+
+/* Scan rule that rides the reveal line while a file loads */
+.dossier__scan {
+  position: absolute;
+  left: -1.6rem;
+  right: 0;
+  top: 0;
+  height: 1px;
+  background: var(--clr);
+  box-shadow: 0 0 10px 1px color-mix(in srgb, var(--clr) 45%, transparent);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 300ms var(--ease);
+}
+/* (the dossier fades all its children in; these two stay hidden until asked) */
+.archive .dossier > .dossier__scan:not(.is-on),
+.archive .dossier > .dossier__thumb:not(.is-on) { opacity: 0; }
+.dossier__scan.is-on { opacity: 1; }
+.dossier__scan::after {
+  content: 'LOADING';
+  position: absolute;
+  right: 0;
+  top: .25rem;
+  font-family: var(--f-mono);
+  font-size: .5rem;
+  letter-spacing: .2em;
+  color: var(--clr);
+}
+
+/* Triangle marker before the file number */
+.dossier__crumbs > span:first-child::before {
+  content: '';
+  display: inline-block;
+  margin-right: .55rem;
+  border-left: .42rem solid transparent;
+  border-bottom: .42rem solid var(--clr);
+}
+
+/* Hazard stripe under the subtitle rule, in the clearance colour */
+.dossier__sub { position: relative; }
+.dossier__sub::after {
+  content: '';
+  position: absolute;
+  right: 0;
+  bottom: -8px;
+  width: 6.5rem;
+  height: 5px;
+  background: repeating-linear-gradient(-45deg, var(--clr) 0 3px, transparent 3px 7px);
+  transition: background 400ms var(--ease);
+}
+
+/* Section labels: square index marker and a rule running out to the edge */
+.lede-label,
+.clips-label {
+  display: flex;
+  align-items: center;
+  gap: .6rem;
+}
+.lede-label::before,
+.clips-label::before {
+  content: '';
+  flex: none;
+  width: .42rem;
+  height: .42rem;
+  background: var(--clr);
+}
+.lede-label::after,
+.clips-label::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(90deg, var(--line), transparent);
+}
+
+/* Tabs: the number becomes a small black chamfered block on the open tab */
+.tabs button span {
+  padding: .12rem .28rem .08rem;
+  transition: background-color var(--t-2) var(--ease), color var(--t-2) var(--ease);
+}
+.tabs button[aria-selected='true'] span {
+  background: var(--ink);
+  color: var(--bg);
+  clip-path: polygon(0 0, 100% 0, 100% 62%, 70% 100%, 0 100%);
+}
+/* Blue dot: this pane holds a Heuss margin note on the current draft */
+.tabs button { position: relative; }
+.tabs button.has-note::after {
+  content: '';
+  position: absolute;
+  top: -.25rem;
+  right: -.55rem;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--note);
+  animation: notedot 1.6s var(--ease) infinite alternate;
+}
+@keyframes notedot { from { opacity: .35; } }
+
+/* Hide the native scrollbar; a slim line in the clearance colour shows position */
+.dossier__scroll { scrollbar-width: none; }
+.dossier__scroll::-webkit-scrollbar { display: none; }
+.dossier__thumb {
+  position: absolute;
+  right: -.9rem;
+  width: 2px;
+  background: var(--clr);
+  opacity: 0;
+  transition: opacity 300ms var(--ease), top 90ms linear;
+  pointer-events: none;
+}
+.archive[data-view='detail'] .dossier > .dossier__thumb.is-on { opacity: .8; }
+.dossier__thumb::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: -1.5rem;
+  bottom: -1.5rem;
+  width: 1px;
+  opacity: 0;
+}
+
+/* Attached tab: the clips get the whole pane */
+.pane[data-pane='attachments'] .clips-label { margin-top: 0; }
+
+/* "Access file" as a chamfered black key */
+.filecard__open {
+  padding: .75rem 1.1rem .75rem 1.2rem;
+  background: var(--ink);
+  color: var(--bg);
+  clip-path: polygon(0 0, calc(100% - .7rem) 0, 100% .7rem, 100% 100%, 0 100%);
+  transition: background-color var(--t-2) var(--ease);
+}
+.filecard__open:hover { background: var(--clr); }
+
+/* ---------- Draft slider: where Heuss wrote ---------- */
+.drafts__marks i.has-note::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: -.6rem;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--note);
+  transform: translateX(-50%);
+}
+.drafts__hint {
+  margin: 0 0 .1rem;
+  font-family: var(--f-serif);
+  font-style: italic;
+  font-size: .82rem;
+  color: var(--note);
+}
+.drafts__hint[hidden] { display: none; }
+.drafts__hint b {
+  margin-right: .3rem;
+  font-family: var(--f-mono);
+  font-style: normal;
+  font-weight: 500;
+  font-size: .62rem;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+}
+.drafts__hint.is-here { animation: notehere 900ms var(--ease); }
+@keyframes notehere { from { opacity: 0; transform: translateY(.3rem); } }
+
+/* ---------- Shorter desktop screens: give the reading pane room ---------- */
+@media (min-width: 901px) and (min-aspect-ratio: 1/1) and (max-height: 940px) {
+  .dossier { padding-top: 10.5rem; padding-bottom: 3.4rem; }
+  .dossier::before, .dossier__spine { top: 10.5rem; }
+  .dossier__title { margin-top: 1rem; font-size: 1.95rem; }
+  .dossier__title[data-category='personnel'] { font-size: 2.15rem; }
+  .dossier__sub { margin-top: .45rem; padding-bottom: 1rem; font-size: .96rem; }
+  .dossier__meta { grid-template-columns: repeat(3, 1fr); gap: .75rem 1.4rem; margin-top: 1.05rem; }
+  .dossier__meta dd { margin-top: .2rem; font-size: .8rem; }
+  .tabs { margin-top: 1.2rem; }
+  .dossier__scroll { margin-top: 1rem; }
+  .retrieve__tip { margin-bottom: .7rem; }
+}
+
+@media (max-width: 900px), (max-aspect-ratio: 1/1) {
+  .dossier__spine, .dossier__thumb, .dossier__scan::after { display: none; }
+  .dossier__scan { left: 0; }
+  .tabs { gap: 1.1rem; overflow-x: auto; scrollbar-width: none; }
+  .tabs button { flex: none; }
+  .tabs button:not([aria-selected='true']) span { display: none; }
+  .sysmsg { top: 4.6rem; width: calc(100vw - 2 * var(--edge)); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sysmsg, .sysmsg.is-on { transition: opacity 300ms linear; transform: translate(-50%, 0); }
+  .tabs button.has-note::after { animation: none; }
+}
