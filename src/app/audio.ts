@@ -1,7 +1,8 @@
 /**
  * Synthesised sound — no audio files.
  * Ambient: filtered room tone with a slow-breathing low drone (deeper at night).
- * SFX: paper flick, drawer slide, folder open, stamp, typewriter tick, relay click.
+ * SFX: paper flick, drawer slide, folder open, stamp, typewriter tick, relay click,
+ * camera shutter, push pin, plucked string.
  */
 import { prefs } from './prefs';
 
@@ -231,5 +232,25 @@ export const audio = {
   click() {
     if (!live()) return;
     tone(2100, 0.025, { type: 'square', vol: 0.05, to: 1400 });
+  },
+  /** Iris shut: leaf spring snap, then the blades settling. */
+  shutter() {
+    if (!live()) return;
+    noise(0.04, { f0: 5200, q: 2.5, vol: 0.32 });
+    tone(320, 0.05, { type: 'square', vol: 0.05, to: 180 });
+    noise(0.09, { f0: 2400, f1: 900, q: 1.2, vol: 0.18, delay: 0.05 });
+  },
+  /** Push pin into cork. */
+  pin() {
+    if (!live()) return;
+    noise(0.05, { type: 'lowpass', f0: 900, f1: 300, vol: 0.4 });
+    tone(220, 0.06, { type: 'triangle', vol: 0.1, to: 140 });
+  },
+  /** A string pulled tight, then let go. */
+  pluck() {
+    if (!live()) return;
+    const f = 160 + Math.random() * 60;
+    tone(f, 0.5, { type: 'triangle', vol: 0.05, to: f * 0.97 });
+    tone(f * 2.01, 0.25, { type: 'sine', vol: 0.02 });
   },
 };

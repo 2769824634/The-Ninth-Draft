@@ -69,5 +69,13 @@
     "I'll just alphabetise something while you think."
   ],
   "soundOn": ["Sound on. If you hear numbers, write them down.", "Audio restored. The radio in the corner is not ours."],
-  "soundOff": ["Silence. Exactly how the archive likes it."]
+  "soundOff": ["Silence. Exactly how the archive likes it."],
+  "wall": {
+    "enter": ["Mind the string. It's holding more together than the budget is.", "The link room. Everything here is connected, whether it likes it or not.", "Red string. The archive's only reliable filing system."],
+    "popular": ["{file}. Popular. That's rarely good for a file.", "{title} knows a lot of people. Suspicious."],
+    "alone": ["{file}. No connections. Either innocent, or very well filed.", "{title}. Nobody mentions it. Somebody made sure of that."],
+    "mess": ["I'll pretend that was a theory.", "Interesting arrangement. Heuss will hate it.", "You've moved half the wall. I hope you know where it all goes."],
+    "reset": ["Back where I left them. You're welcome.", "Wall restored. Your theory has been filed under 'no'."],
+    "leave": ["Back to the drawers. Leave the string where it is.", "Closing the link room. Try not to think about it."]
+  }
 }

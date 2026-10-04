@@ -55,6 +55,7 @@ const inRange = (spec: string | undefined, d: number) => {
 
 export interface DossierHooks {
   go(rec: ArchiveRecord): void;
+  wall(rec: ArchiveRecord): void;
   draft(rec: ArchiveRecord, info: DraftInfo, byUser: boolean): void;
   reveal(): void;
 }
@@ -81,6 +82,12 @@ export class Dossier {
       if (r) {
         r.classList.toggle('is-open');
         this.hooks.reveal();
+      }
+      const w = t.closest<HTMLAnchorElement>('a[data-wall]');
+      if (w && !e.metaKey && !e.ctrlKey) {
+        e.preventDefault();
+        if (this.rec) this.hooks.wall(this.rec);
+        return;
       }
       const a = t.closest<HTMLAnchorElement>('a[data-file]');
       if (a && !e.metaKey && !e.ctrlKey) {
@@ -154,6 +161,7 @@ export class Dossier {
           )
           .join('')}</ul>`
       : '<p class="rel-empty">No linked records.</p>';
+    $('ds-related').insertAdjacentHTML('beforeend', `<a class="rel-wall" href="${this.base}wall/" data-wall>Show on the link wall <span class="kbd">W</span></a>`);
     (this.el.querySelector('[data-tab="related"]') as HTMLElement).lastChild!.textContent = `Related${rel.length ? ` (${rel.length})` : ''}`;
 
     // Draft history

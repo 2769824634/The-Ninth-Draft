@@ -431,6 +431,101 @@ export function drawerLabel(no: string, name: string, range: string) {
   return toTexture(c);
 }
 
+/* ======================================================================
+   Clue wall: index card pinned to the board
+   ====================================================================== */
+export const CARD = { w: 2.05, h: 1.36 };
+
+export function cardTexture(rec: ArchiveRecord, categoryLabel: string) {
+  const W = 768, H = Math.round((768 * CARD.h) / CARD.w);
+  const [c, g] = canvas(W, H);
+  const s = hash(rec.file);
+  paper(g, W, H, '#ece6d6', s + 31, 0.6);
+  const ink = inkOf(rec.stamp);
+
+  // clearance strip down the left edge
+  g.fillStyle = ink;
+  g.globalAlpha = 0.9;
+  g.fillRect(0, 0, 18, H);
+  g.globalAlpha = 1;
+
+  // ruled index-card lines
+  g.strokeStyle = 'rgba(31, 79, 163, .16)';
+  g.lineWidth = 1.5;
+  for (let y = 196; y < H - 20; y += 44) {
+    g.beginPath();
+    g.moveTo(40, y);
+    g.lineTo(W - 28, y);
+    g.stroke();
+  }
+  g.strokeStyle = 'rgba(184, 40, 29, .35)';
+  g.beginPath();
+  g.moveTo(40, 132);
+  g.lineTo(W - 28, 132);
+  g.stroke();
+
+  g.font = `500 26px ${MONO}`;
+  g.fillStyle = 'rgba(29,27,23,.62)';
+  g.fillText(`${categoryLabel.toUpperCase()} / ${rec.date ?? ''}`.slice(0, 40), 48, 58);
+  typed(g, rec.file, 48, 112, 48, s);
+
+  g.font = `800 48px ${SANS}`;
+  g.fillStyle = INK;
+  const lines = wrap(g, rec.title.toUpperCase(), W - 100).slice(0, 2);
+  lines.forEach((l, i) => g.fillText(l, 48, 186 + i * 52));
+  if (rec.subtitle) {
+    g.font = `italic 400 30px ${SERIF}`;
+    g.fillStyle = 'rgba(29,27,23,.72)';
+    const sub = wrap(g, rec.subtitle, W - 100)[0] ?? '';
+    g.fillText(sub, 48, 186 + lines.length * 52 + 18);
+  }
+  stamp(g, rec.stamp, W - 170, H - 62, 24, -0.08 - (s % 5) * 0.012, s);
+  return toTexture(c);
+}
+
+/** Dark cork board with a painted steel frame lip. */
+export function boardTexture(w: number, h: number) {
+  const W = 2048, H = Math.max(256, Math.round((2048 * h) / w));
+  const [c, g] = canvas(W, H);
+  g.fillStyle = '#2b2620';
+  g.fillRect(0, 0, W, H);
+  const r = rng(91);
+  const img = g.getImageData(0, 0, W, H);
+  for (let i = 0; i < img.data.length; i += 4) {
+    const n = (r() - 0.5) * 26;
+    img.data[i] += n;
+    img.data[i + 1] += n * 0.9;
+    img.data[i + 2] += n * 0.75;
+  }
+  g.putImageData(img, 0, 0);
+  // cork granules
+  for (let i = 0; i < 9000; i++) {
+    g.fillStyle = r() > 0.5 ? 'rgba(120, 92, 60, .22)' : 'rgba(10, 8, 6, .28)';
+    g.fillRect(r() * W, r() * H, 1 + r() * 3, 1 + r() * 3);
+  }
+  // old pin holes and tape ghosts
+  for (let i = 0; i < 160; i++) {
+    g.fillStyle = 'rgba(0,0,0,.55)';
+    g.beginPath();
+    g.arc(r() * W, r() * H, 1.4 + r() * 1.4, 0, Math.PI * 2);
+    g.fill();
+  }
+  for (let i = 0; i < 14; i++) {
+    g.save();
+    g.translate(r() * W, r() * H);
+    g.rotate((r() - 0.5) * 0.8);
+    g.fillStyle = 'rgba(210, 196, 160, .05)';
+    g.fillRect(-60, -16, 120, 32);
+    g.restore();
+  }
+  const vg = g.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.2, W / 2, H / 2, Math.max(W, H) * 0.7);
+  vg.addColorStop(0, 'rgba(0,0,0,0)');
+  vg.addColorStop(1, 'rgba(0,0,0,.35)');
+  g.fillStyle = vg;
+  g.fillRect(0, 0, W, H);
+  return toTexture(c);
+}
+
 export function loadPhoto(src: string): Promise<HTMLImageElement | null> {
   return new Promise((resolve) => {
     const img = new Image();

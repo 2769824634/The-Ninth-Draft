@@ -36,4 +36,5 @@ export interface ArchiveData {
   records: ArchiveRecord[];
   archivist: ArchivistLines;
   initial: string | null;
+  room: 'archive' | 'wall';
 }

@@ -4,12 +4,14 @@
  */
 import type { ArchiveData, ArchiveRecord } from './types';
 import { Stage } from './scene/stage';
+import { Wall } from './scene/wall';
+import { Iris } from './ui/iris';
 import { Dossier } from './ui/dossier';
 import { Archivist } from './ui/archivist';
 import { clearanceKey, INK } from './clearance';
 import { Search } from './ui/search';
 import { boot } from './ui/boot';
-import { Roller, decode, swapText } from './ui/text';
+import { Roller, decode, esc, swapText } from './ui/text';
 import { audio } from './audio';
 import { prefs } from './prefs';
 
@@ -24,6 +26,11 @@ export function start() {
   const sel = categories.map(() => 0);
   let view: 'browse' | 'detail' = 'browse';
   let current: ArchiveRecord | null = null;
+  // The room on screen, or the one an iris in flight is heading to
+  let roomTarget: 'archive' | 'wall' = 'archive';
+  root.dataset.room = 'archive';
+  let wall: Wall | null = null;
+  const iris = new Iris($('iris') as HTMLCanvasElement);
   const voice = new Archivist(data.archivist);
 
   /** Paint the whole interface in a clearance colour. */
@@ -49,6 +56,7 @@ export function start() {
     document.documentElement.dataset.theme = t;
     document.querySelectorAll<HTMLButtonElement>('[data-theme-set]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.themeSet === t)));
     stage?.setTheme(t);
+    wall?.setTheme(t);
     audio.theme(t === 'night');
     if (!silent) {
       audio.click();
@@ -171,6 +179,10 @@ export function start() {
   const recordUrl = (r: ArchiveRecord) => `${base}records/${r.slug}/`;
 
   function openRecord(rec: ArchiveRecord, push = true) {
+    if (roomTarget === 'wall') {
+      leaveWall(rec, push);
+      return;
+    }
     const ci = categories.findIndex((c) => c.id === rec.category);
     const i = byCat[ci].indexOf(rec);
     if (ci !== col || i !== sel[ci]) {
@@ -225,15 +237,103 @@ export function start() {
     return m ? records.find((r) => r.slug === decodeURIComponent(m[1])) ?? null : null;
   };
 
+  const isWallPath = () => /\/wall\/?$/.test(location.pathname);
+
   window.addEventListener('popstate', () => {
+    if (isWallPath()) return enterWall(null, false);
     const rec = fromPath();
-    if (rec) openRecord(rec, false);
+    if (roomTarget === 'wall') leaveWall(rec, false);
+    else if (rec) openRecord(rec, false);
     else closeRecord(false);
   });
+
+  /* ---------------- link wall (room 02) ---------------- */
+  const note = { file: $('wall-note-file'), title: $('wall-note-title'), linked: $('wall-note-linked') };
+  const idleNote = () => (matchMedia('(pointer: coarse)').matches ? 'Tap a card to isolate its links' : 'Hover a card to isolate its links');
+  note.file.textContent = idleNote();
+
+  function ensureWall() {
+    if (wall || root.classList.contains('no-webgl')) return wall;
+    try {
+      wall = new Wall($('wall') as HTMLCanvasElement, data, {
+        focus: (rec, linked) => {
+          if (!rec) {
+            note.file.textContent = idleNote();
+            note.title.textContent = '';
+            note.linked.textContent = '';
+            const back = byCat[col][sel[col]];
+            setClearance(back?.stamp ?? 'DECLASSIFIED');
+            return;
+          }
+          setClearance(rec.stamp);
+          note.file.textContent = `${rec.file} · ${rec.stamp}`;
+          note.title.textContent = rec.title;
+          note.linked.innerHTML = linked.length
+            ? `Linked to<br>${linked.map((r) => `<b>${esc(r.file)}</b> ${esc(r.title)}`).join('<br>')}`
+            : 'No linked records.';
+          if (linked.length >= 4) voice.say('wall.popular', { file: rec.file, title: rec.title }, false);
+          else if (!linked.length) voice.say('wall.alone', { file: rec.file, title: rec.title }, false);
+        },
+        pick: (rec) => leaveWall(rec),
+        lift: () => audio.pluck(),
+        moved: () => {
+          audio.pin();
+          if (wall?.rearranged === 6) voice.say('wall.mess');
+        },
+      });
+      wall.setTheme(prefs.get('theme'));
+    } catch (err) {
+      console.error('[archive] link wall unavailable', err);
+      root.classList.add('no-webgl');
+    }
+    return wall;
+  }
+
+  function enterWall(focusFile: string | null, push = true, instant = false) {
+    if (roomTarget === 'wall') {
+      if (focusFile) wall?.focus(focusFile, true);
+      return;
+    }
+    roomTarget = 'wall';
+    const swap = () => {
+      if (view === 'detail') closeRecord(false);
+      ensureWall();
+      stage?.pause();
+      wall?.start();
+      root.dataset.room = 'wall';
+      if (focusFile) wall?.focus(focusFile, true);
+      document.title = 'Link analysis — The Ninth Draft';
+      audio.sputnik(false);
+    };
+    if (push) history.pushState({ room: 'wall' }, '', `${base}wall/`);
+    voice.say('wall.enter');
+    if (instant) {
+      swap();
+      void iris.reveal();
+    } else void iris.run(swap);
+  }
+
+  function leaveWall(rec: ArchiveRecord | null, push = true) {
+    if (roomTarget !== 'wall') return;
+    roomTarget = 'archive';
+    if (!rec) voice.say('wall.leave');
+    void iris.run(() => {
+      wall?.stop();
+      stage?.resume();
+      root.dataset.room = 'archive';
+      document.title = 'The Ninth Draft — Archive';
+      const back = byCat[col][sel[col]];
+      setClearance(back?.stamp ?? 'DECLASSIFIED');
+      audio.sputnik(categories[col].id === 'programs');
+      if (rec) openRecord(rec, push);
+      else if (push) history.pushState({}, '', base);
+    });
+  }
 
   let lastDraftVoice = 9;
   const dossier = new Dossier(records, categories, base, {
     go: (r) => openRecord(r),
+    wall: (r) => enterWall(r.file),
     draft: (rec, info, byUser) => {
       setClearance(info.stamp);
       if (!byUser) return;
@@ -251,6 +351,25 @@ export function start() {
     if (rec) openRecord(rec);
   });
   $('btn-back').addEventListener('click', () => closeRecord());
+  $('btn-wall').addEventListener('click', (e) => {
+    if (e.metaKey || e.ctrlKey) return;
+    e.preventDefault();
+    if (roomTarget === 'wall') leaveWall(null);
+    else enterWall(view === 'detail' && current ? current.file : null);
+  });
+  $('wall-back').addEventListener('click', () => leaveWall(null));
+  $('wall-reset').addEventListener('click', () => {
+    wall?.resetLayout();
+    audio.pin();
+    voice.say('wall.reset');
+  });
+  $('wall-list').addEventListener('click', (e) => {
+    const a = (e.target as HTMLElement).closest<HTMLAnchorElement>('a[data-file]');
+    if (!a || e.metaKey || e.ctrlKey) return;
+    e.preventDefault();
+    const rec = records.find((r) => r.file === a.dataset.file);
+    if (rec) leaveWall(rec);
+  });
   $('btn-search').addEventListener('click', () => search.show());
   $('btn-sound').addEventListener('click', () => {
     audio.unlock();
@@ -268,7 +387,8 @@ export function start() {
   document.querySelector('[data-nav="home"]')!.addEventListener('click', (e) => {
     e.preventDefault();
     if (search.isOpen) search.close();
-    closeRecord();
+    if (roomTarget === 'wall') leaveWall(null);
+    else closeRecord();
   });
 
   window.addEventListener('keydown', (e) => {
@@ -281,6 +401,21 @@ export function start() {
       return;
     }
     if (typing) return;
+    if (e.key === 'w' || e.key === 'W') {
+      if (roomTarget === 'wall') leaveWall(null);
+      else enterWall(view === 'detail' && current ? current.file : null);
+      return;
+    }
+    if (roomTarget === 'wall') {
+      if (e.key === 'Escape' || e.key === 'Backspace') { e.preventDefault(); leaveWall(null); }
+      else if (e.key === 'ArrowRight' || e.key === 'ArrowDown') { e.preventDefault(); wall?.cycle(1); }
+      else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') { e.preventDefault(); wall?.cycle(-1); }
+      else if (e.key === 'Enter') {
+        const rec = records.find((r) => r.file === wall?.focusedFile);
+        if (rec) leaveWall(rec);
+      } else if (e.key === 'n' || e.key === 'N') applyTheme(prefs.get('theme') === 'day' ? 'night' : 'day');
+      return;
+    }
     if (view === 'browse') {
       if (e.key === 'ArrowDown') { e.preventDefault(); move(1); }
       else if (e.key === 'ArrowUp') { e.preventDefault(); move(-1); }
@@ -341,8 +476,9 @@ export function start() {
       visits = Number(localStorage.getItem('n9:visits') || 0) + 1;
       localStorage.setItem('n9:visits', String(visits));
     } catch { /* ignore */ }
-    if (!initial) setTimeout(() => voice.say(visits > 1 ? 'welcomeBack' : prefs.get('theme') === 'night' ? 'night' : 'welcome'), 600);
-    audio.sputnik(categories[col].id === 'programs');
+    if (!initial && data.room !== 'wall') setTimeout(() => voice.say(visits > 1 ? 'welcomeBack' : prefs.get('theme') === 'night' ? 'night' : 'welcome'), 600);
+    if (data.room === 'wall') enterWall(null, false, true);
+    else audio.sputnik(categories[col].id === 'programs');
     if (initial) setTimeout(() => openRecord(initial, false), 350);
   };
 

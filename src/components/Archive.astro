@@ -5,18 +5,23 @@ import archivist from '../data/archivist.json';
 import '../styles/hud.css';
 import '../styles/dossier.css';
 import '../styles/overlays.css';
+import '../styles/wall.css';
 
 interface Props {
   records: ClientRecord[];
   initial?: string;
+  room?: 'archive' | 'wall';
 }
-const { records, initial } = Astro.props;
+const { records, initial, room = 'archive' } = Astro.props;
 const base = import.meta.env.BASE_URL;
-const payload = JSON.stringify({ base, categories: CATEGORIES, records, archivist, initial: initial ?? null }).replace(/</g, '\\u003c');
+const payload = JSON.stringify({ base, categories: CATEGORIES, records, archivist, initial: initial ?? null, room }).replace(/</g, '\\u003c');
+// One string per pair of files, whichever side names the other
+const links = new Set(records.flatMap((r) => r.related.filter((f) => records.some((x) => x.file === f)).map((f) => [r.file, f].sort().join('|')))).size;
 ---
 
-<div class="archive" id="archive" data-view="browse" data-boot="on">
+<div class="archive" id="archive" data-view="browse" data-boot="on" data-room={room}>
   <canvas class="stage" id="stage" aria-hidden="true"></canvas>
+  <canvas class="wall" id="wall" aria-hidden="true"></canvas>
   <div class="veil" aria-hidden="true"></div>
 
   <!-- Orbital drafting lines: the quiet space-age layer -->
@@ -36,6 +41,10 @@ const payload = JSON.stringify({ base, categories: CATEGORIES, records, archivis
   </header>
 
   <nav class="tools" aria-label="Tools">
+    <a class="tool" id="btn-wall" href={`${base}wall/`}>
+      <svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="3" cy="4" r="1.6" /><circle cx="13" cy="3.5" r="1.6" /><circle cx="8" cy="12.5" r="1.6" /><path d="M3 4q5 3 10-.5M3 4q2 6 5 8.5M13 3.5q-1 6-5 9" /></svg>
+      <span>Links</span><span class="kbd">W</span>
+    </a>
     <button class="tool" id="btn-search" type="button">
       <svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="7" cy="7" r="4.6" /><path d="M10.4 10.4 14 14" /></svg>
       <span>Index</span><span class="kbd">/</span>
@@ -127,6 +136,38 @@ const payload = JSON.stringify({ base, categories: CATEGORIES, records, archivis
   </aside>
 
   <div class="watermark" id="watermark" aria-hidden="true">0001</div>
+
+  <!-- ===================== LINK ROOM ===================== -->
+  <section class="wallhud" id="wallhud" aria-label="Link analysis">
+    <button class="back" id="wall-back" type="button">
+      <svg viewBox="0 0 24 12" aria-hidden="true"><path d="M24 6H2M7 1 2 6l5 5" /></svg>
+      <span>Archive overview</span><span class="kbd">Esc</span>
+    </button>
+    <div class="wallhud__head">
+      <span class="micro">Room 02 / Link analysis</span>
+      <h1 class="wallhud__title">Red string</h1>
+      <span class="micro">{records.length} records · {links} links</span>
+    </div>
+    <div class="wallhud__note" id="wall-note" aria-live="polite">
+      <span class="micro" id="wall-note-file">Hover a card to isolate its links</span>
+      <p class="wallhud__name" id="wall-note-title"></p>
+      <p class="wallhud__linked" id="wall-note-linked"></p>
+    </div>
+    <div class="wallhud__hints micro">
+      <span>Drag cards</span><span>/</span><span>Click to open</span><span>/</span><span>← → Cycle</span>
+      <button type="button" class="wallhud__reset" id="wall-reset">Reset wall</button>
+    </div>
+    <ol class="wallhud__list" id="wall-list">
+      {records.map((r) => (
+        <li>
+          <a href={`${base}records/${r.slug}/`} data-file={r.file}><b>{r.file}</b> {r.title}</a>
+          {r.related.length > 0 && <span> — linked to {r.related.join(', ')}</span>}
+        </li>
+      ))}
+    </ol>
+  </section>
+
+  <canvas class="iris" id="iris" aria-hidden="true" hidden></canvas>
 
   <article class="dossier" id="dossier" aria-hidden="true">
     <header class="dossier__head">

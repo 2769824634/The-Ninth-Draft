@@ -1,0 +1,168 @@
+/* ==========================================================================
+   Room 02: the link wall, and the iris that joins the two rooms
+   ========================================================================== */
+.wall {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  z-index: 0;
+  touch-action: none;
+  outline: none;
+  visibility: hidden;
+  cursor: grab;
+}
+.archive[data-room='wall'] .wall { visibility: visible; }
+.archive[data-room='wall'] .stage { visibility: hidden; }
+.archive[data-room='wall'].is-hovering .wall { cursor: pointer; }
+.archive[data-room='wall'].is-dragging .wall { cursor: grabbing; }
+
+/* The archive room's furniture leaves with it */
+.archive[data-room='wall'] :is(.filecard, .index-sel, .rail, .inspect, .dossier, .watermark, .orbits, .veil) {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: none;
+}
+.archive[data-room='wall'] #btn-wall { color: var(--ink); }
+.archive[data-room='wall'] #btn-wall svg { stroke: var(--accent); }
+
+.wallhud {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  pointer-events: none;
+  visibility: hidden;
+  opacity: 0;
+}
+.archive[data-room='wall'] .wallhud { visibility: visible; opacity: 1; }
+.wallhud > * { pointer-events: auto; }
+
+.wallhud__head {
+  position: absolute;
+  left: var(--edge);
+  top: 15.6rem;
+  display: grid;
+  gap: .35rem;
+  pointer-events: none;
+}
+.wallhud__title {
+  margin: .15rem 0 .2rem;
+  font-weight: 800;
+  font-stretch: 112%;
+  font-size: 2.6rem;
+  line-height: .9;
+  letter-spacing: -.01em;
+  text-transform: uppercase;
+}
+.wallhud__title::after {
+  content: '';
+  display: block;
+  width: 2.4rem;
+  height: 3px;
+  margin-top: .7rem;
+  background: var(--accent);
+}
+
+.wallhud__note {
+  position: absolute;
+  left: var(--edge);
+  top: 25rem;
+  width: min(16rem, 19vw);
+  display: grid;
+  gap: .5rem;
+  pointer-events: none;
+}
+.wallhud__name {
+  margin: 0;
+  font-family: var(--f-serif);
+  font-size: 1.25rem;
+  line-height: 1.2;
+  min-height: 1.2em;
+}
+.wallhud__linked {
+  margin: 0;
+  font-family: var(--f-mono);
+  font-size: .68rem;
+  line-height: 1.75;
+  color: var(--ink-2);
+}
+.wallhud__linked b { color: var(--ink); font-weight: 500; }
+
+.wallhud__hints {
+  position: absolute;
+  left: var(--edge);
+  bottom: 4.4rem;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: .7rem;
+  max-width: 19vw;
+}
+.wallhud__reset {
+  margin-top: .6rem;
+  flex-basis: 100%;
+  text-align: left;
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  color: var(--ink);
+  text-decoration: underline;
+  text-underline-offset: .25em;
+}
+.wallhud__reset:hover { color: var(--accent); }
+
+/* Plain list of every link: screen readers always, everyone without WebGL */
+.wallhud__list {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+.archive.no-webgl .wallhud__list {
+  width: auto;
+  height: auto;
+  clip-path: none;
+  left: 30vw;
+  right: var(--edge);
+  top: 12.6rem;
+  bottom: 5rem;
+  overflow: auto;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-family: var(--f-mono);
+  font-size: .78rem;
+  line-height: 2;
+}
+.archive.no-webgl .wallhud__list a { text-decoration: underline; text-underline-offset: .25em; }
+
+/* Iris: above everything, swallows clicks while it moves */
+.iris {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 40;
+}
+.iris[hidden] { display: none; }
+
+@media (max-width: 900px), (max-aspect-ratio: 1/1) {
+  .wallhud .back { top: 5.4rem; }
+  .wallhud__head { top: 7.6rem; gap: .2rem; }
+  .wallhud__title { font-size: 1.5rem; }
+  .wallhud__title::after { display: none; }
+  .wallhud__note {
+    top: auto;
+    bottom: 3.6rem;
+    left: var(--edge);
+    right: var(--edge);
+    width: auto;
+    gap: .2rem;
+  }
+  .wallhud__name { font-size: 1rem; }
+  .wallhud__hints, .wallhud .kbd { display: none; }
+  .archive.no-webgl .wallhud__list { left: var(--edge); top: 12rem; }
+}

@@ -355,6 +355,20 @@
 .rel__title { font-weight: 600; font-size: .92rem; }
 .rel__title small { display: block; font-family: var(--f-serif); font-style: italic; font-weight: 400; font-size: .8rem; color: var(--ink-2); }
 .rel__cat { font-family: var(--f-mono); font-size: .58rem; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3); }
+.rel-wall {
+  display: inline-flex;
+  align-items: center;
+  gap: .7rem;
+  margin-top: 1.4rem;
+  font-size: .72rem;
+  font-weight: 600;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  text-decoration: underline;
+  text-decoration-color: var(--accent);
+  text-underline-offset: .3em;
+}
+.rel-wall:hover { color: var(--accent); }
 .rel-empty { font-family: var(--f-serif); font-style: italic; color: var(--ink-3); }
 
 .dossier__foot {
