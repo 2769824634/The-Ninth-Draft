@@ -49,6 +49,28 @@ const records = defineCollection({
         }),
       )
       .default([]),
+    /**
+     * Optional attachments clipped to the file (Overview tab). A plain string is a
+     * memo signed by Heuss. Every file also gets a routing slip built from its
+     * related files and draft history, so this list can stay empty.
+     */
+    attachments: z
+      .array(
+        z.union([
+          z.string(),
+          z.object({
+            kind: z.enum(['note', 'telegram', 'ticket', 'clipping', 'negative']).default('note'),
+            /** Headline, ticket name, or telegram sender. */
+            title: z.string().optional(),
+            text: z.string().default(''),
+            date: z.string().optional(),
+            by: z.string().optional(),
+            /** First draft (1–9) in which the attachment is clipped in. */
+            draft: z.number().int().min(1).max(9).optional(),
+          }),
+        ]),
+      )
+      .default([]),
   }),
 });
 

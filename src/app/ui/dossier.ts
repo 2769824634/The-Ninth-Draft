@@ -4,6 +4,7 @@ import { esc, swapText } from './text';
 import { audio } from '../audio';
 import { hash, loadPhoto } from '../scene/textures';
 import { halftone, hasPortrait } from '../scene/halftone';
+import { attachmentsHtml, paintNegatives, showDraft } from './attachments';
 
 type Tab = 'overview' | 'record' | 'related';
 
@@ -84,6 +85,14 @@ export class Dossier {
         r.classList.toggle('is-open');
         this.hooks.reveal();
       }
+      const clip = t.closest<HTMLElement>('.clip');
+      if (clip && !r) {
+        const up = !clip.classList.contains('is-lifted');
+        this.el.querySelectorAll('.clip.is-lifted').forEach((c) => c.classList.remove('is-lifted'));
+        clip.classList.toggle('is-lifted', up);
+        audio.paper();
+        return;
+      }
       const w = t.closest<HTMLAnchorElement>('a[data-wall]');
       if (w && !e.metaKey && !e.ctrlKey) {
         e.preventDefault();
@@ -143,8 +152,10 @@ export class Dossier {
       ${hasPortrait(rec) ? `<figure class="portrait"><span class="portrait__frame"></span><figcaption class="micro">${esc(rec.imageCaption ?? (rec.image ? rec.file : 'No photograph on file · Composite'))}</figcaption></figure>` : ''}
       <div class="micro lede-label">Abstract</div>
       <p class="lede">${rec.summary}</p>
-      ${rec.tags.length ? `<div class="tags">${rec.tags.map((t) => `<span>${esc(t)}</span>`).join('')}</div>` : ''}`;
+      ${rec.tags.length ? `<div class="tags">${rec.tags.map((t) => `<span>${esc(t)}</span>`).join('')}</div>` : ''}
+      ${attachmentsHtml(rec)}`;
     if (hasPortrait(rec)) void this.portrait(rec);
+    void paintNegatives($('ds-overview'), rec, () => this.rec === rec);
     $('ds-record').innerHTML = rec.body || '<p class="rel-empty">No further record on file.</p>';
 
     const rel = rec.related
@@ -198,6 +209,7 @@ export class Dossier {
       s.classList.toggle('is-redacted', inRange(s.dataset.redact, n));
     });
     this.el.querySelectorAll<HTMLElement>('.rv-note').forEach((s) => s.classList.toggle('is-gone', !inRange(s.dataset.note, n)));
+    showDraft(this.el, n);
 
     const info = draftInfo(rec, n);
     const $ = (id: string) => document.getElementById(id)!;

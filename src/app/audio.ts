@@ -253,4 +253,19 @@ export const audio = {
     tone(f, 0.5, { type: 'triangle', vol: 0.05, to: f * 0.97 });
     tone(f * 2.01, 0.25, { type: 'sine', vol: 0.02 });
   },
+  /** Paper lifted off a paper clip. */
+  paper() {
+    if (!live()) return;
+    noise(0.16, { f0: 2400, f1: 5200, q: 0.7, vol: 0.16, attack: 0.03 });
+  },
+  /** Faint sonar ping when the wall sweep passes a card. */
+  ping(depth = 0) {
+    if (!live()) return;
+    tone(1320 - depth * 40, 0.4, { type: 'sine', vol: 0.012, to: 1240 - depth * 40 });
+  },
+  /** Card-file relay clicking while a record is fetched. */
+  relay() {
+    if (!live()) return;
+    noise(0.015, { f0: 2600 + Math.random() * 1400, q: 5, vol: 0.09 });
+  },
 };
