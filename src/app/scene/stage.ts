@@ -343,6 +343,11 @@ export class Stage {
     this.layout(f ?? undefined);
   }
 
+  /** Show a record's cover as it was stamped in another draft. */
+  setCoverStamp(rec: ArchiveRecord, stamp: string) {
+    this.folders.get(rec.file)?.setStamp(stamp);
+  }
+
   /** Tint the night lamp toward the current record's clearance colour. */
   setClearance(hex: string) {
     this.lampTint.set('#ffd29a').lerp(new THREE.Color(hex), 0.22);

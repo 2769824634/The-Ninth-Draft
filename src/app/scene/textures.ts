@@ -5,6 +5,7 @@
 import * as THREE from 'three';
 import type { ArchiveRecord } from '../types';
 import { INK as CLEARANCE_INK, clearanceKey } from '../clearance';
+import { halftone, hasPortrait } from './halftone';
 
 const inkOf = (stamp: string) => CLEARANCE_INK[clearanceKey(stamp)];
 
@@ -174,7 +175,7 @@ const plain = (html: string) => html.replace(/<span class="redact"[^>]*><span>(.
 /* ======================================================================
    Folder cover (front face)
    ====================================================================== */
-export function coverTexture(rec: ArchiveRecord | null, seed: number) {
+export function coverTexture(rec: ArchiveRecord | null, seed: number, stampText = rec?.stamp) {
   const W = 1024, H = 720;
   const [c, g] = canvas(W, H);
   paper(g, W, H, MANILA, seed, 1);
@@ -228,7 +229,7 @@ export function coverTexture(rec: ArchiveRecord | null, seed: number) {
       const st = rec.subtitle.length > 52 ? rec.subtitle.slice(0, 51) + '…' : rec.subtitle;
       typed(g, st, 70, 554, 24, s + 4);
     }
-    stamp(g, rec.stamp, W - 250, 210, 46, -0.12 - (s % 7) * 0.01, s);
+    stamp(g, stampText ?? rec.stamp, W - 250, 210, 46, -0.12 - (s % 7) * 0.01, s);
     // handwritten-ish archive mark
     g.save();
     g.strokeStyle = 'rgba(30, 40, 90, .55)';
@@ -276,7 +277,7 @@ export function tabTexture(text: string, seed: number, accent: string | null = n
 /* ======================================================================
    Inside page: dossier sheet with photograph
    ====================================================================== */
-export function pageTexture(rec: ArchiveRecord, photo: HTMLImageElement | null) {
+export function pageTexture(rec: ArchiveRecord, photo: HTMLImageElement | null, stampText = rec.stamp) {
   const W = 1024, H = 720;
   const [c, g] = canvas(W, H);
   paper(g, W, H, '#ece6d8', hash(rec.file) + 11, 0.7);
@@ -291,14 +292,8 @@ export function pageTexture(rec: ArchiveRecord, photo: HTMLImageElement | null) 
   g.fillStyle = '#f6f3ea';
   g.fillRect(px - 14, py - 14, pw + 28, ph + 56);
   g.restore();
-  if (photo) {
-    const ar = photo.naturalWidth / photo.naturalHeight;
-    let sw = photo.naturalWidth, sh = photo.naturalHeight, sx = 0, sy = 0;
-    if (ar > pw / ph) { sw = sh * (pw / ph); sx = (photo.naturalWidth - sw) / 2; }
-    else { sh = sw / (pw / ph); sy = (photo.naturalHeight - sh) / 2; }
-    g.filter = 'grayscale(1) contrast(1.12) sepia(.18)';
-    g.drawImage(photo, sx, sy, sw, sh, px, py, pw, ph);
-    g.filter = 'none';
+  if (photo || hasPortrait(rec)) {
+    g.drawImage(halftone(photo, rec.file, pw, ph), px, py, pw, ph);
   } else {
     g.fillStyle = '#d9d3c4';
     g.fillRect(px, py, pw, ph);
@@ -341,7 +336,7 @@ export function pageTexture(rec: ArchiveRecord, photo: HTMLImageElement | null) 
     typed(g, `${plain(f.label).toUpperCase()}: ${plain(f.value)}`.slice(0, 40), tx, y, 18, s + y);
     y += 30;
   }
-  stamp(g, rec.stamp, W - 230, H - 86, 30, 0.08, s + 3);
+  stamp(g, stampText, W - 230, H - 86, 30, 0.08, s + 3);
   return toTexture(c);
 }
 
@@ -436,7 +431,7 @@ export function drawerLabel(no: string, name: string, range: string) {
    ====================================================================== */
 export const CARD = { w: 2.05, h: 1.36 };
 
-export function cardTexture(rec: ArchiveRecord, categoryLabel: string) {
+export function cardTexture(rec: ArchiveRecord, categoryLabel: string, photo: HTMLImageElement | null = null) {
   const W = 768, H = Math.round((768 * CARD.h) / CARD.w);
   const [c, g] = canvas(W, H);
   const s = hash(rec.file);
@@ -469,14 +464,32 @@ export function cardTexture(rec: ArchiveRecord, categoryLabel: string) {
   g.fillText(`${categoryLabel.toUpperCase()} / ${rec.date ?? ''}`.slice(0, 40), 48, 58);
   typed(g, rec.file, 48, 112, 48, s);
 
+  // clipped-on portrait, top right
+  const portrait = hasPortrait(rec);
+  if (portrait) {
+    const pw = 150, ph = 186, px = W - pw - 44, py = 30;
+    g.save();
+    g.translate(px + pw / 2, py + ph / 2);
+    g.rotate(0.035 - (s % 7) * 0.01);
+    g.shadowColor = 'rgba(0,0,0,.25)';
+    g.shadowBlur = 8;
+    g.shadowOffsetY = 3;
+    g.fillStyle = '#f4f0e6';
+    g.fillRect(-pw / 2 - 8, -ph / 2 - 8, pw + 16, ph + 16);
+    g.shadowColor = 'transparent';
+    g.drawImage(halftone(photo, rec.file, pw, ph), -pw / 2, -ph / 2, pw, ph);
+    g.restore();
+  }
+  const textW = W - 100 - (portrait ? 190 : 0);
+
   g.font = `800 48px ${SANS}`;
   g.fillStyle = INK;
-  const lines = wrap(g, rec.title.toUpperCase(), W - 100).slice(0, 2);
+  const lines = wrap(g, rec.title.toUpperCase(), textW).slice(0, 2);
   lines.forEach((l, i) => g.fillText(l, 48, 186 + i * 52));
   if (rec.subtitle) {
     g.font = `italic 400 30px ${SERIF}`;
     g.fillStyle = 'rgba(29,27,23,.72)';
-    const sub = wrap(g, rec.subtitle, W - 100)[0] ?? '';
+    const sub = wrap(g, rec.subtitle, textW)[0] ?? '';
     g.fillText(sub, 48, 186 + lines.length * 52 + 18);
   }
   stamp(g, rec.stamp, W - 170, H - 62, 24, -0.08 - (s % 5) * 0.012, s);

@@ -2,7 +2,8 @@
 import type { ArchiveRecord, Category } from '../types';
 import { esc, swapText } from './text';
 import { audio } from '../audio';
-import { hash } from '../scene/textures';
+import { hash, loadPhoto } from '../scene/textures';
+import { halftone, hasPortrait } from '../scene/halftone';
 
 type Tab = 'overview' | 'record' | 'related';
 
@@ -139,9 +140,11 @@ export class Dossier {
       .join('');
 
     $('ds-overview').innerHTML = `
+      ${hasPortrait(rec) ? `<figure class="portrait"><span class="portrait__frame"></span><figcaption class="micro">${esc(rec.imageCaption ?? (rec.image ? rec.file : 'No photograph on file · Composite'))}</figcaption></figure>` : ''}
       <div class="micro lede-label">Abstract</div>
       <p class="lede">${rec.summary}</p>
       ${rec.tags.length ? `<div class="tags">${rec.tags.map((t) => `<span>${esc(t)}</span>`).join('')}</div>` : ''}`;
+    if (hasPortrait(rec)) void this.portrait(rec);
     $('ds-record').innerHTML = rec.body || '<p class="rel-empty">No further record on file.</p>';
 
     const rel = rec.related
@@ -205,6 +208,17 @@ export class Dossier {
     if (st) st.textContent = info.stamp;
     if (byUser && changed) audio.flick();
     this.hooks.draft(rec, info, byUser && changed);
+  }
+
+  private async portrait(rec: ArchiveRecord) {
+    const photo = rec.image ? await loadPhoto(rec.image) : null;
+    const frame = document.querySelector<HTMLElement>('#ds-overview .portrait__frame');
+    if (!frame || this.rec !== rec) return;
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const c = halftone(photo, rec.file, 168 * dpr, 210 * dpr);
+    c.setAttribute('role', 'img');
+    c.setAttribute('aria-label', photo ? `Photograph, ${rec.title}` : `No photograph of ${rec.title} on file`);
+    frame.replaceChildren(c);
   }
 
   stepDraft(d: number) {

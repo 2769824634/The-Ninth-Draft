@@ -58,6 +58,11 @@ export class Folder {
   readonly targetQuat = new THREE.Quaternion();
   private pageMat: THREE.MeshStandardMaterial;
   private coverInMat: THREE.MeshStandardMaterial;
+  private coverMat: THREE.MeshStandardMaterial;
+  private covers = new Map<string, THREE.Texture>();
+  private pages = new Map<string, THREE.Texture>();
+  private photo: HTMLImageElement | null = null;
+  private stampNow: string;
   private pageReady = false;
   slot = new THREE.Vector3();
   quatOmega = 9;
@@ -67,6 +72,9 @@ export class Folder {
     const seed = hash(rec.file);
     const plainIn = new THREE.MeshStandardMaterial({ map: plainTexture(MANILA, seed % 5), roughness: 0.92 });
     const coverMat = new THREE.MeshStandardMaterial({ map: coverTexture(rec, seed), roughness: 0.9 });
+    this.coverMat = coverMat;
+    this.covers.set(rec.stamp, coverMat.map!);
+    this.stampNow = rec.stamp;
 
     // Back board
     const back = new THREE.Mesh(box, [edgeMat, edgeMat, edgeMat, edgeMat, plainIn, plainIn]);
@@ -115,12 +123,38 @@ export class Folder {
   async preparePage() {
     if (this.pageReady) return;
     this.pageReady = true;
-    const photo = this.rec.image ? await loadPhoto(this.rec.image) : null;
-    this.pageMat.map = pageTexture(this.rec, photo);
+    this.photo = this.rec.image ? await loadPhoto(this.rec.image) : null;
+    this.pageMat.map = this.pageFor(this.stampNow);
     this.pageMat.color.set('#ffffff');
     this.pageMat.needsUpdate = true;
     this.coverInMat.map = accessLogTexture(this.rec);
     this.coverInMat.needsUpdate = true;
+  }
+
+  private pageFor(stamp: string) {
+    let tex = this.pages.get(stamp);
+    if (!tex) {
+      tex = pageTexture(this.rec, this.photo, stamp);
+      this.pages.set(stamp, tex);
+    }
+    return tex;
+  }
+
+  /** Re-stamp the cover and inner page for an earlier draft (cached per classification). */
+  setStamp(stamp: string) {
+    if (stamp === this.stampNow) return;
+    this.stampNow = stamp;
+    let tex = this.covers.get(stamp);
+    if (!tex) {
+      tex = coverTexture(this.rec, hash(this.rec.file), stamp);
+      this.covers.set(stamp, tex);
+    }
+    this.coverMat.map = tex;
+    this.coverMat.needsUpdate = true;
+    if (this.pageReady && this.pageMat.map) {
+      this.pageMat.map = this.pageFor(stamp);
+      this.pageMat.needsUpdate = true;
+    }
   }
 
   place(p: THREE.Vector3, q: THREE.Quaternion) {

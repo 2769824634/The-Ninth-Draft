@@ -6,6 +6,7 @@ import type { ArchiveData, ArchiveRecord } from './types';
 import { Stage } from './scene/stage';
 import { Wall } from './scene/wall';
 import { Iris } from './ui/iris';
+import { Chapter } from './ui/chapter';
 import { Dossier } from './ui/dossier';
 import { Archivist } from './ui/archivist';
 import { clearanceKey, INK } from './clearance';
@@ -31,6 +32,7 @@ export function start() {
   root.dataset.room = 'archive';
   let wall: Wall | null = null;
   const iris = new Iris($('iris') as HTMLCanvasElement);
+  const chapter = new Chapter();
   const voice = new Archivist(data.archivist);
 
   /** Paint the whole interface in a clearance colour. */
@@ -153,7 +155,10 @@ export function start() {
     if (colChanged) {
       audio.drawer();
       audio.tune();
-      if (n) voice.say(`drawer.${categories[col].id}`);
+      if (categories[col].id === 'programs' && n && chapter.show()) {
+        audio.stamp();
+        voice.say('chapter');
+      } else if (n) voice.say(`drawer.${categories[col].id}`);
       else voice.say('emptyDrawer');
     } else {
       audio.flick();
@@ -215,6 +220,7 @@ export function start() {
     $('dossier').setAttribute('aria-hidden', 'true');
     document.querySelector('.inspect')!.setAttribute('aria-hidden', 'true');
     dossier.reset();
+    restoreCover();
     stage?.release();
     audio.close();
     const back = byCat[col][sel[col]];
@@ -331,11 +337,20 @@ export function start() {
   }
 
   let lastDraftVoice = 9;
+  // The folder whose cover is showing an earlier draft's stamp
+  let restamped: ArchiveRecord | null = null;
+  const restoreCover = () => {
+    if (restamped) stage?.setCoverStamp(restamped, restamped.stamp);
+    restamped = null;
+  };
   const dossier = new Dossier(records, categories, base, {
     go: (r) => openRecord(r),
     wall: (r) => enterWall(r.file),
     draft: (rec, info, byUser) => {
       setClearance(info.stamp);
+      if (restamped !== rec) restoreCover();
+      stage?.setCoverStamp(rec, info.stamp);
+      restamped = rec;
       if (!byUser) return;
       if (info.n <= 3 && lastDraftVoice > 3) voice.say('draftEarly', { draft: String(info.n).padStart(2, '0') });
       else if (info.n === 9 && lastDraftVoice < 9) voice.say('draftFinal');

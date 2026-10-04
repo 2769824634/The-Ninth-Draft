@@ -7,7 +7,7 @@ import * as THREE from 'three';
 import type { ArchiveData, ArchiveRecord } from '../types';
 import { Spring, SpringV3, damp } from '../spring';
 import { reducedMotion } from '../prefs';
-import { boardTexture, CARD, cardTexture, hash, setMaxAnisotropy } from './textures';
+import { boardTexture, CARD, cardTexture, hash, loadPhoto, setMaxAnisotropy } from './textures';
 
 const KEY = 'n9:wall';
 const CARD_Z = 0.03;
@@ -188,6 +188,15 @@ export class Wall {
         links: [],
       };
       mesh.userData.card = card;
+      // Real photographs arrive later; repaint the card once they do
+      if (rec.image) {
+        void loadPhoto(rec.image).then((img) => {
+          if (!img) return;
+          mat.map?.dispose();
+          mat.map = cardTexture(rec, label, img);
+          mat.needsUpdate = true;
+        });
+      }
       this.scene.add(group);
       this.cards.push(card);
       this.byFile.set(rec.file, card);
