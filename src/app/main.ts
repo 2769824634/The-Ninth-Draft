@@ -415,8 +415,8 @@ export function start() {
   const search = new Search(records, categories, base, (r) => openRecord(r), () => voice.say('searchEmpty', {}, false));
 
   /* ---------------- language ---------------- */
-  const langButtons = document.querySelectorAll<HTMLButtonElement>('[data-lang-set]');
-  const markLang = () => langButtons.forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.langSet === lang())));
+  const langBtn = document.getElementById('btn-lang') as HTMLButtonElement;
+  const markLang = () => langBtn.setAttribute('data-now', lang());
   markLang();
   let relangT = 0;
   onLang(async (l: Lang) => {
@@ -455,7 +455,7 @@ export function start() {
       wall?.relabel();
     }, reducedMotion() ? 0 : 180);
   });
-  langButtons.forEach((b) => b.addEventListener('click', () => setLang(b.dataset.langSet === 'zh' ? 'zh' : 'en')));
+  langBtn.addEventListener('click', () => setLang(isZh() ? 'en' : 'zh'));
 
   /* ---------------- controls ---------------- */
   $('fc-open').addEventListener('click', () => {

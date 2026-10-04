@@ -62,11 +62,13 @@ const links = new Set(records.flatMap((r) => r.related.filter((f) => records.som
       <button type="button" data-theme-set="day" aria-pressed="true">Day</button>
       <button type="button" data-theme-set="night" aria-pressed="false">Night</button>
     </div>
-    <div class="seg seg--lang" role="group" aria-label="Language">
-      <span class="seg__thumb" aria-hidden="true"></span>
-      <button type="button" data-lang-set="en" aria-pressed="true" lang="en">EN</button>
-      <button type="button" data-lang-set="zh" aria-pressed="false" lang="zh-CN">中</button>
-    </div>
+    <button class="tool tool--lang" id="btn-lang" type="button" aria-label="Language">
+      <svg viewBox="0 0 16 16" aria-hidden="true">
+        <rect class="pg pg--a" x="2" y="1.5" width="8" height="10" />
+        <g class="pg pg--b"><rect x="6" y="4.5" width="8" height="10" /><path d="M8 8h4M8 10.5h2.6" /></g>
+      </svg>
+      <span class="lang__pair" aria-hidden="true"><b lang="en">EN</b><i>/</i><b lang="zh-CN">中</b></span><span class="kbd">L</span>
+    </button>
     <button class="tool tool--sound" id="btn-sound" type="button" aria-pressed="false">
       <span class="eq" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
       <span id="sound-label">Sound off</span>
