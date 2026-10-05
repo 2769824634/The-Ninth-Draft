@@ -10,6 +10,7 @@
 import * as THREE from 'three';
 import type { LibBook } from '../../lib/library';
 import { Spring } from '../spring';
+import type { FillerRef, ShelfRun } from './room';
 import { coverTexture, edgeTexture, endpaperTexture, newsFrontTexture, pageTexture, spineTexture } from './textures';
 
 const UP = new THREE.Vector3(0, 1, 0);
@@ -48,6 +49,11 @@ export class Book {
   next: Book | null = null;
   /** Shelved above reach: the ladder has to come first. */
   high = false;
+  /** The uncatalogued volumes either side, which lean into the gap. */
+  flank: FillerRef[] = [];
+  /** Where on which run it stands (scattered stacks books only). */
+  place: { run: ShelfRun; row: number; a: number; b: number } | null = null;
+  readonly flankLean = new Spring(0, 5);
 
   readonly spineMat = new THREE.MeshStandardMaterial({ roughness: 0.72 });
   readonly coverMat = new THREE.MeshStandardMaterial({ roughness: 0.78 });

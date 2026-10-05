@@ -13,7 +13,7 @@ import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment
 import type { CatDrawer, LibBay, LibBook, LibPage } from '../../lib/library';
 import { Spring, SpringV3, damp } from '../spring';
 import { reducedMotion } from '../prefs';
-import { canvasFontsReady } from '../scene/textures';
+import { canvasFontsReady, hash } from '../scene/textures';
 import { Book, Leaves, PageCache } from './books';
 import { Room, ROOM, TABLE_H, shelfPose, type ShelfRun } from './room';
 import { dustTexture, plateTexture } from './textures';
@@ -57,6 +57,8 @@ const LOOKS: Record<'day' | 'night', Look> = {
 };
 
 const UP = new THREE.Vector3(0, 1, 0);
+/** The take-down, in seconds: each step overlaps the next a little. */
+const TL = { hook: [0, 0.45], slide: [0.3, 1.2], hold: [1.05, 1.9], carry: [2.2, 3.9], land: [3.75, 4.25], end: 4.3 } as const;
 const smooth = (a: number, b: number, x: number) => {
   const t = Math.min(1, Math.max(0, (x - a) / (b - a)));
   return t * t * (3 - 2 * t);
@@ -73,7 +75,7 @@ export class LibraryScene {
   private room: Room;
 
   private books: Book[] = [];
-  private plates: { mat: THREE.MeshStandardMaterial; bay: LibBay }[] = [];
+  private plates: { mat: THREE.MeshStandardMaterial; bay: LibBay; mark?: string }[] = [];
   private gapHit: THREE.Mesh | null = null;
   private hovered: Book | null = null;
   private zoneHits: THREE.Object3D[] = [];
@@ -90,8 +92,12 @@ export class LibraryScene {
   private holding = false;
   private ready = false;
   private queued: { id: string; pages: LibPage[]; page: number } | null = null;
-  private waitLadder = false;
-  private pull = new Spring(0, 3.2);
+  /** Walking to the book (and the ladder rolling) before the hand reaches it. */
+  private waiting = false;
+  /** Seconds into the take-down: see TL. */
+  private tl = 0;
+  private tlRun = false;
+  private holdAt = new THREE.Vector3();
   private cover = new Spring(0, 5);
   private read = new Spring(0, 2.6);
   private leaves = new Leaves();
@@ -234,6 +240,31 @@ export class LibraryScene {
       // keep a hand's width clear after the catalogued run
       run.used.push({ row: r, a: x, b: x + 0.12 });
     };
+    // Catalogued books are scattered along the whole wall, each at a place
+    // fixed by its shelf mark: files at eye level, gazetteers above reach.
+    const spread = (bay: LibBay, bi: number, rows: number[]) => {
+      const n = bay.books.length;
+      const span = west.length - 1.4;
+      bay.books.forEach((data, i) => {
+        const h = hash(data.id);
+        const b = new Book(data, bay.zone, bi, shelfPose(west, 0, 0, 0.01, 0.3, 0.2));
+        const x = 0.7 + ((i + 0.5) / n) * span + (((h % 1000) / 1000) - 0.5) * (span / n) * 0.45;
+        const r = rows[(h >>> 4) % rows.length];
+        b.shelf = shelfPose(west, r, x, b.T, b.H, b.W);
+        b.high = r >= west.reach;
+        b.place = { run: west, row: r, a: x, b: x + b.T };
+        b.placeOnShelf();
+        west.used.push({ row: r, a: x - 0.001, b: x + b.T + 0.001 });
+        this.add(b);
+        // its own brass card holder under it
+        const mat = new THREE.MeshStandardMaterial({ roughness: 0.4, metalness: 0.2 });
+        const plate = new THREE.Mesh(new THREE.PlaneGeometry(0.17, 0.0266), mat);
+        plate.position.copy(west.start).addScaledVector(west.along, x + b.T / 2).addScaledVector(UP, west.rows[r] - 0.035).addScaledVector(west.out, 0.012);
+        plate.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), west.out);
+        this.scene.add(plate);
+        this.plates.push({ mat, bay, mark: data.mark });
+      });
+    };
     this.bays.forEach((bay, bi) => {
       if (bay.zone === 'rack') {
         bay.books.forEach((data, i) => {
@@ -242,12 +273,18 @@ export class LibraryScene {
           b.placeOnShelf();
           this.add(b);
         });
-      } else if (bay.id === 'records') onRun(bay, bi, west, 3, 0.9);
-      else if (bay.id === 'gazetteer') onRun(bay, bi, west, 6, 0.6);
+      } else if (bay.id === 'records') spread(bay, bi, [2, 3, 4]);
+      else if (bay.id === 'gazetteer') spread(bay, bi, [5, 6, 7, 8]);
       else if (bay.zone === 'desk') onRun(bay, bi, back, 2, 18.0);
     });
     this.room.fill(west, 11);
     this.room.fill(back, 503);
+    // now the shelves are full, find who stands beside each catalogued book
+    for (const b of this.books) {
+      const pl = b.place;
+      if (!pl) continue;
+      b.flank = [this.room.neighbour(pl.run, pl.row, pl.a, pl.b, -1), this.room.neighbour(pl.run, pl.row, pl.a, pl.b, 1)].filter((x) => !!x);
+    }
   }
 
   private add(b: Book) {
@@ -292,7 +329,7 @@ export class LibraryScene {
     for (const b of this.books) b.relabel(zh);
     for (const p of this.plates) {
       p.mat.map?.dispose();
-      p.mat.map = plateTexture(p.bay.code, zh ? p.bay.title.zh : p.bay.title.en.toUpperCase());
+      p.mat.map = plateTexture(p.bay.code, p.mark ?? (zh ? p.bay.title.zh : p.bay.title.en.toUpperCase()));
       p.mat.needsUpdate = true;
     }
     if (this.active && this.holding) {
@@ -382,44 +419,49 @@ export class LibraryScene {
     this.dress(b, this.page);
     this.leaves.attach(b);
     this.hover(null);
+    this.tl = 0;
+    this.tlRun = false;
+    if (b.zone === 'stacks') this.pan.target = this.panTo(b);
     if (this.reduce) {
       this.room.ladder.z.set(b.shelf.pos.z);
-      this.begin();
-      this.pull.set(1);
+      this.pan.set(this.pan.target);
+      this.tl = TL.end;
+      this.tlRun = true;
       this.read.set(1);
-    } else if (b.high && b.zone === 'stacks') {
-      // a high shelf: the ladder comes along first
-      this.room.ladder.z.target = b.shelf.pos.z;
-      this.waitLadder = true;
-    } else this.begin();
+    } else if (b.zone === 'stacks') {
+      // walk along the wall to it; a high shelf brings the ladder too
+      if (b.high) this.room.ladder.z.target = b.shelf.pos.z;
+      this.waiting = true;
+    } else this.tlRun = true;
     this.on.open(b.data);
   }
 
-  private begin() {
-    const b = this.active!;
-    this.waitLadder = false;
-    b.hook.target = 1;
-    // the neighbours lean into the gap once it opens
-    if (b.prev) b.prev.lean.target = 1;
-    if (b.next) b.next.lean.target = -1;
-    window.setTimeout(() => {
-      if (this.active === b && this.holding) {
-        this.pull.target = 1;
-        this.read.target = 1;
-      }
-    }, this.reduce ? 0 : 260);
+  /** The stacks camera pan that puts a book in the middle of the view. */
+  private panTo(b: Book) {
+    return Math.max(-1.5, Math.min(8.5, 2.6 - b.shelf.pos.z));
+  }
+
+  /** Bring a stacks book into view and nudge it (hovering its name in the list). */
+  peek(id: string | null) {
+    if (this.holding) return;
+    const b = id ? this.books.find((x) => x.data.id === id) : null;
+    if (this.hovered && this.hovered !== b) this.hovered.hook.target = 0;
+    this.hovered = b ?? null;
+    if (!b) return;
+    b.hook.target = 0.35;
+    if (b.zone === 'stacks' && this.zoneNow === 'stacks') this.pan.target = this.panTo(b);
   }
 
   /** Close the book and put it back where it came from. */
   shelve() {
     if (!this.active || !this.holding) return;
     this.holding = false;
-    this.waitLadder = false;
+    this.waiting = false;
     this.leaves.finish();
     this.read.target = 0;
     if (this.reduce) {
       this.cover.set(0);
-      this.pull.set(0);
+      this.tl = 0;
       this.read.set(0);
     }
   }
@@ -541,7 +583,13 @@ export class LibraryScene {
     // camera: the zone's view, blended into the reading view while a book is out
     this.pan.update(dt);
     const zoneView = this.viewOf(this.zoneNow);
-    const target = this.active ? this.blend(zoneView, this.viewOf('read'), smooth(0, 1, this.read.target === 1 ? 1 : this.read.value)) : zoneView;
+    let target = zoneView;
+    if (this.active) {
+      // close in on the book in the hand, then follow it to the table
+      const held = smooth(TL.slide[0], TL.hold[1], this.tl);
+      if (held > 0) target = this.blend(zoneView, { at: this.holdAt.clone(), dir: zoneView.dir, w: this.active.news ? 1.5 : 1.15, h: 0.9 }, held);
+      target = this.blend(target, this.viewOf('read'), smooth(0, 1, this.read.target === 1 ? 1 : this.read.value));
+    }
     this.view.at.setTarget(target.at);
     this.view.dir.setTarget(target.dir);
     this.view.dist.target = this.fit(target);
@@ -568,11 +616,12 @@ export class LibraryScene {
     this.camera.position.copy(look).addScaledVector(camDir.normalize(), dist);
     this.camera.lookAt(look);
     this.camera.updateMatrixWorld();
+    this.room.showBeams(this.camera.position);
 
     // the night key follows what we look at
     this.key.intensity = L.key * (1 - reading * 0.45);
     this.key.visible = this.key.intensity > 0.3;
-    const keyAt = this.active && reading > 0.2 ? this.room.readingSpot : at;
+    const keyAt = this.active && this.tl > 0 ? this.active.group.position : at;
     this.key.position.lerp(new THREE.Vector3(keyAt.x + 0.6, 4.6, keyAt.z + 0.8), damp(3, dt));
     this.key.target.position.lerp(keyAt, damp(3, dt));
 
@@ -580,13 +629,20 @@ export class LibraryScene {
     this.room.cabinet.update(dt);
     this.room.desk.update(dt);
     this.room.ladder.update(dt);
-    if (this.waitLadder && this.room.ladder.settled) this.begin();
+    if (this.waiting && this.active && Math.abs(this.pan.value - this.pan.target) < 0.12 && (!this.active.high || this.room.ladder.settled)) {
+      this.waiting = false;
+      this.tlRun = true;
+    }
 
     // books
     const tmpP = new THREE.Vector3(), tmpQ = new THREE.Quaternion();
     for (const b of this.books) {
       b.hook.update(dt);
       b.lean.update(dt);
+      if (b.flank.length) {
+        const v = b.flankLean.update(dt);
+        for (const f of b.flank) this.room.leanFiller(f, v);
+      }
       if (b === this.active) continue;
       b.rest(tmpP, tmpQ);
       b.group.position.copy(tmpP);
@@ -604,14 +660,23 @@ export class LibraryScene {
     return { at: a.at.clone().lerp(b.at, t), dir: a.dir.clone().lerp(b.dir, t).normalize(), w: a.w + (b.w - a.w) * t, h: a.h + (b.h - a.h) * t };
   }
 
-  /** Move the book in hand between its shelf and the reading table. */
+  /**
+   * The take-down, as a timeline in seconds (TL): hook the top out, slide
+   * the book off the shelf, hold it up to look at the cover, carry it across
+   * the room, set it down on the table, open it. Putting back runs it
+   * backwards, a little quicker.
+   */
   private pose(b: Book, dt: number) {
-    this.cover.target = this.holding && this.pull.value > 0.94 ? 1 : 0;
-    if (!this.holding) {
-      this.pull.target = this.cover.value < 0.08 ? 0 : 1;
-      if (this.pull.value < 0.3) b.hook.target = 0;
+    if (this.holding) {
+      if (this.tlRun) this.tl = Math.min(TL.end, this.tl + dt);
+      this.cover.target = this.tl >= TL.end ? 1 : 0;
+    } else {
+      this.cover.target = 0;
+      if (this.cover.value < 0.08) this.tl = Math.max(0, this.tl - dt * 1.5);
     }
-    const p = this.pull.update(dt);
+    const t = this.tl;
+    // the camera follows the book once it leaves the shelf
+    this.read.target = this.holding ? (t > TL.carry[0] ? 1 : 0) : t > TL.carry[0] + 0.6 ? 1 : 0;
     const cv = this.cover.update(dt);
     b.pivot.rotation.y = -cv * Math.PI * 0.985;
     b.left.visible = cv > 0.02;
@@ -620,33 +685,54 @@ export class LibraryScene {
       this.on.ready();
     }
 
-    // on the shelf with the finger hook applied
+    // 1. a finger hooks the top of the spine and tips it out
+    const hook = smooth(TL.hook[0], TL.hook[1], t) * (1 - smooth(TL.slide[0] + 0.3, TL.slide[1], t));
+    b.hook.set(this.tlRun || !this.holding ? hook : b.hook.value);
+    b.flankLean.target = t > TL.slide[0] + 0.25 && t < TL.carry[1] + 0.4 ? 1 : 0;
     const restP = new THREE.Vector3(), restQ = new THREE.Quaternion();
     b.rest(restP, restQ);
-    // out of the shelf (or up out of the rack slot) first
-    const out = smooth(0, 0.24, p);
-    const from = restP.clone();
-    if (b.news) from.addScaledVector(UP, out * 0.16).addScaledVector(b.shelf.out, out * 0.12);
-    else from.addScaledVector(b.shelf.out, out * b.W * 1.05);
-    // then across the room to the table, lifted over the chairs
+
+    // 2. slide it off the shelf (a stick lifts out of its slot)
+    const slide = smooth(TL.slide[0], TL.slide[1], t);
+    const p1 = restP.clone();
+    if (b.news) p1.addScaledVector(UP, slide * 0.2).addScaledVector(b.shelf.out, slide * 0.14);
+    else p1.addScaledVector(b.shelf.out, slide * b.W * 1.12).addScaledVector(UP, slide * 0.01);
+
+    // 3. hold it up, cover to the eye, for a moment
+    const toEye = this.camera.position.clone().sub(p1).setY(0).normalize();
+    const holdP = p1.clone().addScaledVector(b.shelf.out, 0.42).addScaledVector(UP, b.news ? 0.05 : 0.14);
+    const holdQ = new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().makeBasis(new THREE.Vector3().crossVectors(UP, toEye).normalize(), UP, toEye));
+    holdQ.multiply(new THREE.Quaternion().setFromEuler(new THREE.Euler(-0.12, 0.18, 0)));
+    const hold = smooth(TL.hold[0], TL.hold[1], t);
+    this.holdAt.copy(holdP);
+    const p2 = p1.clone().lerp(holdP, hold);
+    const q2 = restQ.clone().slerp(holdQ, hold);
+
+    // 4. carry it across the room, over the chairs, and 5. set it down
     const spot = this.room.readingSpot.clone();
     spot.y = TABLE_H + b.T / 2 + 0.001;
     spot.x += (b.W / 2) * cv;
-    const fly = smooth(0.2, 1, p);
-    b.group.position.lerpVectors(from, spot, fly);
-    b.group.position.y += Math.sin(fly * Math.PI) * 0.7;
+    const carry = smooth(TL.carry[0], TL.carry[1], t);
+    const above = spot.clone().addScaledVector(UP, 0.06);
+    const p3 = p2.clone().lerp(above, carry);
+    p3.y += Math.sin(carry * Math.PI) * 0.9;
+    const land = smooth(TL.land[0], TL.land[1], t);
+    p3.lerp(spot, land);
     const tableQ = new THREE.Quaternion().setFromEuler(new THREE.Euler(-Math.PI / 2, 0, 0.03));
-    b.group.quaternion.slerpQuaternions(restQ, tableQ, smooth(0.22, 0.95, p));
+    b.group.position.copy(p3);
+    b.group.quaternion.copy(q2).slerp(tableQ, smooth(TL.carry[0] + 0.15, TL.carry[1] - 0.05, t));
 
-    if (!this.holding && p < 0.003 && cv < 0.01) {
+    if (!this.holding && t <= 0 && cv < 0.01) {
       b.left.visible = false;
       b.rightMat.map = null;
       b.rightMat.color.set('#ece5d3');
       b.rightMat.needsUpdate = true;
       this.leaves.attach(null);
-      this.pull.set(0);
       this.cover.set(0);
+      this.tlRun = false;
+      b.hook.set(0);
       b.hook.target = 0;
+      b.flankLean.target = 0;
       if (b.prev) b.prev.lean.target = 0;
       if (b.next) b.next.lean.target = 0;
       this.active = null;
@@ -656,7 +742,11 @@ export class LibraryScene {
       const q = this.queued;
       this.queued = null;
       if (q) this.take(q.id, q.pages, q.page);
-    }
+    } else if (this.holding && b.prev && t > TL.slide[0]) {
+      // catalogued neighbours (the desk shelf) lean in the same way
+      b.prev.lean.target = 1;
+      if (b.next) b.next.lean.target = -1;
+    } else if (this.holding && b.next && t > TL.slide[0]) b.next.lean.target = -1;
   }
 
   /* ------------------------------------------------------------------ */
