@@ -1,0 +1,61 @@
+---
+/**
+ * Flat pages (registration, the visitor's file, the map, the guide): the same
+ * archive header without the 3D room, so they load fast and read on a phone.
+ */
+import Base from './Base.astro';
+import '../styles/hud.css';
+import '../styles/zh.css';
+import '../styles/flat.css';
+
+interface Props {
+  title: string;
+  description?: string;
+  page: 'register' | 'me' | 'map' | 'guide';
+}
+const { title, description, page } = Astro.props;
+const base = import.meta.env.BASE_URL;
+const nav = [
+  { id: 'archive', href: base, label: 'Archive' },
+  { id: 'map', href: `${base}map/`, label: 'Map' },
+  { id: 'guide', href: `${base}guide/`, label: 'Guide' },
+  { id: 'me', href: `${base}register/`, label: 'Register' },
+];
+---
+
+<Base title={title} description={description}>
+  <div class="flat" data-page={page}>
+    <header class="fhead">
+      <a class="brand__link fhead__brand" href={base} aria-label="The Ninth Draft — archive overview">
+        <span class="brand__l1">The Ninth Draft</span>
+        <span class="brand__l2">Records Office · Gerimis</span>
+      </a>
+      <nav class="fhead__nav micro" aria-label="Pages">
+        {nav.map((n) => (
+          <a href={n.href} id={`nav-${n.id}`} aria-current={n.id === page || (n.id === 'me' && page === 'register') ? 'page' : undefined}><span>{n.label}</span></a>
+        ))}
+      </nav>
+      <div class="fhead__tools">
+        <div class="seg" role="group" aria-label="Lighting">
+          <span class="seg__thumb" aria-hidden="true"></span>
+          <button type="button" data-theme-set="day" aria-pressed="true">Day</button>
+          <button type="button" data-theme-set="night" aria-pressed="false">Night</button>
+        </div>
+        <button class="tool tool--lang" id="btn-lang" type="button" aria-label="Language">
+          <svg viewBox="0 0 16 16" aria-hidden="true">
+            <rect class="pg pg--a" x="2" y="1.5" width="8" height="10" />
+            <g class="pg pg--b"><rect x="6" y="4.5" width="8" height="10" /><path d="M8 8h4M8 10.5h2.6" /></g>
+          </svg>
+          <span class="lang__pair" aria-hidden="true"><b lang="en">EN</b><i>/</i><b lang="zh-CN">中</b></span>
+        </button>
+      </div>
+    </header>
+    <main class="fmain" id="fmain">
+      <slot />
+    </main>
+    <footer class="ffoot micro">
+      <span>Records Office · Gerimis · 1999</span>
+      <span><span>Everything on the island is normal.</span> <span>If it isn't, it's the previous draft.</span></span>
+    </footer>
+  </div>
+</Base>

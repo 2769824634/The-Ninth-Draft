@@ -133,6 +133,17 @@
   transition: color var(--t-1);
 }
 .tool:hover { color: var(--ink); }
+/* Not registered yet: a small red light on the entry */
+.tool.is-new::before {
+  content: '';
+  width: .4rem;
+  height: .4rem;
+  margin-right: -.2rem;
+  background: var(--accent);
+  animation: tool-blink 2.4s steps(1) infinite;
+}
+@keyframes tool-blink { 50% { opacity: .25; } }
+@media (prefers-reduced-motion: reduce) { .tool.is-new::before { animation: none; } }
 .tool svg { width: 1rem; height: 1rem; fill: none; stroke: currentColor; stroke-width: 1.4; }
 
 .seg {

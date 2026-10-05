@@ -1,0 +1,156 @@
+---
+import Flat from '../../layouts/Flat.astro';
+import { loadRecords } from '../../lib/records';
+
+const base = import.meta.env.BASE_URL;
+const records = await loadRecords(base);
+// Only what the secret needs: which files exist, where they are, what they are called
+const list = records.map((r) => ({ file: r.file, slug: r.slug, title: r.title, titleZh: r.zh?.title, district: r.district }));
+const payload = JSON.stringify({ base, records: list }).replace(/</g, '\\u003c');
+---
+
+<Flat title="My file — The Ninth Draft" description="Your file at the Records Office of Gerimis." page="me">
+  <section class="me__none" id="none" hidden>
+    <p class="f-kicker micro"><b>No file</b><span>Records Office · Residents' Register</span></p>
+    <h1 class="f-title"><span data-l="en">No file on record</span><span data-l="zh">查无此人</span></h1>
+    <p class="f-lede"><span data-l="en">The Office has no file for you on this device. Either you have not registered, or you have been revised out. The form takes a minute.</span><span data-l="zh">这台设备上没有你的档案。要么你还没登记，要么你已经被修订掉了。填表只要一分钟。</span></p>
+    <div class="me__acts">
+      <a class="f-btn" href={`${base}register/`}><span>Register</span><svg viewBox="0 0 24 12" aria-hidden="true"><path d="M0 6h22M17 1l5 5-5 5" /></svg></a>
+    </div>
+  </section>
+
+  <div class="me" id="file" hidden>
+    <aside class="me__left">
+      <span class="me__big" id="me-big">No.0000</span>
+      <figure class="me__photo">
+        <canvas id="me-photo" width="300" height="375" aria-hidden="true"></canvas>
+        <span class="me__stamp" aria-hidden="true">PROVISIONAL</span>
+        <figcaption class="micro">No photograph on file · Composite</figcaption>
+      </figure>
+    </aside>
+
+    <div>
+      <header class="me__head">
+        <div class="me__crumbs micro"><span id="me-file">File V-0000</span><span>Residents' Register</span></div>
+        <h1 class="me__title" id="me-code"></h1>
+        <p class="me__sub" id="me-sub"></p>
+        <dl class="me__meta" id="me-meta"></dl>
+      </header>
+
+      <section class="f-sec">
+        <h2 class="f-sec__h"><i>01</i><span>Small secret</span></h2>
+        <div class="sx">
+          <div class="sx__body" id="sx-body" aria-live="polite"></div>
+          <div class="sx__drafts">
+            <span class="sx__no"><span>Draft</span> <b id="sx-no">09</b> / 09</span>
+            <input id="sx-range" type="range" min="1" max="9" step="1" value="9" aria-label="Draft number" />
+            <p class="sx__hint micro" id="sx-hint">Only you can see this. Earlier drafts say more.</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="f-sec">
+        <h2 class="f-sec__h"><i>02</i><span>Recovery phrase</span></h2>
+        <p class="f-help" style="margin-top:0"><span data-l="en">Your codename and these four words restore your file on another device.</span><span data-l="zh">代号加这四个词，可以在别的设备上找回档案。</span></p>
+        <button class="f-btn f-btn--ghost" type="button" id="show-phrase" style="margin-top:.8rem"><span>Show phrase</span></button>
+        <ol class="phrase me__phrase" id="me-phrase" hidden></ol>
+      </section>
+
+      <div class="me__acts">
+        <a class="f-btn" href={`${base}map/`}><span>Find my district</span><svg viewBox="0 0 24 12" aria-hidden="true"><path d="M0 6h22M17 1l5 5-5 5" /></svg></a>
+        <a class="f-btn f-btn--ghost" href={base}><span>Back to the archive</span></a>
+        <button class="f-btn f-btn--ghost" type="button" id="forget"><span>Revise me out</span></button>
+      </div>
+    </div>
+  </div>
+</Flat>
+
+<script type="application/json" id="me-data" set:html={payload} />
+
+<script>
+  import { flat } from '../../app/flat';
+  import { audio } from '../../app/audio';
+  import { isZh, t } from '../../app/i18n';
+  import { reducedMotion } from '../../app/prefs';
+  import { halftone } from '../../app/scene/halftone';
+  import { districtName } from '../../app/visitor/districts';
+  import { toPhrase } from '../../app/visitor/phrase';
+  import { makeSecret, type SecretRecord } from '../../app/visitor/secret';
+  import { fileNo, forgetVisitor, loadVisitor } from '../../app/visitor/store';
+
+  const data = JSON.parse(document.getElementById('me-data')!.textContent!) as { base: string; records: SecretRecord[] };
+  const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
+  const v = loadVisitor();
+  const range = $<HTMLInputElement>('sx-range');
+
+  const SLEEP = [['Before eleven', '十一点前'], ['After two', '两点以后'], ['Unknown', '不详']];
+
+  const render = () => {
+    if (!v) return;
+    const zh = isZh();
+    const no = fileNo(v);
+    document.title = t('{file} · My file — The Ninth Draft', { file: no });
+    $('me-big').textContent = `No.${no.slice(2)}`;
+    $('me-file').textContent = `${t('File')} ${no}`;
+    $('me-code').textContent = v.code;
+    $('me-sub').textContent = t('Provisional resident of {district}', { district: districtName(v.district, zh) });
+    const filed = new Date(v.at);
+    const date = `${String(filed.getDate()).padStart(2, '0')}.${String(filed.getMonth() + 1).padStart(2, '0')}.99`;
+    const meta: [string, string, boolean?][] = [
+      [t('Status'), t('Provisional')],
+      [t('District'), districtName(v.district, zh)],
+      [t('Filed'), date],
+      [t('Clearance'), 'PROVISIONAL', true],
+      [t('Asleep'), SLEEP[v.answers[0]][zh ? 1 : 0]],
+      [t('Revisions'), t('{n} on file', { n: 9 })],
+    ];
+    $('me-meta').innerHTML = meta.map(([k, val, c]) => `<div><dt class="micro">${k}</dt><dd${c ? ' class="is-conf"' : ''}>${val.replace(/</g, '&lt;')}</dd></div>`).join('');
+    draw(false);
+  };
+
+  const secret = v ? makeSecret(v, data.records, data.base) : null;
+  const draw = (animate: boolean) => {
+    if (!secret) return;
+    const d = Number(range.value);
+    const body = $('sx-body');
+    body.innerHTML = secret.render(d, isZh());
+    $('sx-no').textContent = String(d).padStart(2, '0');
+    $('sx-hint').textContent = d === 9 ? t('Only you can see this. Earlier drafts say more.') : d >= 7 ? t('Draft {n}. Still the official version.', { n: String(d).padStart(2, '0') }) : d >= 4 ? t('Draft {n}. Before the Office tidied it up.', { n: String(d).padStart(2, '0') }) : t('Draft {n}. Nobody was meant to keep this one.', { n: String(d).padStart(2, '0') });
+    if (animate && !reducedMotion()) {
+      body.classList.remove('is-swap');
+      void body.offsetWidth;
+      body.classList.add('is-swap');
+    }
+  };
+
+  flat(render);
+
+  if (!v) {
+    $('none').hidden = false;
+  } else {
+    $('file').hidden = false;
+    render();
+    const c = halftone(null, fileNo(v), 300, 375);
+    $<HTMLCanvasElement>('me-photo').getContext('2d')!.drawImage(c, 0, 0, 300, 375);
+    let last = 9;
+    range.addEventListener('input', () => {
+      const d = Number(range.value);
+      if (d === last) return;
+      last = d;
+      audio.flick();
+      draw(true);
+    });
+    $('show-phrase').addEventListener('click', () => {
+      const ol = $('me-phrase');
+      ol.hidden = !ol.hidden;
+      ol.innerHTML = toPhrase(v).map((w) => `<li>${w}</li>`).join('');
+      $('show-phrase').querySelector('span')!.textContent = ol.hidden ? t('Show phrase') : t('Hide phrase');
+    });
+    $('forget').addEventListener('click', () => {
+      if (!window.confirm(t('Revise yourself out? Your file will be removed from this device. Keep your phrase if you want it back.'))) return;
+      forgetVisitor();
+      audio.stamp();
+      location.reload();
+    });
+  }
+</script>

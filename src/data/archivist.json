@@ -226,5 +226,15 @@
     "Welcome back. A street changed its name while you were gone. Don't mention it.",
     "You left. The rain didn't.",
     "Back? Good. Nothing happened. Officially."
+  ],
+  "resident": [
+    "Welcome back, {code}. Your file is where you left it. Mostly.",
+    "{code}, {file}. Still on the register. Congratulations.",
+    "Ah, {code}. Someone asked about you. I said you didn't exist. Habit."
+  ],
+  "unregistered": [
+    "You're not on the register. On Gerimis, unregistered people get revised out first.",
+    "Form RO-9, top right. It takes a minute. Being revised out takes less.",
+    "No file, no secret. Just saying. Top right."
   ]
 }
