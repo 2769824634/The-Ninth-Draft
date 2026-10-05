@@ -11,6 +11,7 @@ import { Retrieve } from './ui/retrieve';
 import { System } from './ui/system';
 import { Dossier } from './ui/dossier';
 import { Archivist } from './ui/archivist';
+import { quirks } from './ui/quirks';
 import { clearanceKey, INK } from './clearance';
 import { Search } from './ui/search';
 import { boot } from './ui/boot';
@@ -47,6 +48,7 @@ export function start() {
   const voice = new Archivist(data.archivist);
   const retrieve = new Retrieve();
   const system = new System();
+  quirks(root, voice, system);
 
   /** Paint the whole interface in a clearance colour. */
   const setClearance = (stamp: string) => {

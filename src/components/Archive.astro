@@ -6,6 +6,7 @@ import '../styles/hud.css';
 import '../styles/dossier.css';
 import '../styles/overlays.css';
 import '../styles/wall.css';
+import '../styles/quirks.css';
 import '../styles/attach.css';
 import '../styles/system.css';
 import '../styles/zh.css';
@@ -140,6 +141,7 @@ const links = new Set(records.flatMap((r) => r.related.filter((f) => records.som
   <footer class="foot">
     <p class="voice" id="voice" aria-live="polite"><span class="voice__who"><i></i>Archivist</span><span class="voice__line" id="voice-line">Clearance granted.</span></p>
     <span class="foot__coords micro" id="coords">RA 04h 21m 07s · Dec +61° 12′</span>
+    <button type="button" class="foot__year micro" id="year" aria-label="Year"><span>Dec</span> <b>1999</b></button>
     <span class="foot__clock micro" id="clock">00:00:00</span>
     <span class="foot__mark">Archive of <b>The Ninth Draft</b><i></i></span>
   </footer>
@@ -228,6 +230,8 @@ const links = new Set(records.flatMap((r) => r.related.filter((f) => records.som
       <div class="dossier__crumbs micro"><span id="ds-file">File P-0001</span><span class="barcode" id="ds-barcode" aria-hidden="true"></span></div>
       <h2 class="dossier__title" id="ds-title"></h2>
       <p class="dossier__sub" id="ds-sub"></p>
+      <button type="button" class="mystamp-btn micro" id="ds-mystamp" aria-label="Put your own stamp on this file"><span>Stamp</span></button>
+      <span class="mystamp" id="ds-mystamp-ink" aria-hidden="true" hidden></span>
     </header>
     <dl class="dossier__meta" id="ds-meta"></dl>
     <div class="tabs" role="tablist">
