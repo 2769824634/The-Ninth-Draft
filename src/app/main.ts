@@ -343,12 +343,22 @@ export function start() {
     return wall;
   }
 
+  /** The shared page nav follows whichever room is in view. */
+  function markRoom() {
+    const wallOn = roomTarget === 'wall';
+    document.getElementById('nav-archive')?.toggleAttribute('aria-current', !wallOn);
+    document.getElementById('nav-links')?.toggleAttribute('aria-current', wallOn);
+    if (!wallOn) document.getElementById('nav-archive')?.setAttribute('aria-current', 'page');
+    else document.getElementById('nav-links')?.setAttribute('aria-current', 'page');
+  }
+
   function enterWall(focusFile: string | null, push = true, instant = false) {
     if (roomTarget === 'wall') {
       if (focusFile) wall?.focus(focusFile, true);
       return;
     }
     roomTarget = 'wall';
+    markRoom();
     const swap = () => {
       if (view === 'detail') closeRecord(false);
       ensureWall();
@@ -371,6 +381,7 @@ export function start() {
   function leaveWall(rec: ArchiveRecord | null, push = true) {
     if (roomTarget !== 'wall') return;
     roomTarget = 'archive';
+    markRoom();
     if (!rec) voice.say('wall.leave');
     void iris.run(() => {
       wall?.stop();
@@ -478,7 +489,7 @@ export function start() {
     if (rec) openRecord(rec);
   });
   $('btn-back').addEventListener('click', () => closeRecord());
-  $('btn-wall').addEventListener('click', (e) => {
+  $('nav-links').addEventListener('click', (e) => {
     if (e.metaKey || e.ctrlKey) return;
     e.preventDefault();
     if (roomTarget === 'wall') leaveWall(null);
@@ -511,12 +522,15 @@ export function start() {
   document.querySelectorAll<HTMLButtonElement>('[data-step]').forEach((b) => b.addEventListener('click', () => move(Number(b.dataset.step))));
   document.querySelectorAll<HTMLButtonElement>('[data-col]').forEach((b) => b.addEventListener('click', () => switchCol(Number(b.dataset.col))));
   document.querySelectorAll<HTMLButtonElement>('[data-dstep]').forEach((b) => b.addEventListener('click', () => stepRecord(Number(b.dataset.dstep))));
-  document.querySelector('[data-nav="home"]')!.addEventListener('click', (e) => {
+  const goHome = (e: Event) => {
+    if ((e as MouseEvent).metaKey || (e as MouseEvent).ctrlKey) return;
     e.preventDefault();
     if (search.isOpen) search.close();
     if (roomTarget === 'wall') leaveWall(null);
     else closeRecord();
-  });
+  };
+  document.querySelector('[data-nav="home"]')!.addEventListener('click', goHome);
+  $('nav-archive').addEventListener('click', goHome);
 
   window.addEventListener('keydown', (e) => {
     if (root.dataset.boot === 'on' || e.metaKey || e.ctrlKey || e.altKey) return;
@@ -606,6 +620,11 @@ export function start() {
 
   const enter = () => {
     try { sessionStorage.setItem('n9:boot', '1'); } catch { /* ignore */ }
+    // Flat pages link here with #index to open the archive index directly
+    if (location.hash === '#index') {
+      history.replaceState(history.state, '', location.pathname);
+      setTimeout(() => search.show(), 500);
+    }
     let visits = 0;
     try {
       visits = Number(localStorage.getItem('n9:visits') || 0) + 1;

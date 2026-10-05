@@ -1,0 +1,28 @@
+---
+/**
+ * The one page navigation, shared by the archive room and every flat page,
+ * so the site reads as one building with the same signs in every corridor.
+ */
+export type NavId = 'archive' | 'links' | 'map' | 'calendar' | 'guide';
+
+interface Props {
+  current?: NavId | null;
+}
+const { current = null } = Astro.props;
+const base = import.meta.env.BASE_URL;
+const items: { id: NavId; href: string; label: string; key?: string }[] = [
+  { id: 'archive', href: base, label: 'Archive' },
+  { id: 'links', href: `${base}wall/`, label: 'Links', key: 'W' },
+  { id: 'map', href: `${base}map/`, label: 'Map' },
+  { id: 'calendar', href: `${base}calendar/`, label: 'Calendar' },
+  { id: 'guide', href: `${base}guide/`, label: 'Guide' },
+];
+---
+
+<nav class="sitenav micro" aria-label="Pages">
+  {items.map((n) => (
+    <a href={n.href} id={`nav-${n.id}`} data-nav={n.id} aria-current={n.id === current ? 'page' : undefined}>
+      <span>{n.label}</span>
+    </a>
+  ))}
+</nav>

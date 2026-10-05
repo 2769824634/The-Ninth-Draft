@@ -4,6 +4,7 @@
  * archive header without the 3D room, so they load fast and read on a phone.
  */
 import Base from './Base.astro';
+import SiteNav, { type NavId } from '../components/SiteNav.astro';
 import '../styles/hud.css';
 import '../styles/zh.css';
 import '../styles/flat.css';
@@ -15,13 +16,7 @@ interface Props {
 }
 const { title, description, page } = Astro.props;
 const base = import.meta.env.BASE_URL;
-const nav = [
-  { id: 'archive', href: base, label: 'Archive' },
-  { id: 'map', href: `${base}map/`, label: 'Map' },
-  { id: 'calendar', href: `${base}calendar/`, label: 'Calendar' },
-  { id: 'guide', href: `${base}guide/`, label: 'Guide' },
-  { id: 'me', href: `${base}register/`, label: 'Register' },
-];
+const current: NavId | null = page === 'district' ? 'map' : (['map', 'calendar', 'guide'] as string[]).includes(page) ? (page as NavId) : null;
 ---
 
 <Base title={title} description={description}>
@@ -31,12 +26,16 @@ const nav = [
         <span class="brand__l1">The Ninth Draft</span>
         <span class="brand__l2">Records Office · Gerimis</span>
       </a>
-      <nav class="fhead__nav micro" aria-label="Pages">
-        {nav.map((n) => (
-          <a href={n.href} id={`nav-${n.id}`} aria-current={n.id === page || (n.id === 'map' && page === 'district') || (n.id === 'me' && page === 'register') ? 'page' : undefined}><span>{n.label}</span></a>
-        ))}
-      </nav>
-      <div class="fhead__tools">
+      <SiteNav current={current} />
+      <div class="fhead__tools tools">
+        <a class="tool" id="nav-me" href={`${base}register/`} aria-current={page === 'register' || page === 'me' ? 'page' : undefined}>
+          <svg viewBox="0 0 16 16" aria-hidden="true"><rect x="1.5" y="3" width="13" height="10" /><circle cx="5.6" cy="7.2" r="1.6" /><path d="M3.2 11c.5-1.3 1.3-1.9 2.4-1.9s1.9.6 2.4 1.9M9.8 6.6h3M9.8 8.8h2.2" /></svg>
+          <span>Register</span>
+        </a>
+        <a class="tool" id="btn-index" href={`${base}#index`}>
+          <svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="7" cy="7" r="4.6" /><path d="M10.4 10.4 14 14" /></svg>
+          <span>Index</span><span class="kbd">/</span>
+        </a>
         <div class="seg" role="group" aria-label="Lighting">
           <span class="seg__thumb" aria-hidden="true"></span>
           <button type="button" data-theme-set="day" aria-pressed="true">Day</button>
@@ -47,7 +46,11 @@ const nav = [
             <rect class="pg pg--a" x="2" y="1.5" width="8" height="10" />
             <g class="pg pg--b"><rect x="6" y="4.5" width="8" height="10" /><path d="M8 8h4M8 10.5h2.6" /></g>
           </svg>
-          <span class="lang__pair" aria-hidden="true"><b lang="en">EN</b><i>/</i><b lang="zh-CN">中</b></span>
+          <span class="lang__pair" aria-hidden="true"><b lang="en">EN</b><i>/</i><b lang="zh-CN">中</b></span><span class="kbd">L</span>
+        </button>
+        <button class="tool tool--sound" id="btn-sound" type="button" aria-pressed="false">
+          <span class="eq" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
+          <span id="sound-label">Sound off</span>
         </button>
       </div>
     </header>
