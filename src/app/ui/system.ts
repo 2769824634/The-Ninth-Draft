@@ -22,9 +22,9 @@ const ODDS: Record<string, number> = {
 };
 const COOLDOWN = 25000;
 // Voices that are usually female across macOS, Windows, Chrome and Android
-const FEMALE = /female|samantha|victoria|karen|serena|moira|tessa|fiona|kate|susan|zira|hazel|libby|sonia|aria|jenny|natasha|clara|emma|google uk english female|google us english/i;
+export const FEMALE = /female|samantha|victoria|karen|serena|moira|tessa|fiona|kate|susan|zira|hazel|libby|sonia|aria|jenny|natasha|clara|emma|google uk english female|google us english/i;
 // Mandarin female voices: Tingting / Lili / Yu-shu (Apple), Huihui / Xiaoxiao / Yaoyao (Microsoft), Google 普通话
-const FEMALE_ZH = /female|ting-?ting|lili|yu-?shu|huihui|xiaoxiao|xiaoyi|yaoyao|xiaomo|xiaohan|xiaorui|google\s*普通话|普通话|女/i;
+export const FEMALE_ZH = /female|ting-?ting|lili|yu-?shu|huihui|xiaoxiao|xiaoyi|yaoyao|xiaomo|xiaohan|xiaorui|google\s*普通话|普通话|女/i;
 
 export class System {
   private el = document.getElementById('sysmsg')!;

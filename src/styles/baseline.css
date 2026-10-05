@@ -1,0 +1,47 @@
+/* ==========================================================================
+   Baseline test: a 3D booth with the console under it
+   ========================================================================== */
+.bl__defs { position: absolute; }
+.bl { margin-top: 1.6rem; --split: 0px; }
+.bl__stage { position: relative; aspect-ratio: 16 / 8.5; max-height: 68vh; min-height: 16rem; border: 1px solid var(--ink); background: #06080a; overflow: hidden; box-shadow: .5rem .5rem 0 var(--line); }
+.bl__stage canvas { display: block; width: 100%; height: 100%; }
+.bl.is-flat .bl__stage { aspect-ratio: auto; min-height: 5rem; max-height: none; }
+.bl.is-flat .bl__stage canvas { display: none; }
+.bl__hud { position: absolute; inset: 0 0 auto 0; display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: .8rem 1rem; color: #cfe3da; pointer-events: none; }
+.bl__segs { display: grid; grid-template-columns: repeat(9, 1.4rem); gap: .25rem; margin: 0; padding: 0; list-style: none; }
+.bl__segs li { height: .3rem; background: rgba(207, 227, 218, .22); transition: background var(--t-2) var(--ease); }
+.bl__segs li.is-on { background: #c1272d; }
+.bl__dev, .bl__dev span { margin: 0; color: #cfe3da; }
+.bl__dev b { font-family: var(--f-mono); font-weight: 500; font-size: 1.1rem; margin-left: .4rem; }
+.bl__stamp { position: absolute; right: 8%; bottom: 14%; padding: .5rem 1.2rem; border: 5px double #c1272d; color: #c1272d; background: rgba(6, 8, 10, .55); font-family: var(--f-mono); font-weight: 700; font-size: clamp(1.4rem, 5vw, 3rem); letter-spacing: .2em; transform: rotate(-8deg); opacity: 0; pointer-events: none; }
+.bl__stamp.is-down { animation: bl-stamp 420ms var(--ease) forwards; }
+@keyframes bl-stamp { 0% { opacity: 0; transform: rotate(-8deg) scale(2.2); } 60% { opacity: 1; transform: rotate(-8deg) scale(.94); } 100% { opacity: .95; transform: rotate(-8deg) scale(1); } }
+
+.bl__console { margin-top: 1.4rem; max-width: 52rem; }
+.bl__panel[hidden] { display: none; }
+.bl__label { margin: 0 0 .5rem; }
+.bl__say { margin: 0; font-family: var(--f-serif); font-size: clamp(1.15rem, 2.4vw, 1.5rem); line-height: 1.55; }
+[data-lang='zh'] .bl__say { line-height: 1.8; letter-spacing: .02em; }
+.bl__say--live { font-family: var(--f-system); font-size: clamp(1.4rem, 3.2vw, 2.1rem); text-shadow: var(--split) 0 rgba(193, 39, 45, .7), calc(var(--split) * -1) 0 rgba(60, 170, 190, .6); }
+.bl__remark { margin: .4rem 0 0; min-height: 1.6em; font-family: var(--f-system); font-size: .8rem; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3); }
+.bl__remark[data-dev='2'] { color: var(--accent); }
+.bl__timer { height: 3px; margin: .6rem 0 1rem; background: var(--line); }
+.bl__timer i { display: block; height: 100%; background: var(--ink); transform-origin: left; transition: background var(--t-2) var(--ease); }
+.bl__timer i.is-late { background: var(--accent); }
+.bl__opts { display: grid; gap: .6rem; }
+.bl__opt { display: grid; grid-template-columns: 2rem 1fr; align-items: center; gap: .8rem; width: 100%; padding: .85rem 1rem; border: 1px solid var(--line); background: transparent; color: var(--ink); text-align: left; font-family: var(--f-serif); font-size: 1.05rem; cursor: pointer; transition: border-color var(--t-1) var(--ease), background var(--t-1) var(--ease), transform var(--t-1) var(--ease); }
+.bl__opt i { font-style: normal; font-family: var(--f-mono); font-size: .75rem; color: var(--ink-3); border: 1px solid var(--line); text-align: center; padding: .15rem 0; }
+.bl__opt:hover:not(:disabled) { border-color: var(--ink); transform: translateX(3px); }
+.bl__opt:disabled { cursor: default; opacity: .5; }
+.bl__opt.is-picked { opacity: 1; border-color: var(--ink); background: color-mix(in srgb, var(--ink) 6%, transparent); }
+.bl__opt.is-picked i { background: var(--accent); border-color: var(--accent); color: #fff; }
+.bl__acts { display: flex; flex-wrap: wrap; gap: .8rem; margin-top: 1.2rem; }
+.bl__verdict { margin: .2rem 0 .6rem; font-family: var(--f-display); font-weight: 800; font-stretch: 120%; font-size: clamp(1.8rem, 5vw, 3.2rem); text-transform: uppercase; line-height: 1; }
+
+@media (max-width: 700px) {
+  .bl__stage { aspect-ratio: 4 / 4.6; max-height: none; }
+  .bl__segs { grid-template-columns: repeat(9, .9rem); }
+  .bl__hud { flex-direction: column; align-items: flex-start; gap: .3rem; }
+  .bl__stamp { right: 6%; bottom: 8%; }
+}
+@media (prefers-reduced-motion: reduce) { .bl__stamp.is-down { animation: none; opacity: .95; } .bl__opt:hover:not(:disabled) { transform: none; } }

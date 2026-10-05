@@ -58,6 +58,7 @@ const payload = JSON.stringify({ base, records: list }).replace(/</g, '\\u003c')
 
       <div class="me__acts">
         <a class="f-btn" href={`${base}map/`}><span>Find my district</span><svg viewBox="0 0 24 12" aria-hidden="true"><path d="M0 6h22M17 1l5 5-5 5" /></svg></a>
+        <a class="f-btn f-btn--ghost" href={`${base}baseline/`}><span>Baseline test</span></a>
         <a class="f-btn f-btn--ghost" href={base}><span>Back to the archive</span></a>
         <button class="f-btn f-btn--ghost" type="button" id="forget"><span>Revise me out</span></button>
       </div>
@@ -77,10 +78,13 @@ const payload = JSON.stringify({ base, records: list }).replace(/</g, '\\u003c')
   import { toPhrase } from '../../app/visitor/phrase';
   import { makeSecret, type SecretRecord } from '../../app/visitor/secret';
   import { fileNo, forgetVisitor, loadVisitor } from '../../app/visitor/store';
+  import { loadBaseline, VERDICTS } from '../../app/baseline/rounds';
 
   const data = JSON.parse(document.getElementById('me-data')!.textContent!) as { base: string; records: SecretRecord[] };
   const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
   const v = loadVisitor();
+  const baseline = loadBaseline();
+  const tx = (l: { en: string; zh: string }) => (isZh() ? l.zh : l.en);
   const range = $<HTMLInputElement>('sx-range');
   const secret = v ? makeSecret(v, data.records, data.base) : null;
 
@@ -102,6 +106,7 @@ const payload = JSON.stringify({ base, records: list }).replace(/</g, '\\u003c')
       [t('Clearance'), 'PROVISIONAL', true],
       [t('Case type'), secret ? secret.kindName(zh) : ''],
       [t('Revisions'), t('{n} on file', { n: 9 })],
+      [t('Baseline'), baseline ? `${tx(VERDICTS[baseline.verdict].name)} · ${baseline.score}` : t('Not tested')],
     ];
     $('me-meta').innerHTML = meta.map(([k, val, c]) => `<div><dt class="micro">${k}</dt><dd${c ? ' class="is-conf"' : ''}>${val.replace(/</g, '&lt;')}</dd></div>`).join('');
     draw(false);
