@@ -1,0 +1,52 @@
+/* ==========================================================================
+   The page falls back to 1900 (src/app/ui/downpour.ts)
+   ========================================================================== */
+.flood {
+  --split: 0px;
+  position: fixed;
+  inset: 0;
+  z-index: 9000;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  opacity: 0;
+  pointer-events: auto;
+  background: radial-gradient(ellipse at 50% 40%, transparent 25%, color-mix(in srgb, #2a2114 60%, transparent));
+  transition: opacity 600ms cubic-bezier(.2, .7, .2, 1);
+}
+.flood.is-on { opacity: 1; }
+.flood__rain { position: absolute; inset: 0; width: 100%; height: 100%; }
+.flood__flash { position: absolute; inset: 0; background: #fff8e8; opacity: 0; pointer-events: none; mix-blend-mode: screen; }
+.flood__year {
+  position: relative;
+  font-family: var(--f-display, var(--f-sans));
+  font-weight: 800;
+  font-stretch: 125%;
+  font-size: clamp(5rem, 27vw, 24rem);
+  line-height: 1;
+  letter-spacing: -.02em;
+  color: var(--ink);
+  text-shadow: var(--split) 0 rgba(193, 39, 45, .75), calc(var(--split) * -1) 0 rgba(60, 170, 190, .6), 0 0 .35em color-mix(in srgb, var(--bg) 75%, transparent);
+}
+.flood__year b { font-weight: inherit; font-variant-numeric: tabular-nums; }
+.flood__stamp {
+  position: absolute;
+  padding: .5rem 1.2rem;
+  border: 5px double var(--accent);
+  color: var(--accent);
+  font-family: var(--f-mono);
+  font-weight: 700;
+  font-size: clamp(1.6rem, 7vw, 4rem);
+  letter-spacing: .2em;
+  transform: rotate(-9deg);
+  opacity: 0;
+}
+.flood__stamp.is-down { animation: flood-stamp 380ms cubic-bezier(.2, .7, .2, 1) forwards; }
+@keyframes flood-stamp {
+  0% { opacity: 0; transform: rotate(-9deg) scale(2.4); }
+  60% { opacity: 1; transform: rotate(-9deg) scale(.94); }
+  100% { opacity: .95; transform: rotate(-9deg) scale(1); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .flood__stamp.is-down { animation: none; opacity: .95; }
+}

@@ -65,6 +65,7 @@ const arrow = '<svg viewBox="0 0 24 12" aria-hidden="true"><path d="M0 6h22M17 1
   import { isZh, t } from '../../app/i18n';
   import { reducedMotion } from '../../app/prefs';
   import { speakCold, stopSpeaking } from '../../app/ui/voice';
+  import { downpour, isStorming } from '../../app/ui/downpour';
   import { canvasFontsReady } from '../../app/scene/textures';
   import { Booth } from '../../app/baseline/booth';
   import { MAX_POINTS, POINTS, REMARKS, ROUNDS, VERDICTS, loadBaseline, saveBaseline, verdictOf, type Dev } from '../../app/baseline/rounds';
@@ -211,31 +212,43 @@ const arrow = '<svg viewBox="0 0 24 12" aria-hidden="true"><path d="M0 6h22M17 1
   };
 
   /* ---------- the verdict ---------- */
-  const finish = () => {
+  const finish = async () => {
     const score = Math.min(100, Math.round((st.points / MAX_POINTS) * 100));
     const verdict = verdictOf(score);
     saveBaseline({ score, verdict, answers: st.answers, at: Date.now() });
-    show('result');
-    $('bl-score').textContent = String(score).padStart(2, '0');
-    const v = VERDICTS[verdict];
-    $('bl-verdict').textContent = tx(v.name);
-    $('bl-body').textContent = tx(v.body);
-    $('bl-saved').textContent = t('Written to your file. Only on this device.');
-    const stamp = $('bl-stamp');
-    stamp.textContent = verdict;
-    stamp.dataset.verdict = verdict;
-    stamp.classList.remove('is-down');
-    void stamp.offsetWidth;
-    stamp.classList.add('is-down');
-    audio.stamp();
-    booth?.setMonitor({ state: 'verdict', text: tx(v.name) });
-    booth?.setProgress(1);
+    const fillResult = () => {
+      show('result');
+      $('bl-score').textContent = String(score).padStart(2, '0');
+      const v = VERDICTS[verdict];
+      $('bl-verdict').textContent = tx(v.name);
+      $('bl-body').textContent = tx(v.body);
+      $('bl-saved').textContent = t('Written to your file. Only on this device.');
+      booth?.setMonitor({ state: 'verdict', text: tx(v.name) });
+      booth?.setProgress(1);
+    };
+    const stampIt = () => {
+      const stamp = $('bl-stamp');
+      stamp.textContent = verdict;
+      stamp.dataset.verdict = verdict;
+      stamp.classList.remove('is-down');
+      void stamp.offsetWidth;
+      stamp.classList.add('is-down');
+      audio.stamp();
+      speakCold(tx(VERDICTS[verdict].name));
+    };
     if (verdict === 'DEVIATED') {
-      impulse = 1.4;
+      // The room gives way: it shakes harder, the lamp dies down, then the page falls back to 1900
+      st.open = false;
+      impulse = 1.6;
       booth?.kick(1.2);
       audio.glitch();
+      await new Promise((r) => window.setTimeout(r, calm ? 300 : 900));
+      await downpour({ onPeak: fillResult });
+      stampIt();
+      return;
     }
-    speakCold(tx(v.name));
+    fillResult();
+    stampIt();
   };
 
   const begin = async () => {
@@ -254,7 +267,7 @@ const arrow = '<svg viewBox="0 0 24 12" aria-hidden="true"><path d="M0 6h22M17 1
   $('bl-start').addEventListener('click', begin);
   $('bl-again').addEventListener('click', begin);
   window.addEventListener('keydown', (e) => {
-    if (e.metaKey || e.ctrlKey || e.altKey) return;
+    if (e.metaKey || e.ctrlKey || e.altKey || isStorming()) return;
     const state = root.dataset.state;
     if (state === 'round' && ['1', '2', '3'].includes(e.key)) answer(Number(e.key) - 1, false);
     else if (e.key === 'Enter' && state === 'intro' && document.activeElement?.tagName !== 'A') begin();
