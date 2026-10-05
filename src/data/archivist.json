@@ -232,5 +232,42 @@
     "You're not on the register yet. On Gerimis, the unregistered get revised out first.",
     "Form RO-9, top right. It takes a minute. Being revised out takes less.",
     "No file, no secret. Just mentioning it."
-  ]
+  ],
+  "library": {
+    "enter": [
+      "The library. Walnut shelves, fifty years old. The damp got into them long ago and then into the books.",
+      "Open stacks. Take anything down you like, just put it back where it was. Heuss never does.",
+      "The dehumidifier in here runs all night. It still smells of wet paper."
+    ],
+    "open": [
+      "{title}. The spine cracks a bit. Nobody's opened it since it was bound.",
+      "{title}. Turn the pages from the corner, not the middle.",
+      "{title}. The binder in Palus Magna sewed that one. He was always generous with the glue."
+    ],
+    "daily": [
+      "Bound Daily. The front pages are what we kept. The rest went to wrap fish at the market.",
+      "Newsprint goes yellow faster than anything else in here. Read it while it's white."
+    ],
+    "binder": [
+      "Heuss's proposals. They come back, he files them, he writes another.",
+      "Every one of those came back with a slip on it. He kept the slips."
+    ],
+    "gap": [
+      "That gap's been there since December. Nobody's put anything in it.",
+      "Leave that space alone. Heuss gets funny about it.",
+      "There's less dust in that spot. Something stood there, or was meant to."
+    ],
+    "return": [
+      "Back on the shelf. Spine out, please. There. Thank you.",
+      "Good. Putting it back is half the job."
+    ],
+    "again": [
+      "{title} again. I'll stamp the card twice, it's no trouble."
+    ],
+    "idle": [
+      "The lights in the back aisle are on a timer. Wave if they go out.",
+      "Rain on the skylight. It starts about four o'clock most days.",
+      "Take your time. This is the one room in the building nobody hurries in."
+    ]
+  }
 }

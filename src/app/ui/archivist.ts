@@ -18,7 +18,7 @@ export class Archivist {
   private idleTimer = 0;
   private quietUntil = 0;
 
-  constructor(private lines: ArchivistLines) {
+  constructor(private lines: ArchivistLines, private idleKey = 'idle') {
     const reset = () => this.armIdle();
     ['pointerdown', 'keydown', 'wheel'].forEach((e) => window.addEventListener(e, reset, { passive: true }));
     this.armIdle();
@@ -74,7 +74,7 @@ export class Archivist {
   private armIdle() {
     window.clearTimeout(this.idleTimer);
     this.idleTimer = window.setTimeout(() => {
-      this.say('idle', {}, false);
+      this.say(this.idleKey, {}, false);
       this.armIdle();
     }, 45000);
   }
