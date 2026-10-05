@@ -388,6 +388,8 @@ textarea.f-input { font-family: var(--f-serif); font-size: 1.05rem; resize: vert
 .map__item-name { font-family: var(--f-display); font-weight: 700; font-size: .95rem; text-transform: uppercase; }
 .map__item ul { margin: 0; padding: 0 .8rem .7rem; list-style: none; display: none; }
 .map__item.is-on ul { display: block; }
+.map__more { display: none; padding: 0 .8rem .7rem; text-decoration: none; color: var(--accent); }
+.map__item.is-on .map__more { display: block; }
 .map__item li { padding: .25rem 0; border-top: 1px dashed var(--line); font-family: var(--f-serif); font-size: .92rem; }
 .map__item li a { text-decoration: none; }
 .map__item li a b { font-family: var(--f-mono); font-weight: 500; font-size: .75rem; margin-right: .5rem; color: var(--ink-3); }
@@ -515,3 +517,35 @@ textarea.f-input { font-family: var(--f-serif); font-size: 1.05rem; resize: vert
   .vcard .fstamp { top: auto; bottom: .6rem; right: .6rem; }
 }
 @media (prefers-reduced-motion: reduce) { .clerk__tag i { animation: none; } .choice__o:hover { transform: none; } }
+
+/* Calendar and district pages */
+.cal { display: grid; grid-template-columns: minmax(0, 1fr) 17rem; gap: 2.4rem; align-items: start; margin-top: 2rem; }
+.cal__bar { display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin-bottom: 1rem; }
+.cal__month { margin: 0; font-family: var(--f-display); font-weight: 800; font-stretch: 120%; font-size: clamp(1.4rem, 3.4vw, 2.2rem); text-transform: uppercase; }
+.cal__grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 2px; }
+.cal__h { padding: .3rem 0; text-align: center; }
+.cal__d { position: relative; display: flex; flex-direction: column; justify-content: space-between; aspect-ratio: 1 / .8; padding: .35rem .5rem; border: 1px solid var(--line); background: var(--bg); color: var(--ink); text-align: left; cursor: pointer; transition: border-color var(--t-1) var(--ease), background var(--t-1) var(--ease); }
+.cal__d b { font-family: var(--f-mono); font-weight: 500; font-size: .85rem; }
+.cal__d i { font-style: normal; color: var(--accent); letter-spacing: .1em; line-height: .5; font-size: 1.4rem; }
+.cal__d:hover { border-color: var(--ink-2); }
+.cal__d.is-on { border-color: var(--ink); background: color-mix(in srgb, var(--ink) 6%, transparent); }
+.cal__d.is-nine { background: color-mix(in srgb, var(--accent) 14%, var(--bg)); border-color: color-mix(in srgb, var(--accent) 50%, var(--line)); }
+.cal__d.is-nine b { color: var(--accent); font-weight: 700; }
+.cal__d.is-last::after { content: '31.12.99'; position: absolute; right: .4rem; bottom: .3rem; font-family: var(--f-mono); font-size: .5rem; letter-spacing: .06em; color: var(--ink-3); }
+.cal__side { display: grid; gap: 1.2rem; }
+.cal__list { margin: 0; padding: 0; list-style: none; font-family: var(--f-serif); font-size: .95rem; }
+.cal__list li { display: grid; gap: .1rem; padding: .45rem 0; border-top: 1px dashed var(--line); }
+.cal__list a { text-decoration: none; } .cal__list b { font-family: var(--f-mono); font-weight: 500; font-size: .8rem; margin-right: .5rem; border-bottom: 1px solid var(--accent); }
+.cal__none { color: var(--ink-3); }
+.cal__time { margin: 0; font-family: var(--f-mono); font-size: 2rem; letter-spacing: .06em; }
+.dist-page { max-width: 46rem; }
+.dist-page__recs, .dist-page__others { margin: 0; padding: 0; list-style: none; display: grid; gap: .4rem; }
+.dist-page__others { grid-template-columns: repeat(auto-fill, minmax(8rem, 1fr)); }
+.dist-page__recs a, .dist-page__others a { display: flex; gap: .8rem; align-items: baseline; padding: .6rem .8rem; border: 1px solid var(--line); background: var(--bg); text-decoration: none; font-family: var(--f-serif); transition: border-color var(--t-1) var(--ease); }
+.dist-page__recs a:hover, .dist-page__others a:hover { border-color: var(--ink); }
+.dist-page__recs b { font-family: var(--f-mono); font-weight: 500; font-size: .8rem; }
+.dist-page__facts { margin: 0; display: grid; gap: .8rem; }
+.dist-page__facts div { display: grid; grid-template-columns: 8rem 1fr; gap: 1rem; padding-bottom: .6rem; border-bottom: 1px dashed var(--line); align-items: baseline; }
+.dist-page__facts dd { margin: 0; font-family: var(--f-serif); }
+.dist-clock { font-family: var(--f-mono); font-weight: 500; font-size: 1.3rem; letter-spacing: .05em; }
+@media (max-width: 900px) { .cal { grid-template-columns: 1fr; gap: 1.4rem; } .cal__d { aspect-ratio: 1 / 1; padding: .25rem .3rem; } .cal__d.is-last::after { display: none; } .dist-page__facts div { grid-template-columns: 1fr; gap: .1rem; } }
