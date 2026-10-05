@@ -2,6 +2,26 @@
 
 一座冷战风格的解密档案馆。网站默认英文，右上角 `EN / 中` 可以切换中文（按 `L` 也行）；本说明为中文。
 
+## 世界观：霏微
+
+档案馆属于 **Gerimis / 霏微**（马来语「细雨」）：一座海峡里的小岛，时间永远停在 1999 年。岛上有一个 **记录署 / Records Office**，负责把发生过的事整理成最终版本（第九稿）。但被划掉的旧稿不会消失，它们会悄悄漏回现实，叫做 **回流 / Backflow**：填掉的海重新露出来，拆掉的老村一夜亮灯，路牌挂回旧名，被「修订出去」的人又走回街上。
+
+> 本岛一切如常。如有不同，是上一稿。
+
+地理参照新加坡，人物和机构全部虚构。一个核心区加六个居民区：
+
+| 区 | `district` | 参照 |
+| --- | --- | --- |
+| 中枢 Axis | `axis` | 核心区（牛车水、直落亚逸、莱佛士坊、滨海湾），记录署总部 |
+| 红桥 Pons Ruber | `pons-ruber` | 宏茂桥 |
+| 大泽 Palus Magna | `palus-magna` | 大巴窑 |
+| 红丘 Collis Ruber | `collis-ruber` | 红山 |
+| 后港 Portus Posterior | `portus-posterior` | 后港 |
+| 林地 Silva | `silva` | 兀兰 |
+| 实龙岗 Serrangon | `serrangon` | 实龙岗 |
+
+档案由作者和朋友们一起写，中文或英文都可以；写作须知、红线和交稿格式见项目文件里的「入馆须知」。一个不明说的约定：回流事件的日期尽量落在某月 9 号。
+
 访问者走进一间档案室：一排排钢制抽屉里插满马尼拉纸档案夹，用长焦镜头拍摄。选中的档案会从抽屉里升起，打开后飞到镜头前翻开封面，露出夹着回形针的照片页和借阅登记表，右侧同时展开打字机风格的档案正文。太空元素只作为风格出现：轨道线、星图坐标、档案馆徽章上的卫星，不限定内容题材。
 
 视觉与交互参考了《明日方舟》「莱茵生命：访问」的档案终端（[RhineLabUI](https://github.com/LBEILC/RhineLabUI) / [Rhine-Music-Demo](https://github.com/RonaldDeng/Rhine-Music-Demo)）和 [OHM TAPE](https://github.com/zcy83821448/cassette) 的「没有硬切」原则。代码、模型、贴图、音效全部为本项目原创，场景完全程序化生成，没有使用外部模型或图片。
@@ -41,16 +61,17 @@ category: personnel            # personnel 人员 / events 事件 / programs 计
 title: "Full Name"
 subtitle: "Role or alias"
 stamp: "SECRET"                # TOP SECRET / SECRET / CONFIDENTIAL / RESTRICTED / DECLASSIFIED
-status: "Declassified"
-date: "1931 – 1990"
-place: "Berlin"
+status: "On duty"
+date: "1971 –"
+place: "Palus Magna"           # 读者看到的地名
+district: palus-magna          # 可选，地区代号（见上面「世界观」的表），地图和访客秘密会用到
 image: "records/p-0005.jpg"    # 可选，图片放在 public/records/ 下
 fields:
   - label: "Role"
-    value: "Courier"
+    value: "Ferry pilot"
 summary: "Overview 栏的摘要，可以用 ||涂黑||。"
-related: ["E-0001", "R-0002"]  # 关联档案的编号
-tags: ["berlin"]
+related: ["P-0001", "E-0002"]  # 关联档案的编号
+tags: ["ferry"]
 order: 5                       # 在同一类别里的排序
 ---
 
@@ -138,15 +159,17 @@ attachments:
 
 在英文档案旁边放一个同名的 `*.zh.md`，例如 `personnel/p-0002.md` 旁边放 `personnel/p-0002.zh.md`。没有中文版的档案在中文模式下照常显示英文原文，不会出错。
 
+朋友交来的稿子可以是中文也可以是英文。网站仍以 `.md` 为主文件、默认显示英文，所以中文写成的稿子由我们补一份英文 `.md`，中文原文放进 `.zh.md`。
+
 ```markdown
 ---
 file: "P-0002"            # 必填，对应英文档案的编号
-title: "安东·赖斯"
-subtitle: "哈尔登站信号工程师"
+title: "Heuss"
+subtitle: "记录署数据组技术员"
 summary: "……"
 fields:
   - label: "职务"
-    value: "信号工程师"
+    value: "数据组技术员，年份字段整改"
 ---
 
 正文（修订标记、涂黑、批注的写法和英文完全一样）

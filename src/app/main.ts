@@ -150,7 +150,7 @@ export function start() {
       setClearance('DECLASSIFIED');
       swapText($('fc-file'), `${cat.code}-0000`);
       $('fc-title').textContent = t('Drawer empty');
-      $('fc-sub').textContent = t('Add a Markdown file to this category to file a record.');
+      $('fc-sub').textContent = t('Nothing filed yet. Whatever happened here has not been written down.');
       $('fc-stamp').textContent = '—';
       $('fc-date').textContent = '';
       ($('fc-open') as HTMLButtonElement).disabled = true;

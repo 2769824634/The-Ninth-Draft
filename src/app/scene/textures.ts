@@ -406,9 +406,9 @@ export function accessLogTexture(rec: ArchiveRecord) {
   g.strokeStyle = 'rgba(29,27,23,.35)';
   g.lineWidth = 1;
   const r = rng(s);
-  const names = ['A. HOLT', 'K. VANCE', 'M. ORLOV', 'J. PRYCE', 'E. NAGY', 'R. STRAND', 'L. QUINN'];
+  const names = ['HEUSS', 'L. TAN', 'S. RAHIM', 'K. NAIR', 'HEUSS', 'J. PEREIRA', 'M. LIM'];
   const why = ['REVIEW', 'AUDIT', 'TRANSFER', 'CROSS-REF', 'DECLASS.', 'INQUIRY'];
-  let year = 1958 + Math.floor(r() * 6);
+  let year = 1991 + Math.floor(r() * 3);
   for (let i = 0; i < 11; i++) {
     const y = fy + 150 + i * 38;
     g.beginPath();
@@ -416,7 +416,7 @@ export function accessLogTexture(rec: ArchiveRecord) {
     g.lineTo(fx + fw - 24, y + 10);
     g.stroke();
     if (i < 4 + Math.floor(r() * 5)) {
-      year += Math.floor(r() * 4);
+      year = Math.min(1999, year + Math.floor(r() * 3));
       const d = `${String(1 + Math.floor(r() * 28)).padStart(2, '0')}.${String(1 + Math.floor(r() * 12)).padStart(2, '0')}.${year}`;
       typed(g, d, cols[0], y, 17, s + i * 3);
       typed(g, names[Math.floor(r() * names.length)], cols[1], y, 17, s + i * 3 + 1);

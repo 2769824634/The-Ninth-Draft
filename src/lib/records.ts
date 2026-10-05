@@ -28,6 +28,8 @@ export interface ClientRecord {
   stamp: string;
   date?: string;
   place?: string;
+  /** District key (axis, pons-ruber, …); see content.config.ts. */
+  district?: string;
   image?: string;
   imageCaption?: string;
   fields: { label: string; value: string }[];
@@ -99,6 +101,7 @@ export async function loadRecords(base: string): Promise<ClientRecord[]> {
       stamp: data.stamp,
       date: data.date,
       place: data.place,
+      district: data.district,
       image: data.image ? `${base}${data.image.replace(/^\//, '')}` : undefined,
       imageCaption: data.imageCaption,
       fields: data.fields.map((f) => ({ label: esc(f.label), value: inline(f.value) })),
