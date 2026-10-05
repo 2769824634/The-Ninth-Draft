@@ -5,57 +5,89 @@ import { buildLibrary } from '../../lib/library';
 import '../../styles/library.css';
 
 const base = import.meta.env.BASE_URL;
-const bays = buildLibrary(await loadRecords(base), base);
+const lib = buildLibrary(await loadRecords(base), base);
+const volumes = lib.bays.reduce((n, b) => n + b.books.length, 0);
+const cards = lib.catalogue.reduce((n, d) => n + d.cards.length, 0);
+const zones = [
+  { id: 'overview', en: 'The whole room', zh: '整间阅览室' },
+  { id: 'rack', en: 'Newspaper rack', zh: '报刊架' },
+  { id: 'stacks', en: 'Stacks', zh: '书墙' },
+  { id: 'catalogue', en: 'Card catalogue', zh: '目录卡片柜' },
+  { id: 'desk', en: 'Circulation desk', zh: '借还台' },
+];
 ---
 
-<Flat title="Library — The Ninth Draft" description="The Records Office library: the Daily bound by month, the district gazetteers, the bound records, and the Office's own publications." page="library">
-  <div class="lib" id="lib" data-state="shelf">
+<Flat title="Library — The Ninth Draft" description="The Records Office reading room: the Daily on its sticks, the stacks, the card catalogue and the circulation desk." page="library">
+  <div class="lib" id="lib" data-state="room" data-zone="overview">
     <canvas class="lib__canvas" id="lib-canvas" aria-hidden="true"></canvas>
 
     <div class="lib__head">
-      <p class="f-kicker micro"><b>Room 03</b><span><span data-l="en">Records Office · Library · Open stacks</span><span data-l="zh">记录署 · 资料室 · 开架</span></span></p>
+      <p class="lib__kicker micro"><span data-l="en">Room 03 / Reading room</span><span data-l="zh">03 室 / 阅览室</span></p>
       <h1 class="lib__title"><span data-l="en">Library</span><span data-l="zh">资料室</span></h1>
-      <nav class="lib__bays" aria-label="Bays" id="lib-bays">
-        {bays.map((b, i) => (
-          <button type="button" data-bay={i} aria-pressed={i === 0 ? 'true' : 'false'}>
-            <i class="micro">{b.code}</i>
-            <span data-l="en">{b.title.en}</span><span data-l="zh">{b.title.zh}</span>
+      <p class="lib__stats micro"><span data-l="en">{volumes} volumes · {cards} cards · open stacks</span><span data-l="zh">藏书 {volumes} 册 · 卡片 {cards} 张 · 开架</span></p>
+      <nav class="lib__zones" id="lib-zones" aria-label="Corners of the room">
+        {zones.map((z, i) => (
+          <button type="button" data-zone={z.id} aria-pressed={i === 0 ? 'true' : 'false'}>
+            <i>{String(i).padStart(2, '0')}</i><span data-l="en">{z.en}</span><span data-l="zh">{z.zh}</span>
           </button>
         ))}
       </nav>
+      <p class="lib__here micro" id="lib-zone-name" data-no-i18n></p>
+      <ol class="lib__list" id="lib-list" data-no-i18n></ol>
     </div>
 
-    <ol class="lib__shelf" id="lib-shelf" aria-label="Books on this bay"></ol>
-
-    <p class="lib__callout micro" id="lib-callout" aria-hidden="true"></p>
+    <p class="lib__callout micro" id="lib-callout" aria-hidden="true" data-no-i18n></p>
 
     <div class="lib__foot">
       <p class="voice" id="voice" aria-live="polite"><span class="voice__who"><i></i>Archivist</span><span class="voice__line" id="voice-line"></span></p>
-      <p class="lib__hints micro" id="lib-hints">
-        <span data-l="en"><kbd>←</kbd><kbd>→</kbd> walk the stacks · click a spine to take it down</span>
-        <span data-l="zh"><kbd>←</kbd><kbd>→</kbd> 沿书架走 · 点书脊把书取下来</span>
+      <p class="lib__hints micro">
+        <span data-l="en">0–4 corners · ← → move · Esc back</span>
+        <span data-l="zh">0–4 切换区域 · ← → 移动 · Esc 返回</span>
       </p>
     </div>
 
-    <aside class="lib-reader" id="lib-reader" aria-hidden="true" aria-label="Reader">
-      <header class="lib-reader__top">
-        <span class="micro" id="rd-mark"></span>
-        <button type="button" class="lib-reader__close micro" id="rd-close"><span data-l="en">Return to shelf</span><span data-l="zh">放回书架</span> <span class="kbd">Esc</span></button>
+    <aside class="lib-panel lib-reader" id="lib-reader" aria-hidden="true" aria-label="Reader">
+      <header class="lib-panel__top">
+        <span class="micro" id="rd-mark" data-no-i18n></span>
+        <button type="button" class="lib-panel__close micro" id="rd-close"><span data-l="en">Return to shelf</span><span data-l="zh">放回原处</span> <span class="kbd">Esc</span></button>
       </header>
-      <p class="lib-reader__book micro" id="rd-book"></p>
-      <div class="lib-reader__page" id="rd-page">
+      <p class="lib-panel__sub micro" id="rd-book" data-no-i18n></p>
+      <div class="lib-reader__page" id="rd-page" data-no-i18n>
         <h2 class="lib-reader__head" id="rd-head"></h2>
         <div class="lib-reader__body" id="rd-body"></div>
       </div>
       <footer class="lib-reader__nav">
         <button type="button" id="rd-prev" aria-label="Previous page">←</button>
-        <span class="micro" id="rd-no"></span>
+        <span class="micro" id="rd-no" data-no-i18n></span>
         <button type="button" id="rd-next" aria-label="Next page">→</button>
       </footer>
     </aside>
+
+    <aside class="lib-panel lib-cat" id="lib-cat" aria-hidden="true" aria-label="Catalogue drawer">
+      <header class="lib-panel__top">
+        <span class="micro"><span data-l="en">Catalogue drawer</span><span data-l="zh">目录抽屉</span></span>
+        <button type="button" class="lib-panel__close micro" id="cat-close"><span data-l="en">Push it back</span><span data-l="zh">推回去</span> <span class="kbd">Esc</span></button>
+      </header>
+      <h2 class="lib-reader__head" id="cat-label" data-no-i18n></h2>
+      <ol class="lib-cards" id="cat-cards" data-no-i18n></ol>
+      <p class="lib-panel__note micro"><span data-l="en">One card a file. Click a card to call the file up.</span><span data-l="zh">一份档案一张卡。点卡片调出档案。</span></p>
+    </aside>
+
+    <aside class="lib-panel lib-desk" id="lib-desk" aria-hidden="true" aria-label="Circulation desk">
+      <header class="lib-panel__top">
+        <span class="micro"><span data-l="en">Circulation</span><span data-l="zh">借还登记</span></span>
+        <button type="button" class="lib-panel__close micro" id="desk-close"><span data-l="en">Leave the desk</span><span data-l="zh">离开柜台</span> <span class="kbd">Esc</span></button>
+      </header>
+      <h2 class="lib-reader__head"><span data-l="en">Your card</span><span data-l="zh">你的借书卡</span></h2>
+      <p class="lib-panel__sub micro" id="desk-who" data-no-i18n></p>
+      <ol class="lib-loans" id="desk-loans" data-no-i18n></ol>
+      <div class="lib-desk__stamps" id="desk-stamps" data-no-i18n></div>
+      <button type="button" class="f-btn" id="desk-stamp"><span data-l="en">Stamp today's date</span><span data-l="zh">盖上今天的日期</span></button>
+      <p class="lib-panel__note micro"><span data-l="en">Nothing leaves the room. The card is stamped all the same.</span><span data-l="zh">书不出这间屋。卡还是照样盖章。</span></p>
+    </aside>
   </div>
 
-  <script type="application/json" id="lib-data" set:html={JSON.stringify(bays).replace(/</g, "\\u003c")} />
+  <script type="application/json" id="lib-data" set:html={JSON.stringify(lib).replace(/</g, "\\u003c")} />
 </Flat>
 
 <script>

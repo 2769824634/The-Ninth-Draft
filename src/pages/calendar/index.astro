@@ -94,7 +94,8 @@ const payload = JSON.stringify({ base, items }).replace(/</g, '\\u003c');
     ul.innerHTML = here.length
       ? here.map((i) => `<li><a href="${data.base}records/${i.slug}/"><b>${esc(i.file)}</b>${esc(zh ? i.titleZh ?? i.title : i.title)}</a><span class="micro">${esc(zh ? i.what.zh : i.what.en)}</span></li>`).join('') +
         `<li class="cal__paper"><a class="f-link" href="${data.base}daily/${key(month, picked!)}/">${esc(t('The Gerimis Daily for this day'))} →</a></li>`
-      : `<li class="cal__none">${picked === 9 ? t('Nothing filed. The 9th is not blank, only unfiled.') : t('Nothing filed on this day.')}</li>`;
+      : `<li class="cal__none">${picked === 9 ? t('Nothing filed. The 9th is not blank, only unfiled.') : t('Nothing filed on this day.')}</li>` +
+        `<li class="cal__paper"><a class="f-link" href="${data.base}daily/${key(month, picked!)}/">${esc(t('The Gerimis Daily for this day'))} →</a></li>`;
   };
 
   const draw = () => {

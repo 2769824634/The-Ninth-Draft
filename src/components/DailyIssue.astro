@@ -15,7 +15,7 @@ const base = import.meta.env.BASE_URL;
 const ld = longDate(issue.date);
 const fileLink = (s: Story) => (s.slug ? `${base}records/${s.slug}/` : null);
 const byMonth = new Map<string, Issue[]>();
-for (const i of all) {
+for (const i of [...all].reverse()) {
   const k = i.date.slice(0, 7);
   if (!byMonth.has(k)) byMonth.set(k, []);
   byMonth.get(k)!.push(i);
@@ -45,10 +45,10 @@ const monthLabel = (k: string) => {
     <section class="paper__lead">
       {issue.lead.stamp && <span class="paper__kicker micro"><span data-l="en">Front page</span><span data-l="zh">头版</span> · {issue.lead.file}</span>}
       <h2 class="paper__head"><span data-l="en">{issue.lead.head.en}</span><span data-l="zh">{issue.lead.head.zh}</span></h2>
-      <figure class="paper__photo" aria-hidden="true">
+      {!issue.quiet && <figure class="paper__photo" aria-hidden="true">
         <div class="paper__halftone"></div>
         <figcaption class="micro"><span data-l="en">Photograph: Records Office. Some details have been removed.</span><span data-l="zh">图片：记录署。部分细节已删除。</span></figcaption>
-      </figure>
+      </figure>}
       <div class="paper__copy paper__copy--lead">
         <p><span data-l="en" set:html={issue.lead.body.en} /><span data-l="zh" set:html={issue.lead.body.zh} /></p>
       </div>
@@ -72,7 +72,7 @@ const monthLabel = (k: string) => {
       )}
       <section class="paper__box paper__box--office">
         <h3 class="paper__boxh"><span data-l="en">Records Office</span><span data-l="zh">记录署</span></h3>
-        <p class="paper__small"><span data-l="en">Everything on the island is normal. If it isn't, it's the previous draft.</span><span data-l="zh">本岛一切如常。如有不同，是上一稿。</span></p>
+        <p class="paper__small"><span data-l="en">{issue.office.en}</span><span data-l="zh">{issue.office.zh}</span></p>
       </section>
     </aside>
 
@@ -110,14 +110,17 @@ const monthLabel = (k: string) => {
 
 <section class="f-sec papers">
   <h2 class="f-sec__h"><i>{String(all.length).padStart(2, '0')}</i><span>Back issues</span></h2>
+  <p class="f-help papers__key"><span data-l="en">Bold days carry news from the files. The rest are ordinary days, which the island also has.</span><span data-l="zh">加粗的日子有档案里的新闻。其余是平常日子，岛上也有平常日子。</span></p>
   <div class="papers__months">
-    {[...byMonth.entries()].map(([k, list]) => (
-      <div class="papers__month">
+    {[...byMonth.entries()].reverse().map(([k, list]) => (
+      <div class:list={['papers__month', { 'papers__month--loose': list.length < 28 }]}>
         <h3 class="micro"><span data-l="en">{monthLabel(k).en}</span><span data-l="zh">{monthLabel(k).zh}</span></h3>
         <ul>
+          {list.length >= 28 && ['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((d, j) => <li class="is-dow micro" aria-hidden="true"><span data-l="en">{d}</span><span data-l="zh">{'一二三四五六日'[j]}</span></li>)}
+          {list.length >= 28 && Array.from({ length: (new Date(Date.UTC(Number(k.slice(0, 4)), Number(k.slice(5, 7)) - 1, 1)).getUTCDay() + 6) % 7 }, () => <li class="is-pad" aria-hidden="true"></li>)}
           {list.map((i) => (
-            <li class:list={[{ 'is-on': i.date === issue.date, 'is-nine': i.date.endsWith('-09') }]}>
-              <a href={`${base}daily/${i.date}/`}><b>{Number(i.date.slice(8))}</b><span data-l="en">{i.lead.head.en}</span><span data-l="zh">{i.lead.head.zh}</span></a>
+            <li class:list={[{ 'is-on': i.date === issue.date, 'is-nine': i.date.endsWith('-09'), 'is-news': !i.quiet }]}>
+              <a href={`${base}daily/${i.date}/`} title={i.lead.head.en}><b>{Number(i.date.slice(8))}</b></a>
             </li>
           ))}
         </ul>

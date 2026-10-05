@@ -1,9 +1,10 @@
 /**
- * Library page: the stacks (scene.ts), the shelf list beside them, and the
- * reader that opens when a book is taken down. Without WebGL the list and
- * the reader still work; the books simply don't move.
+ * Library page: the cutaway reading room (scene.ts), the head column that
+ * names its corners and lists what is in them, and the panels that open on
+ * the right: the reader, a catalogue drawer, the circulation desk. Without
+ * WebGL the lists and panels still work; nothing moves.
  */
-import type { LibBay, LibBook, LibPage } from '../../lib/library';
+import type { CatDrawer, LibBay, LibBook, LibPage } from '../../lib/library';
 import type { ArchivistLines } from '../types';
 import { flat } from '../flat';
 import { audio } from '../audio';
@@ -12,215 +13,308 @@ import { prefs, reducedMotion } from '../prefs';
 import { Archivist } from '../ui/archivist';
 import { loadVisitor } from '../visitor/store';
 import { hash } from '../scene/textures';
-import { LibraryScene } from './scene';
+import { LibraryScene, ZONES, type Zone } from './scene';
 import lines from '../../data/archivist.json';
 
 const MON = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
 const KEY = 'n9:library';
 
+type L = { en: string; zh: string };
+const ZONE_NAME: Record<Zone, L> = {
+  overview: { en: 'The whole room', zh: '整间阅览室' },
+  rack: { en: 'Newspaper rack', zh: '报刊架' },
+  stacks: { en: 'Stacks', zh: '书墙' },
+  catalogue: { en: 'Card catalogue', zh: '目录卡片柜' },
+  desk: { en: 'Circulation desk', zh: '借还台' },
+};
+
+interface Store {
+  loans: Record<string, number>;
+  marks: Record<string, number>;
+  stamps: string[];
+}
+
 export function library() {
   const $ = (id: string) => document.getElementById(id)!;
-  const bays = JSON.parse($('lib-data').textContent || '[]') as LibBay[];
-  const all = bays.flatMap((b, i) => b.books.map((book) => ({ book, bay: i })));
+  const data = JSON.parse($('lib-data').textContent || '{}') as { bays: LibBay[]; catalogue: CatDrawer[] };
+  const { bays, catalogue } = data;
+  const all = bays.flatMap((b) => b.books.map((book) => ({ book, bay: b })));
   const root = $('lib');
-  const reader = $('lib-reader');
   const voice = new Archivist(lines as unknown as ArchivistLines, 'library.idle');
-  const L = (x: { en: string; zh: string }) => (isZh() ? x.zh : x.en);
+  const T = (x: L) => (isZh() ? x.zh : x.en);
+  const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!);
 
-  let bay = 0;
+  let zone: Zone = 'overview';
   let open: { book: LibBook; pages: LibPage[]; page: number } | null = null;
+  let drawer = -1;
   let scene: LibraryScene | null = null;
 
-  /* ---------------- borrowing card ---------------- */
-  const loans = (): Record<string, number> => {
+  /* ---------------- what the visitor leaves behind ---------------- */
+  const load = (): Store => {
     try {
-      return JSON.parse(localStorage.getItem(KEY) || '{}').loans ?? {};
+      const s = JSON.parse(localStorage.getItem(KEY) || '{}');
+      return { loans: s.loans ?? {}, marks: s.marks ?? {}, stamps: s.stamps ?? [] };
     } catch {
-      return {};
+      return { loans: {}, marks: {}, stamps: [] };
     }
   };
-  const lend = (id: string) => {
-    const l = loans();
-    l[id] = (l[id] ?? 0) + 1;
+  const save = (s: Store) => {
     try {
-      localStorage.setItem(KEY, JSON.stringify({ loans: l }));
+      localStorage.setItem(KEY, JSON.stringify(s));
     } catch {
       /* the card stays blank */
     }
-    return l[id];
+  };
+  const today = () => {
+    const d = new Date();
+    return `${String(d.getDate()).padStart(2, '0')} ${MON[d.getMonth()]} 1999`;
   };
 
   /** The date-due slip at the back: earlier stamps from the book, today's from you. */
   const dueSlip = (book: LibBook, times: number): LibPage => {
     const h = hash(book.id);
-    const n = 1 + (h % 4);
-    const stamps: string[] = [];
-    for (let i = 0; i < n; i++) stamps.push(`09 ${MON[(h >>> (i * 3)) % 11]} 1999`);
-    stamps.sort((a, b) => MON.indexOf(a.slice(3, 6)) - MON.indexOf(b.slice(3, 6)));
-    const now = new Date();
-    const today = `${String(now.getDate()).padStart(2, '0')} ${MON[now.getMonth()]} 1999`;
+    const stamps = Array.from({ length: 1 + (h % 4) }, (_, i) => `09 ${MON[(h >>> (i * 3)) % 11]} 1999`).sort((a, b) => MON.indexOf(a.slice(3, 6)) - MON.indexOf(b.slice(3, 6)));
     const v = loadVisitor();
-    const who = v ? v.code : null;
-    const li = (s: string, mine = false) => `<li${mine ? ' class="is-mine"' : ''}><b class="lib-stamp">${s}</b>${mine ? `<span>${who ? (isZh() ? `借阅人：${who}` : `Borrower: ${who}`) : isZh() ? '借阅人：未登记访客' : 'Borrower: unregistered visitor'}</span>` : ''}</li>`;
-    const mine = Array.from({ length: Math.min(times, 3) }, () => li(today, true)).join('');
+    const who = (zh: boolean) => (v ? (zh ? `借阅人：${esc(v.code)}` : `Borrower: ${esc(v.code)}`) : zh ? '借阅人：未登记访客' : 'Borrower: unregistered visitor');
+    const li = (s: string, mine: boolean, zh: boolean) => `<li${mine ? ' class="is-mine"' : ''}><b class="lib-stamp">${s}</b>${mine ? `<span>${who(zh)}</span>` : ''}</li>`;
+    const list = (zh: boolean) => stamps.map((s) => li(s, false, zh)).join('') + Array.from({ length: Math.min(times, 3) }, () => li(today(), true, zh)).join('');
     return {
       head: { en: 'Date due', zh: '还书日期' },
       html: {
-        en: `<p>Return by the date last stamped. This book may not leave the reading room.</p><ol class="lib-due">${stamps.map((s) => li(s)).join('')}${mine}</ol>`,
-        zh: `<p>请于最后一个日期前归还。本书不得带出资料室。</p><ol class="lib-due">${stamps.map((s) => li(s)).join('')}${mine}</ol>`,
+        en: `<p>Return by the date last stamped. This book may not leave the reading room.</p><ol class="lib-due">${list(false)}</ol>`,
+        zh: `<p>请于最后一个日期前归还。本书不得带出资料室。</p><ol class="lib-due">${list(true)}</ol>`,
       },
     };
   };
 
-  /* ---------------- shelf list ---------------- */
-  const shelf = $('lib-shelf');
-  const drawShelf = () => {
-    const b = bays[bay];
-    shelf.innerHTML = '';
-    b.books.forEach((book, i) => {
-      if (b.gapAt === i) shelf.append(gapItem());
+  /* ---------------- head column ---------------- */
+  const listEl = $('lib-list');
+  const drawList = () => {
+    document.querySelectorAll<HTMLButtonElement>('#lib-zones button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.zone === zone)));
+    $('lib-zone-name').textContent = T(ZONE_NAME[zone]);
+    listEl.innerHTML = '';
+    const item = (mark: string, label: string, on: () => void, opts: { cloth?: string; dim?: boolean } = {}) => {
       const li = document.createElement('li');
-      const btn = document.createElement('button');
-      btn.type = 'button';
-      btn.dataset.book = book.id;
-      btn.innerHTML = `<i>${book.mark}</i><span></span>`;
-      btn.querySelector('span')!.textContent = `${L(book.spine)} · ${L(book.sub)}`;
-      btn.style.setProperty('--cloth', book.color);
-      btn.addEventListener('click', () => take(book.id));
-      btn.addEventListener('pointerenter', () => callout(book, false));
-      btn.addEventListener('pointerleave', () => callout(null, false));
-      li.append(btn);
-      shelf.append(li);
-    });
-    if (b.gapAt === b.books.length) shelf.append(gapItem());
-    document.querySelectorAll<HTMLButtonElement>('#lib-bays button').forEach((x) => x.setAttribute('aria-pressed', String(Number(x.dataset.bay) === bay)));
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.innerHTML = `<i>${esc(mark)}</i><span>${esc(label)}</span>`;
+      if (opts.cloth) b.style.setProperty('--cloth', opts.cloth);
+      if (opts.dim) b.classList.add('is-dim');
+      b.addEventListener('click', on);
+      li.append(b);
+      listEl.append(li);
+      return b;
+    };
+    if (zone === 'overview') {
+      for (const z of ZONES.slice(1)) item(String(ZONES.indexOf(z)).padStart(2, '0'), T(ZONE_NAME[z]), () => goZone(z));
+    } else if (zone === 'catalogue') {
+      catalogue.forEach((d, i) => item(d.cards.length ? `${d.cards.length}` : '—', d.label, () => openDrawer(i), { dim: !d.cards.length }));
+    } else {
+      for (const { book, bay } of all) {
+        if (bay.zone !== zone) continue;
+        const b = item(book.mark, `${T(book.spine)} · ${T(book.sub)}`, () => take(book.id), { cloth: book.color });
+        b.addEventListener('pointerenter', () => callout(book));
+        b.addEventListener('pointerleave', () => callout(null));
+      }
+      if (zone === 'desk') {
+        const b = item('DS/Y2K/09', isZh() ? '（空位）' : '(empty slot)', gap, { dim: true });
+        b.classList.add('is-gap');
+      }
+    }
   };
-  const gapItem = () => {
-    const li = document.createElement('li');
-    li.className = 'is-gap';
-    const btn = document.createElement('button');
-    btn.type = 'button';
-    btn.innerHTML = `<i>DS/Y2K/09</i><span>${isZh() ? '（空）' : '(empty)'}</span>`;
-    btn.addEventListener('click', gap);
-    li.append(btn);
-    return li;
+
+  const goZone = (z: Zone) => {
+    if (open) close();
+    closePanels();
+    if (scene) scene.goZone(z);
+    else setZone(z);
   };
+  const setZone = (z: Zone) => {
+    if (z === zone) return;
+    zone = z;
+    root.dataset.zone = z;
+    audio.tick();
+    drawList();
+    if (z !== 'overview') voice.say(`library.${z}`, {}, false);
+    if (z === 'desk') showDesk();
+  };
+
   const gap = () => {
     audio.tick();
     voice.say('library.gap');
   };
 
   const call = $('lib-callout');
-  const callout = (book: LibBook | null, isGap: boolean) => {
-    if (isGap) {
-      call.textContent = `DS/Y2K/09 · ${isZh() ? '空位' : 'Empty slot'}`;
-      call.classList.add('is-on');
-      return;
-    }
-    if (!book) return call.classList.remove('is-on');
-    const n = book.pages.length + 1;
-    call.textContent = `${book.mark} · ${L(book.spine)} · ${isZh() ? `${n} 页` : `${n} pages`}`;
+  const callout = (book: LibBook | null, text?: string) => {
+    if (!book && !text) return call.classList.remove('is-on');
+    call.textContent = book ? `${book.mark} · ${T(book.spine)} · ${isZh() ? `${book.pages.length} 页` : `${book.pages.length} pp.`}` : text!;
     call.classList.add('is-on');
+  };
+
+  /* ---------------- panels ---------------- */
+  const reader = $('lib-reader');
+  const catPanel = $('lib-cat');
+  const deskPanel = $('lib-desk');
+  const panel = (el: HTMLElement | null) => {
+    for (const p of [reader, catPanel, deskPanel]) {
+      const on = p === el;
+      p.classList.toggle('is-on', on);
+      p.setAttribute('aria-hidden', String(!on));
+    }
+    root.dataset.panel = el ? el.id : '';
+  };
+  const closePanels = () => {
+    if (drawer >= 0) {
+      scene?.closeDrawer();
+      drawer = -1;
+    }
+    panel(null);
   };
 
   /* ---------------- reader ---------------- */
   const show = (page: number, dir = 0) => {
     if (!open) return;
     open.page = page;
+    const s = load();
+    s.marks[open.book.id] = page;
+    save(s);
     const p = open.pages[page];
     const paint = () => {
-      $('rd-mark').textContent = `${open!.book.mark}`;
-      $('rd-book').textContent = `${L(open!.book.spine)} · ${L(open!.book.sub)}`;
-      $('rd-head').textContent = L(p.head);
-      $('rd-body').innerHTML = L(p.html);
-      $('rd-no').textContent = isZh() ? `第 ${page + 1} 页 / 共 ${open!.pages.length} 页` : `p. ${page + 1} / ${open!.pages.length}`;
+      if (!open) return;
+      $('rd-mark').textContent = open.book.mark;
+      $('rd-book').textContent = `${T(open.book.spine)} · ${T(open.book.sub)}`;
+      $('rd-head').textContent = T(p.head);
+      $('rd-body').innerHTML = T(p.html);
+      $('rd-no').textContent = isZh() ? `第 ${page + 1} 页 / 共 ${open.pages.length} 页` : `p. ${page + 1} / ${open.pages.length}`;
       ($('rd-prev') as HTMLButtonElement).disabled = page === 0;
-      ($('rd-next') as HTMLButtonElement).disabled = page === open!.pages.length - 1;
+      ($('rd-next') as HTMLButtonElement).disabled = page === open.pages.length - 1;
+      $('rd-page').scrollTop = 0;
     };
-    const el = $('rd-page');
-    if (!dir || reducedMotion()) return paint();
-    const out = el.animate([{ opacity: 1, transform: 'none' }, { opacity: 0, transform: `translateX(${-dir * 14}px)` }], { duration: 140, easing: 'ease-in', fill: 'forwards' });
-    out.onfinish = () => {
-      paint();
-      out.cancel();
-      el.animate([{ opacity: 0, transform: `translateX(${dir * 18}px)` }, { opacity: 1, transform: 'none' }], { duration: 320, easing: 'cubic-bezier(.16,1,.3,1)' });
-    };
+    paint();
+    // the new page slides in; it is already there if the animation never runs
+    if (dir && !reducedMotion()) $('rd-page').animate([{ opacity: 0.35, transform: `translateX(${dir * 16}px)` }, { opacity: 1, transform: 'none' }], { duration: 360, easing: 'cubic-bezier(.16,1,.3,1)' });
   };
 
-  const turn = (dir: number) => {
-    if (!open) return;
-    const n = open.page + dir;
-    if (n < 0 || n >= open.pages.length) return;
+  const turn = (n: number) => {
+    if (!open || n < 0 || n >= open.pages.length || n === open.page) return;
+    const dir = n > open.page ? 1 : -1;
     audio.paper();
+    if (Math.abs(n - open.page) > 1) window.setTimeout(() => audio.paper(), 120);
     scene?.turn(n);
     show(n, dir);
   };
 
+  // contents entries jump straight to their page
+  $('rd-body').addEventListener('click', (e) => {
+    const a = (e.target as HTMLElement).closest<HTMLAnchorElement>('a[data-page]');
+    if (!a) return;
+    e.preventDefault();
+    turn(Number(a.dataset.page));
+  });
+
   function take(id: string) {
     const hit = all.find((x) => x.book.id === id);
-    if (!hit) return;
-    if (open?.book.id === id) return;
+    if (!hit || open?.book.id === id) return;
     const { book } = hit;
-    const times = lend(id);
-    const pages = [...book.pages, dueSlip(book, times)];
-    open = { book, pages, page: 0 };
-    if (hit.bay !== bay) {
-      bay = hit.bay;
-      drawShelf();
-    }
+    closePanels();
+    const s = load();
+    s.loans[id] = (s.loans[id] ?? 0) + 1;
+    save(s);
+    const pages = [...book.pages, dueSlip(book, s.loans[id])];
+    // open where the ribbon was left
+    const page = Math.min(s.marks[id] ?? 0, pages.length - 2);
+    open = { book, pages, page };
+    if (hit.bay.zone !== zone && scene) scene.goZone(hit.bay.zone);
+    else if (!scene) setZone(hit.bay.zone);
     audio.drawer();
     root.dataset.state = 'open';
-    reader.setAttribute('aria-hidden', 'false');
-    show(0);
-    callout(null, false);
+    show(page);
+    callout(null);
     history.replaceState(null, '', `#${id}`);
-    if (scene) scene.take(id, pages, 0);
-    else reader.classList.add('is-on');
-    if (times > 1) voice.say('library.again', { title: L(book.spine) });
+    if (scene) scene.take(id, pages, page);
+    else panel(reader);
+    const high = hit.bay.id === 'gazetteer';
+    if (high) voice.say('library.ladder');
+    else if (s.loans[id] > 1) voice.say('library.again', { title: T(book.spine) });
     else if (book.kind === 'news') voice.say('library.daily');
     else if (book.kind === 'binder') voice.say('library.binder');
-    else voice.say('library.open', { title: L(book.spine) });
+    else voice.say('library.open', { title: T(book.spine) });
   }
 
   const close = () => {
     if (!open) return;
     open = null;
     audio.close();
-    reader.classList.remove('is-on');
-    reader.setAttribute('aria-hidden', 'true');
-    root.dataset.state = 'shelf';
+    panel(null);
+    root.dataset.state = 'room';
     history.replaceState(null, '', location.pathname);
     scene?.shelve();
     voice.say('library.return', {}, false);
   };
 
   $('rd-close').addEventListener('click', close);
-  $('rd-prev').addEventListener('click', () => turn(-1));
-  $('rd-next').addEventListener('click', () => turn(1));
-  document.querySelectorAll<HTMLButtonElement>('#lib-bays button').forEach((b) =>
-    b.addEventListener('click', () => {
-      if (open) close();
-      goBay(Number(b.dataset.bay));
-    }),
-  );
-  const goBay = (i: number) => {
-    const n = Math.max(0, Math.min(bays.length - 1, i));
-    if (n !== bay) audio.tick();
-    bay = n;
-    drawShelf();
-    scene?.goBay(n);
-  };
+  $('rd-prev').addEventListener('click', () => open && turn(open.page - 1));
+  $('rd-next').addEventListener('click', () => open && turn(open.page + 1));
 
-  // swipe between pages on a phone
-  let sx = 0, sy = 0;
-  reader.addEventListener('touchstart', (e) => {
-    sx = e.touches[0].clientX;
-    sy = e.touches[0].clientY;
-  }, { passive: true });
-  reader.addEventListener('touchend', (e) => {
-    const dx = e.changedTouches[0].clientX - sx, dy = e.changedTouches[0].clientY - sy;
-    if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.5) turn(dx < 0 ? 1 : -1);
+  /* ---------------- catalogue ---------------- */
+  const openDrawer = (i: number) => {
+    if (open) return;
+    const d = catalogue[i];
+    drawer = i;
+    audio.drawer();
+    scene?.openDrawer(i);
+    if (!scene) setZone('catalogue');
+    $('cat-label').textContent = d.label;
+    const ul = $('cat-cards');
+    ul.innerHTML = d.cards.length
+      ? d.cards
+          .map((c, k) => `<li data-k="${k}"><a href="${(document.querySelector<HTMLAnchorElement>('.fhead__brand')?.getAttribute('href') ?? '/')}records/${c.slug}/"><b>${c.file}</b><span>${esc(T(c.title))}</span><i>${esc(T(c.line))}</i><em class="lib-stamp">${c.stamp}</em></a></li>`)
+          .join('')
+      : `<li class="is-empty">${isZh() ? '这个抽屉还空着。' : 'This drawer is still empty.'}</li>`;
+    panel(catPanel);
+    if (!d.cards.length) voice.say('library.emptyDrawer');
+  };
+  $('cat-cards').addEventListener('pointerover', (e) => {
+    const li = (e.target as HTMLElement).closest<HTMLElement>('li[data-k]');
+    scene?.liftCard(li ? Number(li.dataset.k) : null);
   });
+  $('cat-close').addEventListener('click', closePanels);
+
+  /* ---------------- desk ---------------- */
+  const showDesk = () => {
+    if (open) return;
+    const s = load();
+    const loans = Object.entries(s.loans).sort((a, b) => b[1] - a[1]);
+    $('desk-loans').innerHTML = loans.length
+      ? loans
+          .map(([id, n]) => {
+            const b = all.find((x) => x.book.id === id)?.book;
+            return b ? `<li><b>${esc(b.mark)}</b><span>${esc(T(b.spine))}</span><i>×${n}</i></li>` : '';
+          })
+          .join('')
+      : `<li class="is-empty">${isZh() ? '你还没借过书。' : 'You have not borrowed anything yet.'}</li>`;
+    $('desk-stamps').innerHTML = s.stamps.slice(-6).map((t) => `<b class="lib-stamp">${t}</b>`).join('');
+    const v = loadVisitor();
+    $('desk-who').textContent = v ? (isZh() ? `借阅人：${v.code}` : `Borrower: ${v.code}`) : isZh() ? '借阅人：未登记访客' : 'Borrower: unregistered visitor';
+    panel(deskPanel);
+  };
+  $('desk-stamp').addEventListener('click', () => {
+    const s = load();
+    const t = today();
+    const done = () => {
+      audio.stamp();
+      s.stamps.push(t);
+      save(s);
+      showDesk();
+      voice.say('library.stamp', {}, false);
+    };
+    if (scene) scene.stamp(t, s.stamps.length, done);
+    else done();
+  });
+  $('desk-close').addEventListener('click', closePanels);
+
+  /* ---------------- navigation ---------------- */
+  document.querySelectorAll<HTMLButtonElement>('#lib-zones button').forEach((b) => b.addEventListener('click', () => goZone(b.dataset.zone as Zone)));
 
   window.addEventListener('keydown', (e) => {
     if (e.target instanceof HTMLInputElement || e.metaKey || e.ctrlKey || e.altKey) return;
@@ -230,57 +324,78 @@ export function library() {
         close();
       } else if (e.key === 'ArrowRight' || e.key === 'PageDown') {
         e.preventDefault();
-        turn(1);
+        turn(open.page + 1);
       } else if (e.key === 'ArrowLeft' || e.key === 'PageUp') {
         e.preventDefault();
-        turn(-1);
-      }
+        turn(open.page - 1);
+      } else if (e.key === 'Home') turn(0);
       return;
     }
-    if (e.key === 'ArrowRight') goBay(bay + 1);
-    else if (e.key === 'ArrowLeft') goBay(bay - 1);
+    if (e.key === 'Escape') {
+      if (root.dataset.panel) closePanels();
+      else goZone('overview');
+      return;
+    }
+    if (/^[0-4]$/.test(e.key)) return goZone(ZONES[Number(e.key)]);
+    if (zone === 'stacks' && (e.key === 'ArrowRight' || e.key === 'ArrowLeft')) return scene?.walk(e.key === 'ArrowRight' ? 1 : -1);
+    if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
+      const i = ZONES.indexOf(zone) + (e.key === 'ArrowRight' ? 1 : -1);
+      goZone(ZONES[(i + ZONES.length) % ZONES.length]);
+    }
+  });
+
+  // swipe pages on a phone
+  let sx = 0, sy = 0;
+  reader.addEventListener('touchstart', (e) => {
+    sx = e.touches[0].clientX;
+    sy = e.touches[0].clientY;
+  }, { passive: true });
+  reader.addEventListener('touchend', (e) => {
+    const dx = e.changedTouches[0].clientX - sx, dy = e.changedTouches[0].clientY - sy;
+    if (open && Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.5) turn(open.page + (dx < 0 ? 1 : -1));
   });
 
   /* ---------------- the room ---------------- */
   const canvas = $('lib-canvas') as HTMLCanvasElement;
   try {
-    scene = new LibraryScene(canvas, bays, {
-      hover: (b, g) => callout(b, g),
-      open: () => {},
-      ready: () => {
-        if (open) reader.classList.add('is-on');
+    scene = new LibraryScene(canvas, bays, catalogue, {
+      hover: (h) => {
+        if (!h) return callout(null);
+        if (h.book) return callout(h.book);
+        if (h.gap) return callout(null, `DS/Y2K/09 · ${isZh() ? '空位' : 'Empty slot'}`);
+        if (h.drawer !== undefined) return callout(null, `${catalogue[h.drawer].label} · ${catalogue[h.drawer].cards.length}`);
+        if (h.zone) callout(null, T(ZONE_NAME[h.zone]));
       },
+      zone: setZone,
+      open: () => {},
+      ready: () => open && panel(reader),
       closed: () => {},
       gap,
-      bay: (i) => {
-        if (i === bay || open) return;
-        bay = Math.max(0, Math.min(bays.length - 1, i));
-        drawShelf();
-      },
+      drawer: openDrawer,
+      desk: showDesk,
+      picked: (b) => take(b.id),
     });
-    scene.picked = (b) => take(b.id);
     scene.setTheme(prefs.get('theme'));
     requestAnimationFrame(() => root.classList.add('is-lit'));
   } catch (err) {
-    console.error('[library] stacks unavailable', err);
+    console.error('[library] reading room unavailable', err);
     root.classList.add('no-webgl', 'is-lit');
   }
 
-  // theme buttons live in the shared header; follow them
   new MutationObserver(() => scene?.setTheme(document.documentElement.dataset.theme === 'night' ? 'night' : 'day')).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
 
   flat(() => {
-    drawShelf();
+    drawList();
     if (open) show(open.page);
     void scene?.relabel(isZh());
   });
   void scene?.relabel(isZh());
-  drawShelf();
+  root.dataset.zone = zone;
+  drawList();
 
-  // a book named in the address is taken down on arrival
   const want = location.hash.slice(1);
   window.setTimeout(() => {
     if (want && all.some((x) => x.book.id === want)) take(want);
     else voice.say('library.enter');
-  }, 500);
+  }, 600);
 }

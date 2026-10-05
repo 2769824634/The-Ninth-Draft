@@ -125,12 +125,18 @@
 
 /* Back issues */
 .papers { max-width: 64rem; margin-left: auto; margin-right: auto; }
-.papers__months { display: grid; grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr)); gap: 1.4rem; }
+.papers__months { display: grid; grid-template-columns: repeat(auto-fill, minmax(13rem, 1fr)); gap: 1.6rem 1.4rem; }
 .papers__month h3 { margin: 0 0 .5rem; }
-.papers__month ul { margin: 0; padding: 0; list-style: none; display: grid; gap: .25rem; }
-.papers__month a { display: grid; grid-template-columns: 2rem 1fr; gap: .5rem; padding: .35rem .5rem; border: 1px solid var(--line); background: var(--bg); text-decoration: none; font-family: var(--f-serif); font-size: .88rem; line-height: 1.35; }
-.papers__month a b { font-family: var(--f-mono); font-weight: 500; }
-.papers__month li.is-nine b { color: var(--accent); }
+.papers__month ul { margin: 0; padding: 0; list-style: none; display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
+.papers__month a { display: grid; place-items: center; aspect-ratio: 1; border: 1px solid var(--line); background: var(--bg); text-decoration: none; color: var(--ink-3); }
+.papers__month a b { font: 400 .72rem/1 var(--f-mono); }
+.papers__month li.is-news a { color: var(--ink); background: var(--bg-2); }
+.papers__month li.is-news a b { font-weight: 700; }
+.papers__month li.is-nine a b { color: var(--accent); }
+.papers__month--loose ul { display: flex; flex-wrap: wrap; }
+.papers__month--loose li { width: calc((100% - 12px) / 7); }
+.papers__month li.is-dow { text-align: center; color: var(--ink-3); padding-bottom: .15rem; }
+.papers__key { margin: -.4rem 0 1.2rem; }
 .papers__month li.is-on a, .papers__month a:hover { border-color: var(--ink); }
 
 @media (max-width: 900px) {

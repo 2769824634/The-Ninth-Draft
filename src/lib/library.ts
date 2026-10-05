@@ -25,7 +25,8 @@ export interface LibPage {
 
 export interface LibBook {
   id: string;
-  kind: 'news' | 'cloth' | 'ledger' | 'binder';
+  /** news: hung on a newspaper stick · pamphlet: a few stapled pages · cloth: a bound volume · ledger: a register · binder: a ring binder */
+  kind: 'news' | 'pamphlet' | 'cloth' | 'ledger' | 'binder';
   /** Cloth colour of the binding. */
   color: string;
   /** Spine label: title and a short line under it. */
@@ -40,6 +41,8 @@ export interface LibBook {
 }
 
 export interface LibBay {
+  /** Where in the reading room the bay stands. */
+  zone: 'rack' | 'stacks' | 'desk';
   id: string;
   code: string;
   title: L;
@@ -80,7 +83,27 @@ const CLOTH: Record<string, string> = {
   RESTRICTED: '#3f4a32',
 };
 
-export function buildLibrary(records: ClientRecord[], base: string): LibBay[] {
+export interface CatCard {
+  file: string;
+  slug: string;
+  stamp: string;
+  title: L;
+  line: L;
+}
+export interface CatDrawer {
+  label: string;
+  cards: CatCard[];
+}
+export interface Library {
+  bays: LibBay[];
+  catalogue: CatDrawer[];
+}
+
+/** Cards per catalogue drawer, and drawers in the cabinet. */
+const PER_DRAWER = 6;
+export const CAT_DRAWERS = 20;
+
+export function buildLibrary(records: ClientRecord[], base: string): Library {
   const zhOf = (r: ClientRecord) => r.zh;
   const title = (r: ClientRecord): L => ({ en: r.title, zh: zhOf(r)?.title ?? r.title });
   const recLine = (r: ClientRecord): L => ({
@@ -367,11 +390,85 @@ export function buildLibrary(records: ClientRecord[], base: string): LibBay[] {
     ...proposals,
   ];
 
-  return [
-    { id: 'daily', code: 'LIB-1', title: { en: 'The Gerimis Daily', zh: '霏微日报' }, books: daily },
-    { id: 'gazetteer', code: 'LIB-2', title: { en: 'District gazetteer', zh: '各区区志' }, books: gazetteer },
-    { id: 'records', code: 'LIB-3', title: { en: 'Bound records', zh: '档案合订本' }, books: bound },
+  // the register is printed blank and filled in as drafts are issued
+  logPages.push({
+    head: { en: 'Blank pages follow', zh: '以下空白' },
+    html: p('The rest of the register is ruled and blank, waiting for the next draft.', '登记簿余下的页都画好了格子，空着，等下一稿。'),
+  });
+
+  const bays: LibBay[] = [
+    { id: 'daily', zone: 'rack', code: 'LIB-1', title: { en: 'The Gerimis Daily', zh: '霏微日报' }, books: daily.map(bind) },
+    { id: 'gazetteer', zone: 'stacks', code: 'LIB-2', title: { en: 'District gazetteer', zh: '各区区志' }, books: gazetteer.map(bind) },
+    { id: 'records', zone: 'stacks', code: 'LIB-3', title: { en: 'Bound records', zh: '档案合订本' }, books: bound.map(bind) },
     // the ninth proposal's slot stays empty
-    { id: 'office', code: 'LIB-4', title: { en: 'Office publications', zh: '署内出版物' }, books: office, gapAt: office.length },
+    { id: 'office', zone: 'desk', code: 'LIB-4', title: { en: 'Office publications', zh: '署内出版物' }, books: office.map(bind), gapAt: office.length },
   ];
+
+  /* ---------------- the card catalogue ---------------- */
+  const catalogue: CatDrawer[] = [];
+  for (const c of CATS) {
+    const recs = records.filter((r) => r.category === c.id).sort((a, b) => a.file.localeCompare(b.file));
+    for (let i = 0; i < recs.length; i += PER_DRAWER) {
+      const chunk = recs.slice(i, i + PER_DRAWER);
+      catalogue.push({
+        label: `${chunk[0].file}–${chunk[chunk.length - 1].file}`,
+        cards: chunk.map((r) => {
+          const where = r.district ? DISTRICTS.find((d) => d.id === r.district) : null;
+          const date = isoDate(r.date);
+          return {
+            file: r.file,
+            slug: r.slug,
+            stamp: r.stamp,
+            title: title(r),
+            line: {
+              en: [c.en, where?.en, date ? longDate(date).en : null].filter(Boolean).join(' · '),
+              zh: [c.zh, where?.zh, date ? longDate(date).zh : null].filter(Boolean).join(' · '),
+            },
+          };
+        }),
+      });
+    }
+  }
+  // the rest of the cabinet is labelled for files that have not come in yet
+  const next: Record<string, number> = {};
+  for (const c of CATS) next[c.code] = records.filter((r) => r.category === c.id).length + 1;
+  let k = 0;
+  while (catalogue.length < CAT_DRAWERS) {
+    const c = CATS[k++ % CATS.length];
+    const from = next[c.code];
+    next[c.code] += PER_DRAWER;
+    const f = (n: number) => `${c.code}-${String(n).padStart(4, '0')}`;
+    catalogue.push({ label: `${f(from)}–${f(from + PER_DRAWER - 1)}`, cards: [] });
+  }
+
+  return { bays, catalogue };
+}
+
+/**
+ * Bind a book to its real size: a contents page in front of anything longer
+ * than a few pages, and a thickness that follows the page count. A short
+ * book is a stapled pamphlet; it thickens on its own as the archive grows.
+ */
+function bind(b: LibBook): LibBook {
+  const n = b.pages.length;
+  let kind = b.kind;
+  if (kind === 'cloth' && n <= 3) kind = 'pamphlet';
+  const pages = n >= 4 && kind !== 'binder'
+    ? [
+        {
+          head: { en: 'Contents', zh: '目录' },
+          html: {
+            en: `<ol class="lib-toc">${b.pages.map((x, i) => `<li><a href="#" data-page="${i + 1}"><span>${esc(x.head.en)}</span><i>${i + 2}</i></a></li>`).join('')}</ol>`,
+            zh: `<ol class="lib-toc">${b.pages.map((x, i) => `<li><a href="#" data-page="${i + 1}"><span>${esc(x.head.zh)}</span><i>${i + 2}</i></a></li>`).join('')}</ol>`,
+          },
+        },
+        ...b.pages,
+      ]
+    : b.pages;
+  const thick =
+    kind === 'news' ? 0.05 + n * 0.0045
+    : kind === 'pamphlet' ? 0.03 + n * 0.004
+    : kind === 'cloth' ? Math.min(0.42, 0.07 + pages.length * 0.012)
+    : b.thick;
+  return { ...b, kind, pages, thick };
 }
