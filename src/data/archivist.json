@@ -188,5 +188,43 @@
       "Chinese. Same files, same lies, better grammar.",
       "Switching to Chinese. The translator signed nothing. Wise."
     ]
-  }
+  },
+  "negative": [
+    "The negative. Everything dark is light, and one street sign says something else.",
+    "Hold it up to the window. That's how Heuss reads them.",
+    "In the negative the rain falls upwards. Don't ask."
+  ],
+  "stamp": {
+    "verified": [
+      "{file}. Verified. By you. That's two of us, then. Possibly one.",
+      "Stamped VERIFIED. The ink is yours, the responsibility too."
+    ],
+    "correct": [
+      "TO BE CORRECTED. Heuss will love that. He loves correcting.",
+      "{file} sent back for correction. Join the queue."
+    ],
+    "rejected": [
+      "REJECTED. Bold. The file will be told.",
+      "{file}. Rejected. It has been rejected before. It's used to it."
+    ],
+    "clear": [
+      "Stamp removed. Officially, you never had an opinion.",
+      "Ink lifted. {file} is innocent again."
+    ]
+  },
+  "poke": [
+    "Yes?",
+    "That's my shoulder.",
+    "I'm working. Mostly.",
+    "Still here. Unfortunately for both of us."
+  ],
+  "pokeAngry": [
+    "Five times. I'm filing a complaint. Against you. In triplicate.",
+    "Stop that, or I'll revise you out."
+  ],
+  "away": [
+    "Welcome back. A street changed its name while you were gone. Don't mention it.",
+    "You left. The rain didn't.",
+    "Back? Good. Nothing happened. Officially."
+  ]
 }

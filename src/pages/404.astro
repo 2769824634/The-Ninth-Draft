@@ -1,0 +1,63 @@
+---
+import Base from '../layouts/Base.astro';
+import Seal from '../components/Seal.astro';
+
+const base = import.meta.env.BASE_URL;
+---
+
+<Base title="Revised out — The Ninth Draft" description="This page has been revised out.">
+  <main class="gone">
+    <Seal />
+    <p class="gone__no micro">Records Office · Gerimis · Error 404</p>
+    <h1 class="gone__title"><span class="gone__old">This page exists.</span> This page has been revised out.</h1>
+    <p class="gone__zh">该页已被修订出去。如有不同，是上一稿。</p>
+    <p class="gone__note">If you remember it being here, that is a backflow. Please do not report it.</p>
+    <a class="gone__back micro" href={base}>Return to the archive →</a>
+  </main>
+</Base>
+
+<style>
+  .gone {
+    min-height: 100vh;
+    min-height: 100dvh;
+    display: grid;
+    place-content: center;
+    justify-items: start;
+    gap: 1.1rem;
+    padding: 2rem 1rem;
+    max-width: 40rem;
+    margin: 0 auto;
+    background: var(--bg);
+    color: var(--ink);
+  }
+  .gone :global(.seal) { width: 7rem; height: 7rem; opacity: .85; }
+  .gone :global(.seal__draw) { stroke-dashoffset: 0; }
+  .gone__no { color: var(--ink-3); }
+  .gone__title {
+    margin: 0;
+    font-family: var(--f-display);
+    font-weight: 800;
+    font-size: clamp(1.6rem, 5vw, 2.6rem);
+    line-height: 1.08;
+    text-transform: uppercase;
+  }
+  .gone__old {
+    display: block;
+    color: var(--ink-3);
+    text-decoration: line-through;
+    text-decoration-color: var(--accent);
+    text-decoration-thickness: 2px;
+    animation: gone-strike 2.4s var(--ease) both;
+  }
+  @keyframes gone-strike {
+    0%, 30% { opacity: 1; text-decoration-color: transparent; }
+    60% { text-decoration-color: var(--accent); }
+    100% { opacity: .55; text-decoration-color: var(--accent); }
+  }
+  .gone__zh { margin: 0; font-family: var(--f-serif); font-size: 1.1rem; }
+  .gone__note { margin: 0; font-family: var(--f-serif); color: var(--ink-2); }
+  .gone__back { color: var(--ink); text-decoration: none; border-bottom: 1px solid var(--accent); padding-bottom: .15rem; }
+  @media (prefers-reduced-motion: reduce) {
+    .gone__old { animation: none; opacity: .55; }
+  }
+</style>

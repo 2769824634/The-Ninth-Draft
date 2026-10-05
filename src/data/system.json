@@ -36,5 +36,9 @@
     "Pattern analysis in progress.",
     "Associations recorded.",
     "Linking is not evidence."
+  ],
+  "rollover": [
+    "Year rollover denied.",
+    "Year field locked. Remediation pending."
   ]
 }
