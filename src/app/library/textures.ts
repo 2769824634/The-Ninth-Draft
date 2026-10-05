@@ -422,45 +422,19 @@ export function dustTexture() {
 /* ---------------- the reading room ---------------- */
 
 /** Walnut: long grain, a few darker figure lines, waxed sheen left to the material. */
-export function woodTexture(seed: number, base = '#4a2f1d', w = 512, h = 512) {
+export function woodTexture(seed: number, base = '#4a2f1d', w = 512, h = 512, contrast = 1) {
   const [c, g] = canvas(w, h);
   g.fillStyle = base;
   g.fillRect(0, 0, w, h);
   const r = rng(seed);
   for (let i = 0; i < 260; i++) {
     const y = r() * h;
-    g.strokeStyle = r() > 0.5 ? `rgba(20,10,4,${0.08 + r() * 0.16})` : `rgba(140,96,58,${0.05 + r() * 0.08})`;
+    g.strokeStyle = r() > 0.5 ? `rgba(20,10,4,${(0.08 + r() * 0.16) * contrast})` : `rgba(140,96,58,${(0.05 + r() * 0.08) * contrast})`;
     g.lineWidth = 0.6 + r() * 2.2;
     g.beginPath();
     g.moveTo(0, y);
     const amp = 2 + r() * 6, f = 0.004 + r() * 0.01, ph = r() * 6;
     for (let x = 0; x <= w; x += 16) g.lineTo(x, y + Math.sin(x * f + ph) * amp);
-    g.stroke();
-  }
-  const t = tex(c);
-  t.wrapS = t.wrapT = THREE.RepeatWrapping;
-  return t;
-}
-
-/** Terrazzo-ish clay tiles for the floor. */
-export function tileTexture() {
-  const [c, g] = canvas(512, 512);
-  const r = rng(91);
-  const n = 8, s = 512 / n;
-  for (let y = 0; y < n; y++)
-    for (let x = 0; x < n; x++) {
-      const k = 0.85 + r() * 0.2;
-      g.fillStyle = `rgb(${Math.round(92 * k)} ${Math.round(58 * k)} ${Math.round(42 * k)})`;
-      g.fillRect(x * s, y * s, s, s);
-    }
-  g.strokeStyle = 'rgba(30,18,10,.55)';
-  g.lineWidth = 3;
-  for (let i = 0; i <= n; i++) {
-    g.beginPath();
-    g.moveTo(i * s, 0);
-    g.lineTo(i * s, 512);
-    g.moveTo(0, i * s);
-    g.lineTo(512, i * s);
     g.stroke();
   }
   const t = tex(c);
@@ -543,5 +517,195 @@ export function rainTexture() {
   }
   const t = tex(c);
   t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  return t;
+}
+
+/* ---------------- the cutaway model ---------------- */
+
+/** Herringbone parquet, oiled oak. */
+export function parquetTexture() {
+  const S = 1024;
+  const [c, g] = canvas(S, S);
+  g.fillStyle = '#6b4a2e';
+  g.fillRect(0, 0, S, S);
+  const r = rng(77);
+  const L = 128, W = 32;
+  for (let row = -2; row < S / W + 2; row++) {
+    for (let col = -2; col < S / (W * 2) + 2; col++) {
+      for (const flip of [0, 1]) {
+        const x = col * W * 2 + flip * W, y = row * W * 2 + flip * W;
+        g.save();
+        g.translate(x, y);
+        g.rotate(flip ? -Math.PI / 4 : Math.PI / 4);
+        const k = 0.82 + r() * 0.3;
+        g.fillStyle = `rgb(${Math.round(132 * k)} ${Math.round(92 * k)} ${Math.round(58 * k)})`;
+        g.fillRect(0, 0, L, W);
+        g.strokeStyle = 'rgba(40,24,12,.55)';
+        g.lineWidth = 2;
+        g.strokeRect(0, 0, L, W);
+        g.globalAlpha = 0.18;
+        for (let i = 0; i < 5; i++) {
+          g.strokeStyle = r() > 0.5 ? '#2a180c' : '#c59a68';
+          g.beginPath();
+          const yy = 4 + r() * (W - 8);
+          g.moveTo(2, yy);
+          g.lineTo(L - 2, yy + (r() - 0.5) * 4);
+          g.stroke();
+        }
+        g.globalAlpha = 1;
+        g.restore();
+      }
+    }
+  }
+  const t = tex(c);
+  t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  return t;
+}
+
+/** Warm plaster with a little unevenness. */
+export function plasterTexture(seed = 3) {
+  const [c, g] = canvas(512, 512);
+  g.fillStyle = '#d6cbb6';
+  g.fillRect(0, 0, 512, 512);
+  const r = rng(seed);
+  for (let i = 0; i < 40; i++) {
+    const x = r() * 512, y = r() * 512, rad = 30 + r() * 140;
+    const grd = g.createRadialGradient(x, y, 0, x, y, rad);
+    grd.addColorStop(0, `rgba(${r() > 0.5 ? '255,250,240' : '120,100,70'},.06)`);
+    grd.addColorStop(1, 'rgba(0,0,0,0)');
+    g.fillStyle = grd;
+    g.fillRect(0, 0, 512, 512);
+  }
+  const t = tex(c);
+  t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  return t;
+}
+
+/** Old cloth spine, white so instance colours tint it: two bands and a label. */
+export function fillerSpineTexture() {
+  const [c, g] = canvas(64, 256);
+  g.fillStyle = '#ffffff';
+  g.fillRect(0, 0, 64, 256);
+  const r = rng(19);
+  g.globalAlpha = 0.08;
+  for (let y = 0; y < 256; y += 2) {
+    g.fillStyle = r() > 0.5 ? '#000' : '#fff';
+    g.fillRect(0, y, 64, 1);
+  }
+  g.globalAlpha = 1;
+  g.fillStyle = 'rgba(0,0,0,.28)';
+  g.fillRect(0, 20, 64, 4);
+  g.fillRect(0, 214, 64, 4);
+  g.fillStyle = 'rgba(255,236,190,.55)';
+  g.fillRect(0, 24, 64, 2);
+  g.fillRect(0, 218, 64, 2);
+  g.fillStyle = 'rgba(0,0,0,.35)';
+  g.fillRect(14, 60, 36, 46);
+  const e = g.createLinearGradient(0, 0, 64, 0);
+  e.addColorStop(0, 'rgba(0,0,0,.35)');
+  e.addColorStop(0.2, 'rgba(0,0,0,0)');
+  e.addColorStop(0.8, 'rgba(0,0,0,0)');
+  e.addColorStop(1, 'rgba(0,0,0,.35)');
+  g.fillStyle = e;
+  g.fillRect(0, 0, 64, 256);
+  return tex(c);
+}
+
+/** Front page of a month of the Daily, hung on its stick. */
+export function newsFrontTexture(b: LibBook, zh: boolean) {
+  const W = 512, H = Math.round(512 * 1.42);
+  const [c, g] = canvas(W, H);
+  paperFill(g, W, H, '#ddd6c2', hash(b.id) + 2);
+  g.fillStyle = '#1d1b17';
+  g.textAlign = 'center';
+  g.textBaseline = 'alphabetic';
+  fit(g, zh ? '霏微日报' : 'THE GERIMIS DAILY', (px) => `800 ${px}px ${COND}`, 58, W - 70);
+  g.fillText(zh ? '霏微日报' : 'THE GERIMIS DAILY', W / 2, 92);
+  g.fillRect(34, 110, W - 68, 3);
+  g.fillRect(34, 118, W - 68, 1);
+  g.font = `500 17px ${MONO}`;
+  g.fillText(zh ? b.spine.zh : b.spine.en, W / 2, 146);
+  const r = rng(hash(b.id));
+  // headline blocks, a photo, columns
+  g.fillRect(34, 170, W - 68, 26);
+  g.fillStyle = '#7a7466';
+  g.fillRect(34, 214, (W - 68) * 0.55, 190);
+  g.fillStyle = 'rgba(29,27,23,.45)';
+  for (let col = 0; col < 3; col++) {
+    const x0 = 34 + col * ((W - 68) / 3) + 4, w = (W - 68) / 3 - 14;
+    for (let y = col === 0 ? 420 : 214 + (col === 1 ? 0 : 0); y < H - 50; y += 13) {
+      if (col < 2 && y < 410 && col === 0) continue;
+      if (col === 1 && y < 410) continue;
+      g.fillRect(x0, y, w * (r() < 0.1 ? 0.5 : 1), 5);
+    }
+  }
+  return tex(c);
+}
+
+/** A catalogue card: ruled, typed, a punched hole at the foot. */
+export function catCardTexture(file: string, title: string, stamp: string) {
+  const [c, g] = canvas(256, 160);
+  paperFill(g, 256, 160, '#efe8d4', hash(file));
+  g.strokeStyle = 'rgba(184,40,29,.5)';
+  g.beginPath();
+  g.moveTo(0, 34);
+  g.lineTo(256, 34);
+  g.stroke();
+  g.strokeStyle = 'rgba(60,90,140,.25)';
+  for (let y = 52; y < 150; y += 16) {
+    g.beginPath();
+    g.moveTo(0, y);
+    g.lineTo(256, y);
+    g.stroke();
+  }
+  g.fillStyle = '#1d1b17';
+  g.font = `600 18px ${MONO}`;
+  g.fillText(file, 12, 26);
+  g.font = `500 15px ${MONO}`;
+  g.fillText(title.slice(0, 26), 12, 66);
+  g.fillStyle = 'rgba(184,40,29,.7)';
+  g.font = `600 11px ${MONO}`;
+  g.fillText(stamp, 12, 98);
+  g.fillStyle = '#5a5242';
+  g.beginPath();
+  g.arc(128, 146, 6, 0, Math.PI * 2);
+  g.fill();
+  return tex(c);
+}
+
+/** Brass label holder on a catalogue drawer. */
+export function drawerTagTexture(label: string, empty: boolean) {
+  const [c, g] = canvas(256, 96);
+  const br = g.createLinearGradient(0, 0, 0, 96);
+  br.addColorStop(0, '#d9b977');
+  br.addColorStop(1, '#7a5c2c');
+  g.fillStyle = br;
+  g.fillRect(0, 0, 256, 96);
+  paperFill(g, 256, 96, empty ? '#e2dccb' : '#efe7d0', hash(label));
+  g.fillStyle = br;
+  g.fillRect(0, 0, 256, 12);
+  g.fillRect(0, 84, 256, 12);
+  g.fillRect(0, 0, 12, 96);
+  g.fillRect(244, 0, 12, 96);
+  g.fillStyle = empty ? 'rgba(29,27,23,.4)' : '#1d1b17';
+  g.textAlign = 'center';
+  g.textBaseline = 'middle';
+  fit(g, label, (px) => `600 ${px}px ${MONO}`, 26, 220);
+  g.fillText(label, 128, 50);
+  return tex(c);
+}
+
+/** The mark a date stamp leaves. */
+export function stampMarkTexture(text: string) {
+  const [c, g] = canvas(256, 96);
+  g.strokeStyle = 'rgba(107,90,138,.85)';
+  g.fillStyle = 'rgba(107,90,138,.85)';
+  g.lineWidth = 5;
+  g.strokeRect(8, 8, 240, 80);
+  g.font = `700 34px ${MONO}`;
+  g.textAlign = 'center';
+  g.textBaseline = 'middle';
+  g.fillText(text, 128, 50);
+  const t = tex(c);
   return t;
 }
