@@ -1,0 +1,296 @@
+---
+import Flat from '../../layouts/Flat.astro';
+import '../../styles/baseline.css';
+
+const base = import.meta.env.BASE_URL;
+const arrow = '<svg viewBox="0 0 24 12" aria-hidden="true"><path d="M0 6h22M17 1l5 5-5 5" /></svg>';
+---
+
+<Flat title="Baseline test — The Ninth Draft" description="A routine test. SYSTEM reads a line, you repeat it. Do not improvise." page="baseline">
+  <svg class="bl__defs" width="0" height="0" aria-hidden="true" focusable="false">
+    <filter id="bl-wobble" x="-4%" y="-4%" width="108%" height="108%" color-interpolation-filters="sRGB">
+      <feTurbulence id="bl-turb" type="fractalNoise" baseFrequency="0.002 0.03" numOctaves="1" seed="3" result="n" />
+      <feDisplacementMap id="bl-disp" in="SourceGraphic" in2="n" scale="0" xChannelSelector="R" yChannelSelector="G" />
+    </filter>
+  </svg>
+
+  <p class="f-kicker micro"><b>Form RO-B</b><span>Records Office · Routine testing</span></p>
+  <h1 class="f-title"><span data-l="en">Baseline test</span><span data-l="zh">基线测试</span></h1>
+
+  <div class="bl" id="bl" data-state="intro">
+    <div class="bl__stage">
+      <canvas id="bl-canvas" aria-hidden="true"></canvas>
+      <div class="bl__hud">
+        <ol class="bl__segs" id="bl-segs" aria-hidden="true"></ol>
+        <p class="bl__dev micro"><span>Deviation</span> <b id="bl-dev">00%</b></p>
+      </div>
+      <span class="bl__stamp" id="bl-stamp" aria-hidden="true"></span>
+    </div>
+
+    <div class="bl__console" id="bl-console" aria-live="polite">
+      <div class="bl__panel" id="bl-intro">
+        <p class="bl__say"><span data-l="en">Routine baseline test. Nine lines. SYSTEM reads each one and you repeat it, exactly. You are not being asked whether it is true.</span><span data-l="zh">例行基线测试，共九句。系统念一句，你原样复述一句。没有人问你它是不是真的。</span></p>
+        <p class="f-help"><span data-l="en">Pick one of three answers, or press 1, 2, 3. Answer within ten seconds. Sound on is recommended; SYSTEM reads aloud.</span><span data-l="zh">三个答案里点一个，或按 1、2、3。十秒内作答。建议开着声音，系统会读出来。</span></p>
+        <div class="bl__acts">
+          <button class="f-btn" type="button" id="bl-start"><span>Begin the test</span><Fragment set:html={arrow} /></button>
+          <a class="f-btn f-btn--ghost" href={`${base}me/`}><span>Not now</span></a>
+        </div>
+      </div>
+
+      <div class="bl__panel" id="bl-round" hidden>
+        <p class="bl__label micro" id="bl-label">Line 1 / 9</p>
+        <p class="bl__say bl__say--live" id="bl-say"></p>
+        <p class="bl__remark" id="bl-remark"></p>
+        <div class="bl__timer" aria-hidden="true"><i id="bl-timer"></i></div>
+        <div class="bl__opts" id="bl-opts" role="group" aria-label="Your answer"></div>
+      </div>
+
+      <div class="bl__panel" id="bl-result" hidden>
+        <p class="bl__label micro"><span>Result</span> · <b id="bl-score">00</b> / 100</p>
+        <h2 class="bl__verdict" id="bl-verdict"></h2>
+        <p class="bl__say" id="bl-body"></p>
+        <p class="f-help" id="bl-saved"></p>
+        <div class="bl__acts">
+          <a class="f-btn" href={`${base}me/`}><span>Open my file</span><Fragment set:html={arrow} /></a>
+          <button class="f-btn f-btn--ghost" type="button" id="bl-again"><span>Take it again</span></button>
+        </div>
+      </div>
+    </div>
+  </div>
+</Flat>
+
+<script>
+  import { flat } from '../../app/flat';
+  import { audio } from '../../app/audio';
+  import { isZh, t } from '../../app/i18n';
+  import { reducedMotion } from '../../app/prefs';
+  import { speakCold, stopSpeaking } from '../../app/ui/voice';
+  import { downpour, isStorming } from '../../app/ui/downpour';
+  import { canvasFontsReady } from '../../app/scene/textures';
+  import { Booth } from '../../app/baseline/booth';
+  import { MAX_POINTS, POINTS, REMARKS, ROUNDS, VERDICTS, loadBaseline, saveBaseline, verdictOf, type Dev } from '../../app/baseline/rounds';
+  import type { L } from '../../app/visitor/questions';
+
+  const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
+  const tx = (l: L) => (isZh() ? l.zh : l.en);
+  const esc = (s: string) => s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
+  const calm = reducedMotion();
+  const root = $('bl');
+  const N = ROUNDS.length;
+  const LIMIT = 10000;
+  const SLOW = 6000;
+
+  let booth: Booth | null = null;
+  try {
+    booth = new Booth($<HTMLCanvasElement>('bl-canvas'));
+  } catch {
+    // no WebGL: the test still works, only the room is missing
+    root.classList.add('is-flat');
+  }
+
+  const st = { round: -1, answers: [] as Dev[], points: 0, shown: 0, open: false, order: [0, 1, 2] as Dev[] };
+  let timer = 0;
+  let tick = 0;
+  let pulseT = 0;
+
+  const segs = $('bl-segs');
+  segs.innerHTML = Array.from({ length: N }, () => '<li></li>').join('');
+  const show = (name: 'intro' | 'round' | 'result') => {
+    root.dataset.state = name;
+    (['intro', 'round', 'result'] as const).forEach((n) => ($(`bl-${n}`).hidden = n !== name));
+  };
+
+  /* ---------- the wobble: the whole test shakes with deviation ---------- */
+  const turb = document.getElementById('bl-turb')!;
+  const disp = document.getElementById('bl-disp')!;
+  let wob = 0; // current strength 0..1
+  let impulse = 0;
+  let wobRaf = 0;
+  const wobble = (now: number) => {
+    impulse *= 0.92;
+    // calmer on the result screen, so the verdict can be read
+    const k = Math.min(1, (root.dataset.state === 'result' ? wob * 0.2 : wob) + impulse);
+    if (k > 0.04 && !calm) {
+      root.style.filter = 'url(#bl-wobble)';
+      disp.setAttribute('scale', String(k * 34));
+      turb.setAttribute('baseFrequency', `${0.002 + k * 0.004} ${0.02 + 0.05 * Math.abs(Math.sin(now / 900))}`);
+      turb.setAttribute('seed', String(Math.floor(now / 90) % 40));
+      root.style.setProperty('--split', `${(k * 4).toFixed(2)}px`);
+    } else {
+      root.style.filter = '';
+      root.style.setProperty('--split', '0px');
+    }
+    wobRaf = requestAnimationFrame(wobble);
+  };
+  wobRaf = requestAnimationFrame(wobble);
+
+  const setDev = (points: number) => {
+    // visual deviation climbs faster than the final score, so the room reacts early
+    const d = Math.min(1, points / 110);
+    wob = d * 0.4;
+    booth?.setDeviation(d);
+    $('bl-dev').textContent = `${String(Math.round(Math.min(100, (points / MAX_POINTS) * 100))).padStart(2, '0')}%`;
+    booth?.setMonitor({ dev: d });
+  };
+
+  /* ---------- a round ---------- */
+  const shuffle = (r: number): Dev[] => {
+    // deterministic per round, so a reload shows the same order
+    const orders: Dev[][] = [[0, 1, 2], [1, 2, 0], [2, 0, 1], [0, 2, 1], [1, 0, 2], [2, 1, 0]];
+    return orders[(r * 5 + 2) % orders.length];
+  };
+
+  const optLabel = (r: number, dev: Dev) => tx(dev === 0 ? ROUNDS[r].say : dev === 1 ? ROUNDS[r].near : ROUNDS[r].far);
+
+  const draw = () => {
+    const r = st.round;
+    if (r < 0 || r >= N) return;
+    $('bl-label').textContent = isZh() ? `第 ${r + 1} 句 / 共 ${N} 句` : `Line ${String(r + 1).padStart(2, '0')} / ${String(N).padStart(2, '0')}`;
+    $('bl-say').textContent = tx(ROUNDS[r].say);
+    $('bl-opts').innerHTML = st.order
+      .map((dev, i) => `<button type="button" class="bl__opt" data-i="${i}" data-dev="${dev}"><i>${i + 1}</i><span>${esc(optLabel(r, dev))}</span></button>`)
+      .join('');
+    $('bl-opts').querySelectorAll<HTMLButtonElement>('.bl__opt').forEach((b) => b.addEventListener('click', () => answer(Number(b.dataset.i), false)));
+  };
+
+  const startRound = (r: number) => {
+    st.round = r;
+    st.order = shuffle(r);
+    st.open = true;
+    show('round');
+    $('bl-remark').textContent = '';
+    draw();
+    segs.querySelectorAll('li').forEach((li, i) => li.classList.toggle('is-on', i <= r));
+    booth?.setProgress(r / (N - 1));
+    booth?.setMonitor({ state: 'round', round: r + 1, total: N, text: tx(ROUNDS[r].say) });
+    audio.paper();
+    booth?.speak(true);
+    window.setTimeout(() => booth?.speak(false), 1600);
+    speakCold(tx(ROUNDS[r].say));
+    // ten seconds to answer
+    const t0 = performance.now();
+    const bar = $('bl-timer');
+    window.clearInterval(tick);
+    tick = window.setInterval(() => {
+      const left = 1 - (performance.now() - t0) / LIMIT;
+      bar.style.transform = `scaleX(${Math.max(0, left)})`;
+      bar.classList.toggle('is-late', performance.now() - t0 > SLOW);
+      if (left <= 0) answer(-1, true);
+    }, 80);
+    st.shown = t0;
+  };
+
+  const answer = (i: number, timedOut: boolean) => {
+    if (!st.open) return;
+    st.open = false;
+    window.clearInterval(tick);
+    stopSpeaking();
+    const ms = performance.now() - st.shown;
+    const dev: Dev = timedOut ? 2 : st.order[i];
+    const slow = ms > SLOW && !timedOut;
+    st.answers.push(dev);
+    st.points += POINTS[dev] + (slow ? 3 : 0);
+    const text = timedOut ? '—' : optLabel(st.round, dev);
+    booth?.addWord(text, dev, st.round);
+    $('bl-opts').querySelectorAll<HTMLButtonElement>('.bl__opt').forEach((b, k) => {
+      b.disabled = true;
+      b.classList.toggle('is-picked', k === i);
+    });
+    audio.click();
+    if (dev) {
+      audio.glitch();
+      impulse = dev === 2 ? 1 : 0.5;
+      booth?.kick(dev === 2 ? 1 : 0.5);
+    }
+    audio.pulse(Math.min(1, st.points / 110));
+    setDev(st.points);
+    const pool = timedOut ? null : dev === 0 ? REMARKS.exact : dev === 1 ? REMARKS.near : REMARKS.far;
+    const remark = timedOut ? REMARKS.timeout : slow && dev === 0 ? REMARKS.slow : pool![Math.floor(Math.random() * pool!.length)];
+    $('bl-remark').textContent = tx(remark);
+    $('bl-remark').dataset.dev = String(dev);
+    window.setTimeout(() => (st.round + 1 < N ? startRound(st.round + 1) : finish()), calm ? 700 : 1500);
+  };
+
+  /* ---------- the verdict ---------- */
+  const finish = async () => {
+    const score = Math.min(100, Math.round((st.points / MAX_POINTS) * 100));
+    const verdict = verdictOf(score);
+    saveBaseline({ score, verdict, answers: st.answers, at: Date.now() });
+    const fillResult = () => {
+      show('result');
+      $('bl-score').textContent = String(score).padStart(2, '0');
+      const v = VERDICTS[verdict];
+      $('bl-verdict').textContent = tx(v.name);
+      $('bl-body').textContent = tx(v.body);
+      $('bl-saved').textContent = t('Written to your file. Only on this device.');
+      booth?.setMonitor({ state: 'verdict', text: tx(v.name) });
+      booth?.setProgress(1);
+    };
+    const stampIt = () => {
+      const stamp = $('bl-stamp');
+      stamp.textContent = verdict;
+      stamp.dataset.verdict = verdict;
+      stamp.classList.remove('is-down');
+      void stamp.offsetWidth;
+      stamp.classList.add('is-down');
+      audio.stamp();
+      speakCold(tx(VERDICTS[verdict].name));
+    };
+    if (verdict === 'DEVIATED') {
+      // The room gives way: it shakes harder, the lamp dies down, then the page falls back to 1900
+      st.open = false;
+      impulse = 1.6;
+      booth?.kick(1.2);
+      audio.glitch();
+      await new Promise((r) => window.setTimeout(r, calm ? 300 : 900));
+      await downpour({ onPeak: fillResult });
+      stampIt();
+      return;
+    }
+    fillResult();
+    stampIt();
+  };
+
+  const begin = async () => {
+    stopSpeaking();
+    st.answers = [];
+    st.points = 0;
+    booth?.reset();
+    $('bl-stamp').classList.remove('is-down');
+    setDev(0);
+    segs.querySelectorAll('li').forEach((li) => li.classList.remove('is-on'));
+    await canvasFontsReady(ROUNDS.map((r) => `${r.say.zh}${r.near.zh}${r.far.zh}`).join(''));
+    audio.relay();
+    startRound(0);
+  };
+
+  $('bl-start').addEventListener('click', begin);
+  $('bl-again').addEventListener('click', begin);
+  window.addEventListener('keydown', (e) => {
+    if (e.metaKey || e.ctrlKey || e.altKey || isStorming()) return;
+    const state = root.dataset.state;
+    if (state === 'round' && ['1', '2', '3'].includes(e.key)) answer(Number(e.key) - 1, false);
+    else if (e.key === 'Enter' && state === 'intro' && document.activeElement?.tagName !== 'A') begin();
+    else if ((e.key === 'r' || e.key === 'R') && state === 'result') begin();
+  });
+
+  flat(() => {
+    if (st.open) draw();
+    if (root.dataset.state === 'result') {
+      const r = loadBaseline();
+      if (r) {
+        const v = VERDICTS[r.verdict];
+        $('bl-verdict').textContent = tx(v.name);
+        $('bl-body').textContent = tx(v.body);
+        $('bl-saved').textContent = t('Written to your file. Only on this device.');
+      }
+    }
+  });
+
+  show('intro');
+  window.addEventListener('pagehide', () => {
+    cancelAnimationFrame(wobRaf);
+    stopSpeaking();
+    booth?.dispose();
+  });
+</script>

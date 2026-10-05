@@ -228,6 +228,18 @@ export const audio = {
     tone(55, 1.6, { type: 'sine', vol: 0.5, to: 28, delay: 0.3 });
     noise(1.4, { type: 'lowpass', f0: 380, f1: 70, vol: 0.5, attack: 0.05, delay: 0.3 });
   },
+  /** One heartbeat: two low thumps. `depth` 0..1 makes it heavier. */
+  pulse(depth = 0) {
+    if (!live()) return;
+    tone(58, 0.16, { type: 'sine', vol: 0.3 + depth * 0.3, to: 36 });
+    tone(52, 0.18, { type: 'sine', vol: 0.22 + depth * 0.3, to: 32, delay: 0.17 });
+  },
+  /** A burst of broken signal, for a deviating answer. */
+  glitch() {
+    if (!live()) return;
+    noise(0.22, { f0: 5200, f1: 700, q: 0.7, vol: 0.2, attack: 0.01 });
+    tone(180, 0.14, { type: 'sawtooth', vol: 0.05, to: 60 });
+  },
   stamp() {
     if (!live()) return;
     tone(90, 0.16, { type: 'sine', vol: 0.5, to: 45 });
