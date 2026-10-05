@@ -1,9 +1,40 @@
 {
   "_readme": "SYSTEM lines: the archive's machine voice. Cold, short, never funny on purpose. Shown at the top of the screen and, with sound on, spoken by a synthetic female voice. One line is picked at random per event; most file openings say nothing.",
-  "boot": ["Terminal online. Visitor identified.", "Archive terminal online. Session recorded.", "Connection established. You are being logged."],
-  "open": ["Access logged.", "File access recorded.", "Reading time is being measured.", "Your interest in this file has been noted.", "Do not copy this document."],
-  "classified": ["Clearance level insufficient. Proceeding anyway.", "This file is under review. So is this session.", "Restricted material. Lower your voice.", "Unauthorised interest detected."],
-  "reveal": ["Redaction removal logged.", "That bar was there for a reason.", "Correction filed against your session."],
-  "early": ["Earlier drafts are not admissible.", "This version was withdrawn.", "You are reading a superseded document."],
-  "wall": ["Pattern analysis in progress.", "Associations recorded.", "Linking is not evidence."]
+  "boot": [
+    "Terminal online. Visitor identified.",
+    "Archive terminal online. Session recorded.",
+    "Connection established. You are being logged.",
+    "Gerimis terminal online. Year: 1999.",
+    "Records Office terminal online. Weather: rain."
+  ],
+  "open": [
+    "Access logged.",
+    "File access recorded.",
+    "Reading time is being measured.",
+    "Your interest in this file has been noted.",
+    "Do not copy this document.",
+    "File checked against the previous draft."
+  ],
+  "classified": [
+    "Clearance level insufficient. Proceeding anyway.",
+    "This file is under review. So is this session.",
+    "Restricted material. Lower your voice.",
+    "Unauthorised interest detected."
+  ],
+  "reveal": [
+    "Redaction removal logged.",
+    "That bar was there for a reason.",
+    "Correction filed against your session."
+  ],
+  "early": [
+    "Earlier drafts are not admissible.",
+    "This version was withdrawn.",
+    "You are reading a superseded document.",
+    "Backflow risk: superseded text on screen."
+  ],
+  "wall": [
+    "Pattern analysis in progress.",
+    "Associations recorded.",
+    "Linking is not evidence."
+  ]
 }

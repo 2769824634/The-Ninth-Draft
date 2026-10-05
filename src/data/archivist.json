@@ -4,26 +4,33 @@
     "Unlocking the front door",
     "Pretending to check your clearance",
     "Dusting the drawers",
-    "Hiding the interesting files"
+    "Hiding the interesting files",
+    "Wiping the rain off the windows",
+    "Telling the year field it is still 1999"
   ],
   "welcome": [
     "Ah. A visitor. Wipe your shoes, the carpet is classified.",
     "Welcome to the archive. Touch nothing. Read everything.",
-    "Clearance confirmed. I checked. I didn't, but I said I did."
+    "Clearance confirmed. I checked. I didn't, but I said I did.",
+    "Welcome to Gerimis. If the street names disagree with your map, trust the street.",
+    "Records Office, Gerimis. Everything on the island is normal. If it isn't, it's the previous draft."
   ],
   "welcomeBack": [
     "You again. The drawers missed you. I did not.",
     "Back so soon? Heuss rewrote three files while you were gone.",
-    "Returning visitor detected. Your usual seat is still uncomfortable."
+    "Returning visitor detected. Your usual seat is still uncomfortable.",
+    "Back again. A street changed its name while you were out. Don't mention it."
   ],
   "night": [
     "Lights off. The files are more honest in the dark.",
     "Night shift. Keep your voice down, the redactions are sleeping.",
-    "One lamp, one visitor, a thousand secrets. Cosy."
+    "One lamp, one visitor, a thousand secrets. Cosy.",
+    "Night in Gerimis. The rain does the filing now."
   ],
   "day": [
     "Lights on. Everyone look busy.",
-    "Daylight. The documents prefer it. They feel less guilty."
+    "Daylight. The documents prefer it. They feel less guilty.",
+    "Daylight. Bring an umbrella anyway. This is Gerimis."
   ],
   "drawer": {
     "personnel": [
@@ -81,7 +88,9 @@
   ],
   "emptyDrawer": [
     "Empty drawer. Someone has been very thorough.",
-    "Nothing here. Yet."
+    "Nothing here. Yet.",
+    "Empty. Either nothing happened, or it was revised very well.",
+    "Nobody has filed anything here yet. Give the island time."
   ],
   "rush": [
     "Slow down. These are made of paper.",
@@ -90,11 +99,14 @@
   "idle": [
     "Still there? The dust is starting to settle on you.",
     "Take your time. Nobody else is coming. Probably.",
-    "I'll just alphabetise something while you think."
+    "I'll just alphabetise something while you think.",
+    "It's raining again. It's always raining again.",
+    "Still 1999. Still December. Take your time."
   ],
   "soundOn": [
     "Sound on. If you hear numbers, write them down.",
-    "Audio restored. The radio in the corner is not ours."
+    "Audio restored. The radio in the corner is not ours.",
+    "Sound on. The rain is real. The numbers on the radio are not ours."
   ],
   "soundOff": [
     "Silence. Exactly how the archive likes it."

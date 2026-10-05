@@ -27,6 +27,8 @@ export interface ArchiveRecord {
   stamp: string;
   date?: string;
   place?: string;
+  /** District key (axis, pons-ruber, …); see content.config.ts. */
+  district?: string;
   image?: string;
   imageCaption?: string;
   fields: { label: string; value: string }[];

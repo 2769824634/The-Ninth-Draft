@@ -19,7 +19,7 @@
   "Reference area": "参考区",
   "Access file": "调阅档案",
   "Drawer empty": "抽屉是空的",
-  "Add a Markdown file to this category to file a record.": "往这一类里放一份 Markdown 文件，它就不空了。",
+  "Nothing filed yet. Whatever happened here has not been written down.": "尚未归档。这里发生过的事，还没有人写下来。",
   "Index / select": "索引 / 选取",
   "Selected position": "当前位置",
   "Previous file": "上一份档案",
@@ -143,5 +143,6 @@
   "Withheld": "扣留",
   "Missing": "下落不明",
   "Active": "在办",
-  "Closed": "已结案"
+  "Closed": "已结案",
+  "Records Office · Gerimis": "霏微 · 记录署"
 }

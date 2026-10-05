@@ -10,7 +10,7 @@ interface Props {
   title: string;
   description?: string;
 }
-const { title, description = 'The Ninth Draft — an archive of declassified records.' } = Astro.props;
+const { title, description = 'The Ninth Draft — the Records Office of Gerimis, 1999. Everything on the island is normal. If it isn\'t, it\'s the previous draft.' } = Astro.props;
 const base = import.meta.env.BASE_URL;
 // Chinese faces, one per role. unicode-range keeps the English site from ever
 // downloading them; the build trims each file to the characters in use.

@@ -22,6 +22,12 @@ const records = defineCollection({
     /** Display date or range, any format: "1957", "1961-04-12", "1945–1991". */
     date: z.string().optional(),
     place: z.string().optional(),
+    /**
+     * Which district of Gerimis the record belongs to (optional). `place` is the
+     * text readers see; this is the fixed key used for the map and for matching
+     * a visitor's secret to a file.
+     */
+    district: z.enum(['axis', 'pons-ruber', 'palus-magna', 'collis-ruber', 'portus-posterior', 'silva', 'serrangon']).optional(),
     /** Image path inside /public, e.g. "records/p-0001.jpg". */
     image: z.string().optional(),
     imageCaption: z.string().optional(),
