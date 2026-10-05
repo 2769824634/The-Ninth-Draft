@@ -220,6 +220,14 @@ export const audio = {
     noise(0.35, { f0: 3000, f1: 800, q: 0.6, vol: 0.28, attack: 0.05 });
     tone(110, 0.1, { type: 'triangle', vol: 0.16, delay: 0.32, to: 70 });
   },
+  /** A cloudburst and one low thunder, for the year falling back to 1900. */
+  downpour() {
+    if (!live()) return;
+    noise(4.6, { f0: 3800, f1: 1500, q: 0.5, vol: 0.22, attack: 0.5 });
+    noise(4.6, { type: 'highpass', f0: 5000, f1: 2500, q: 0.4, vol: 0.06, attack: 0.5, delay: 0.1 });
+    tone(55, 1.6, { type: 'sine', vol: 0.5, to: 28, delay: 0.3 });
+    noise(1.4, { type: 'lowpass', f0: 380, f1: 70, vol: 0.5, attack: 0.05, delay: 0.3 });
+  },
   stamp() {
     if (!live()) return;
     tone(90, 0.16, { type: 'sine', vol: 0.5, to: 45 });
