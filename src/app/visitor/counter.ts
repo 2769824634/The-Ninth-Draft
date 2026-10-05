@@ -46,7 +46,7 @@ export const DISTRICT_TEXT: Record<DistrictId, { blurb: L; react: L }> = {
   },
   silva: {
     blurb: { en: 'Woodland at the edge of the island. The trees grow back faster than the files are revised.', zh: '林地，岛的边上。树长得比档案修订得还快。' },
-    react: { en: 'Silva. Quiet. The Office prefers quiet districts, and distrusts them.', zh: '林地。安静。署里喜欢安静的区，也提防安静的区。' },
+    react: { en: 'Silva. Quiet out there. The Office tends to look twice at quiet districts.', zh: '林地。那边安静。安静的区，署里一般会多看两眼。' },
   },
   serrangon: {
     blurb: { en: 'Named for a bird nobody has seen. The bird is on file.', zh: '名字来自一种没人见过的鸟。那只鸟有档案。' },

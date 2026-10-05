@@ -1,240 +1,236 @@
 {
-  "_readme": "ARCHIVIST lines. One line is picked at random per event. {title}, {file}, {drawer}, {draft} are filled in automatically. Add as many as you like.",
+  "_readme": "ARCHIVIST lines. ARCHIVIST is an old clerk who has worked at the Records Office for twenty years: dry, chatty, unsurprised. Most lines just mention one concrete thing about the island; only now and then a dig. One line is picked at random per event. {title}, {file}, {draft}, {drafts}, {count}, {code} are filled in automatically.",
   "boot": [
-    "Unlocking the front door",
-    "Pretending to check your clearance",
-    "Dusting the drawers",
-    "Hiding the interesting files",
+    "Opening the front shutter",
+    "Switching on the reading lamps",
     "Wiping the rain off the windows",
-    "Telling the year field it is still 1999"
+    "Counting the drawers. Still three",
+    "Setting the year field to 1999",
+    "Finding the visitor's book"
   ],
   "welcome": [
-    "Ah. A visitor. Wipe your shoes, the carpet is classified.",
-    "Welcome to the archive. Touch nothing. Read everything.",
-    "Clearance confirmed. I checked. I didn't, but I said I did.",
-    "Welcome to Gerimis. If the street names disagree with your map, trust the street.",
-    "Records Office, Gerimis. Everything on the island is normal. If it isn't, it's the previous draft."
+    "Morning. Or evening. The clock in here stopped agreeing with me years ago.",
+    "Come in, mind the step. The drawers on the left stick, the ones on the right are empty.",
+    "Records Office, Gerimis. Everything on the island is normal. If it isn't, it's the previous draft.",
+    "Welcome. Sign the visitor's book if you like. Nobody reads it except Heuss.",
+    "If a street name outside doesn't match your map, go by the street. The map is older."
   ],
   "welcomeBack": [
-    "You again. The drawers missed you. I did not.",
-    "Back so soon? Heuss rewrote three files while you were gone.",
-    "Returning visitor detected. Your usual seat is still uncomfortable.",
-    "Back again. A street changed its name while you were out. Don't mention it."
+    "You again. Your chair is where you left it.",
+    "Back already. Heuss changed three files while you were out. Don't ask him which.",
+    "Welcome back. A road in Pons Ruber has a new name since yesterday. Same road.",
+    "Oh, it's you. I kept your place."
   ],
   "night": [
-    "Lights off. The files are more honest in the dark.",
-    "Night shift. Keep your voice down, the redactions are sleeping.",
-    "One lamp, one visitor, a thousand secrets. Cosy.",
-    "Night in Gerimis. The rain does the filing now."
+    "Lamp's on, everything else is off. That's how the night shift likes it.",
+    "Night shift. The building creaks a bit after ten. It's only the drawers.",
+    "After dark the rain gets louder and the files get quieter.",
+    "If the radio in the corner starts up on its own tonight, leave it. It isn't ours."
   ],
   "day": [
-    "Lights on. Everyone look busy.",
-    "Daylight. The documents prefer it. They feel less guilty.",
-    "Daylight. Bring an umbrella anyway. This is Gerimis."
+    "Lights on. The cleaner comes at eleven, so mind your feet.",
+    "Daylight. Take an umbrella when you leave. It's Gerimis.",
+    "Morning light. The files look less tired. So do I, mostly."
   ],
   "drawer": {
     "personnel": [
-      "Personnel. Mind the names, some of them bite.",
-      "People drawer. Nobody here is who they said they were."
+      "Personnel. People, filed by number, which none of them enjoyed.",
+      "The people drawer. Go gently, some of these names are still in use."
     ],
     "events": [
-      "Events. Things that happened, allegedly.",
-      "Events drawer. Every date in here was argued over."
+      "Events. Every date in here was argued about at least once.",
+      "Events. Things that happened, mostly in the order they were written down."
     ],
     "programs": [
-      "Programs. Budgets you will never see.",
-      "Programs. Listen. That beeping is perfectly normal."
+      "Programs. Plans, budgets, and the reasons they were stopped.",
+      "Programs. The beeping is the old receiver in the corner. It's been on since 1957."
     ]
   },
   "open": {
     "TOP SECRET": [
-      "{file}. Top secret. I'll pretend I didn't hand you that.",
-      "You are now reading {title}. Officially, you are not."
+      "{file}. Top secret. I'll be standing right here while you read it.",
+      "{title}. This one doesn't normally leave the back room."
     ],
     "SECRET": [
-      "{file}. Secret, but only mildly. Like a surprise party.",
-      "Handle {title} with gloves. Emotional gloves."
+      "{file}. Secret. Don't read it out loud, the walls are thin.",
+      "{title}. Signed out four times last year, never by the same person."
     ],
     "CONFIDENTIAL": [
-      "{file}. Confidential. Which means everyone knows.",
-      "{title}. Read it quietly, the walls are listening."
+      "{file}. Confidential, which on this island means half of Axis has heard about it.",
+      "{title}. Turn the pages slowly. It got rained on last monsoon."
     ],
     "RESTRICTED": [
-      "{file}. Restricted. Restricted to people who opened it, apparently.",
-      "Restricted file. Don't tell the restrictions."
+      "{file}. Restricted. You're in the building, so I suppose that includes you.",
+      "{title}. Internal. Please don't photocopy it. The machine jams anyway."
     ],
     "DECLASSIFIED": [
-      "{file}. Declassified. The boring version, naturally.",
-      "{title}. Fully declassified. They checked twice. Badly."
+      "{file}. Declassified. The interesting parts went out with the old drafts.",
+      "{title}. Fully open. Read it, then slide back a few drafts."
     ]
   },
   "draftEarly": [
-    "Draft {draft}. Heuss would like that one back.",
-    "Draft {draft}. Before the lawyers arrived.",
-    "Careful. Draft {draft} still has opinions in it."
+    "Draft {draft}. Before anyone tidied it up.",
+    "Draft {draft}. Heuss would rather you didn't see this one.",
+    "Draft {draft}. Look at the margins. That's where the real argument was."
   ],
   "draftFinal": [
-    "Draft 09. The version everyone agreed on. Not the one that happened.",
-    "Back to the final draft. Safe. Clean. Slightly untrue."
+    "Back to draft 09, the one everybody agreed to sign.",
+    "Final draft. Neat, approved, and a little shorter than it used to be."
   ],
   "reveal": [
-    "You didn't see that.",
-    "I'll put that back. You'll forget it. Deal?",
-    "Ink is temporary. Curiosity is forever."
+    "You lifted the ink. I'll put it back after you've gone.",
+    "Fine. Now you know. Don't tell the counter.",
+    "That bar was the cheapest thing in the whole file. Two seconds with a marker."
   ],
   "searchEmpty": [
-    "Nothing under that name. Either it never happened, or it worked.",
-    "No records found. That is either reassuring or alarming."
+    "Nothing under that. Try the old spelling, half the island has changed its name.",
+    "No file. Either it never happened, or it's still in somebody's in-tray."
   ],
   "emptyDrawer": [
-    "Empty drawer. Someone has been very thorough.",
-    "Nothing here. Yet.",
-    "Empty. Either nothing happened, or it was revised very well.",
-    "Nobody has filed anything here yet. Give the island time."
+    "Empty. Either nothing happened, or nobody has written it down yet.",
+    "Nothing filed here. The forms are on the counter if you know something."
   ],
   "rush": [
-    "Slow down. These are made of paper.",
-    "Please stop flicking. The folders have feelings."
+    "Slowly. These are paper, not playing cards.",
+    "You'll tear a tab doing that, and then I have to fill in a form."
   ],
   "idle": [
-    "Still there? The dust is starting to settle on you.",
-    "Take your time. Nobody else is coming. Probably.",
-    "I'll just alphabetise something while you think.",
-    "It's raining again. It's always raining again.",
-    "Still 1999. Still December. Take your time."
+    "Still there? Take your time. Nobody else is coming in this weather.",
+    "I'll be at the counter. Shout if a drawer sticks.",
+    "Raining again. That isn't news, that's Gerimis.",
+    "Still December. Still 1999. No hurry."
   ],
   "soundOn": [
-    "Sound on. If you hear numbers, write them down.",
-    "Audio restored. The radio in the corner is not ours.",
-    "Sound on. The rain is real. The numbers on the radio are not ours."
+    "Sound on. If the radio starts reading out numbers, write them down. Or don't. Nobody else does.",
+    "Sound's back. That hum is the dehumidifier. It has been here longer than I have."
   ],
   "soundOff": [
-    "Silence. Exactly how the archive likes it."
+    "Quiet. The way the reading room is meant to be."
   ],
   "wall": {
     "enter": [
-      "Mind the string. It's holding more together than the budget is.",
-      "The link room. Everything here is connected, whether it likes it or not.",
-      "Red string. The archive's only reliable filing system."
+      "The link room. Every string on that board was pinned by hand.",
+      "Mind the string. It's holding up more than it should.",
+      "Red string. We tried a database once. The string won."
     ],
     "popular": [
-      "{file}. Popular. That's rarely good for a file.",
-      "{title} knows a lot of people. Suspicious."
+      "{file} knows a lot of people. In my experience that's never good for a file.",
+      "{title}. Every thread seems to lead back here."
     ],
     "alone": [
-      "{file}. No connections. Either innocent, or very well filed.",
-      "{title}. Nobody mentions it. Somebody made sure of that."
+      "{file}. No strings at all. Somebody was very careful, or it's very lonely.",
+      "{title}. Nothing links to it. I've looked, and I don't know why."
     ],
     "mess": [
-      "I'll pretend that was a theory.",
-      "Interesting arrangement. Heuss will hate it.",
-      "You've moved half the wall. I hope you know where it all goes."
+      "You've moved half the board. I hope you're taking notes.",
+      "Interesting. Heuss will put it all back tomorrow and say nothing.",
+      "That's a theory. A theory with a lot of string."
     ],
     "reset": [
-      "Back where I left them. You're welcome.",
-      "Wall restored. Your theory has been filed under 'no'."
+      "Back where they were. I measured.",
+      "Board reset. Your theory has been filed under 'later'."
     ],
     "leave": [
-      "Back to the drawers. Leave the string where it is.",
-      "Closing the link room. Try not to think about it."
+      "Back to the drawers. Leave the pins where they are.",
+      "Closing the link room. Lights off behind you."
     ]
   },
   "chapter": [
-    "Programs. Where the budgets went to be redacted.",
-    "Programs. Big ideas, bigger invoices.",
-    "Programs. Everything here was a good idea at the time."
+    "Programs. The big plans live here, with the budgets that ended them.",
+    "Programs. Every one of these was a good idea in a meeting.",
+    "Programs. Mind the bottom drawer, it's heavier than it looks."
   ],
   "retrieve": {
     "notes": [
-      "Heuss scribbled in the margins of {drafts}. Slide the drafts back to read them.",
-      "Mind the margins in {drafts}. Heuss had opinions.",
-      "There are notes in {drafts}. Heuss signs everything, even the things he shouldn't."
+      "Heuss wrote in the margins of {drafts}. Drag the slider back to read him.",
+      "There are notes in {drafts}. He signs every one, even the ones he shouldn't.",
+      "Check the margins in {drafts}. Nobody else writes that small."
     ],
     "any": [
-      "Drag the draft slider back to read what we said before we said this.",
-      "Black bars can be clicked. I'd rather you didn't, but they can.",
-      "Press W to see who {file} knows. Everyone knows someone.",
-      "Things clipped to a file can be lifted. Put them back the way you found them.",
-      "The routing slip shows who touched {file}. Mostly Heuss. It's always Heuss.",
-      "If a page is missing, it was never here. That's the policy, not a tip."
+      "Drag the draft slider back to see what this said before it said this.",
+      "You can click the black bars. I'd rather you didn't, but you can.",
+      "Press W to see who {file} is connected to.",
+      "Anything clipped to the folder can be picked up. Put it back where it was.",
+      "The routing slip shows who had {file} out. It's mostly Heuss.",
+      "If a page is missing, it was never here. That's policy, not a hint."
     ],
     "personnel": [
-      "Personnel files lead with the face. When there is no face, I improvise.",
-      "{title}. Filed under people. People are the hardest thing to file.",
-      "Fetching {file}. Somebody had it out on loan. Somebody always does."
+      "Personnel files open on the photograph. When there isn't one, I make do.",
+      "{title}. People are the hardest thing in here to file. They keep changing.",
+      "Fetching {file}. It was out on loan. It's always out on loan."
     ],
     "events": [
-      "Events are filed by date. Dates are the only thing in here that don't change.",
-      "{file}. It happened. The question is which draft says how.",
-      "Fetching {file}. The drawer sticks on this one. I've never asked why."
+      "Events are filed by date. The date is the one part nobody revises.",
+      "{file}. It happened. The drafts only disagree on how.",
+      "Fetching {file}. This drawer has stuck since 1997."
     ],
     "programs": [
-      "Programs have budgets. Budgets have black bars. Mind the black bars.",
-      "{title}. Somebody's career is in this folder. Possibly yours.",
-      "Fetching {file}. The Programs cabinet is heavier than it looks."
+      "Programs come with budgets, and budgets come with black bars.",
+      "{title}. Somebody's whole career is in this folder.",
+      "Fetching {file}. The Programs cabinet is the heavy one."
     ]
   },
   "sweep": [
-    "Sweep complete. {count} contacts. All of them paper.",
-    "Nothing new on the wall. Nothing new is how it starts.",
-    "Scanning the wall again. Old habit. Bad one."
+    "Sweep done. {count} cards on the board, all present.",
+    "Nothing new on the wall. That's usually how it starts.",
+    "Another pass over the board. Habit."
   ],
   "lang": {
     "en": [
-      "English. The original. Every lie in its native language.",
-      "Back to English. The footnotes are longer, the excuses are the same."
+      "English. The originals were typed in English, so the typos are original too.",
+      "Back to English. The footnotes get longer, the excuses stay the same."
     ],
     "zh": [
-      "Chinese. Same files, same lies, better grammar.",
-      "Switching to Chinese. The translator signed nothing. Wise."
+      "Chinese. The translator did a better job than the author. Don't tell the author.",
+      "Chinese. Same files. The jokes land in different places."
     ]
   },
   "negative": [
-    "The negative. Everything dark is light, and one street sign says something else.",
-    "Hold it up to the window. That's how Heuss reads them.",
-    "In the negative the rain falls upwards. Don't ask."
+    "The negative. Light is dark, dark is light, and one street sign reads differently.",
+    "Hold it up to the window. That's how Heuss checks his.",
+    "In the negative the rain goes up. I've stopped asking."
   ],
   "stamp": {
     "verified": [
-      "{file}. Verified. By you. That's two of us, then. Possibly one.",
-      "Stamped VERIFIED. The ink is yours, the responsibility too."
+      "{file}, verified by you. That makes two of us. Possibly.",
+      "VERIFIED. Your ink, your name on it."
     ],
     "correct": [
-      "TO BE CORRECTED. Heuss will love that. He loves correcting.",
-      "{file} sent back for correction. Join the queue."
+      "TO BE CORRECTED. Heuss will be thrilled. He lives for corrections.",
+      "{file} goes back for correction. There's a queue."
     ],
     "rejected": [
-      "REJECTED. Bold. The file will be told.",
-      "{file}. Rejected. It has been rejected before. It's used to it."
+      "REJECTED. Brave. I'll let the file know.",
+      "{file}, rejected. It's been rejected before. It copes."
     ],
     "clear": [
-      "Stamp removed. Officially, you never had an opinion.",
-      "Ink lifted. {file} is innocent again."
+      "Stamp lifted. As far as the record goes, you never had an opinion.",
+      "Ink gone. {file} is clean again."
     ]
   },
   "poke": [
     "Yes?",
-    "That's my shoulder.",
-    "I'm working. Mostly.",
-    "Still here. Unfortunately for both of us."
+    "That's my elbow.",
+    "I'm working. More or less.",
+    "Still here."
   ],
   "pokeAngry": [
-    "Five times. I'm filing a complaint. Against you. In triplicate.",
-    "Stop that, or I'll revise you out."
+    "Five times now. I'm writing it down. In triplicate.",
+    "Keep that up and I'll file you in the events drawer."
   ],
   "away": [
-    "Welcome back. A street changed its name while you were gone. Don't mention it.",
-    "You left. The rain didn't.",
-    "Back? Good. Nothing happened. Officially."
+    "Welcome back. A street changed its name while you were out. Same street.",
+    "You went out. The rain didn't.",
+    "Back? Nothing happened while you were gone. On paper."
   ],
   "resident": [
-    "Welcome back, {code}. Your file is where you left it. Mostly.",
-    "{code}, {file}. Still on the register. Congratulations.",
-    "Ah, {code}. Someone asked about you. I said you didn't exist. Habit."
+    "Welcome back, {code}. Your file is where you left it, more or less.",
+    "{code}, {file}. Still on the register. Well done.",
+    "Ah, {code}. Somebody asked after you earlier. I said I'd never heard of you. Force of habit."
   ],
   "unregistered": [
-    "You're not on the register. On Gerimis, unregistered people get revised out first.",
+    "You're not on the register yet. On Gerimis, the unregistered get revised out first.",
     "Form RO-9, top right. It takes a minute. Being revised out takes less.",
-    "No file, no secret. Just saying. Top right."
+    "No file, no secret. Just mentioning it."
   ]
 }
