@@ -58,7 +58,19 @@ const LOOKS: Record<'day' | 'night', Look> = {
 
 const UP = new THREE.Vector3(0, 1, 0);
 /** The take-down, in seconds: each step overlaps the next a little. */
-const TL = { hook: [0, 0.45], slide: [0.3, 1.2], hold: [1.05, 1.9], carry: [2.2, 3.9], land: [3.75, 4.25], end: 4.3 } as const;
+/** A take-down, in seconds from the first touch; built per book (the walk depends on the distance). */
+interface Timeline {
+  hook: [number, number];
+  slide: [number, number];
+  lift: [number, number];
+  inspect: [number, number];
+  descend: [number, number];
+  carry: [number, number];
+  land: [number, number];
+  end: number;
+  /** Paces from the shelf to the table, for the bob of the walk. */
+  steps: number;
+}
 const smooth = (a: number, b: number, x: number) => {
   const t = Math.min(1, Math.max(0, (x - a) / (b - a)));
   return t * t * (3 - 2 * t);
@@ -94,10 +106,13 @@ export class LibraryScene {
   private queued: { id: string; pages: LibPage[]; page: number } | null = null;
   /** Walking to the book (and the ladder rolling) before the hand reaches it. */
   private waiting = false;
-  /** Seconds into the take-down: see TL. */
+  /** Seconds into the take-down. */
   private tl = 0;
   private tlRun = false;
   private holdAt = new THREE.Vector3();
+  private T: Timeline = timeline(0, false);
+  /** A click during the take-down hurries it along. */
+  private speed = 1;
   private cover = new Spring(0, 5);
   private read = new Spring(0, 2.6);
   private leaves = new Leaves();
@@ -421,11 +436,14 @@ export class LibraryScene {
     this.hover(null);
     this.tl = 0;
     this.tlRun = false;
+    this.speed = 1;
+    const walk = Math.hypot(b.shelf.pos.x - this.room.readingSpot.x, b.shelf.pos.z - this.room.readingSpot.z);
+    this.T = timeline(walk, b.high);
     if (b.zone === 'stacks') this.pan.target = this.panTo(b);
     if (this.reduce) {
       this.room.ladder.z.set(b.shelf.pos.z);
       this.pan.set(this.pan.target);
-      this.tl = TL.end;
+      this.tl = this.T.end;
       this.tlRun = true;
       this.read.set(1);
     } else if (b.zone === 'stacks') {
@@ -450,6 +468,11 @@ export class LibraryScene {
     if (!b) return;
     b.hook.target = 0.35;
     if (b.zone === 'stacks' && this.zoneNow === 'stacks') this.pan.target = this.panTo(b);
+  }
+
+  /** Skip ahead: a click while the book is on its way. */
+  hurry() {
+    if (this.active && !this.ready) this.speed = 3.5;
   }
 
   /** Close the book and put it back where it came from. */
@@ -585,10 +608,16 @@ export class LibraryScene {
     const zoneView = this.viewOf(this.zoneNow);
     let target = zoneView;
     if (this.active) {
-      // close in on the book in the hand, then follow it to the table
-      const held = smooth(TL.slide[0], TL.hold[1], this.tl);
-      if (held > 0) target = this.blend(zoneView, { at: this.holdAt.clone(), dir: zoneView.dir, w: this.active.news ? 1.5 : 1.15, h: 0.9 }, held);
-      target = this.blend(target, this.viewOf('read'), smooth(0, 1, this.read.target === 1 ? 1 : this.read.value));
+      // close in on the book in the hand, follow it across the room, then lean over the table
+      const b = this.active, T = this.T, t = this.tl;
+      const size = Math.max(b.W, b.H);
+      const close: View = { at: this.holdAt.clone(), dir: zoneView.dir, w: size * 2.1, h: size * 1.5 };
+      const readView = this.viewOf('read');
+      const going = smooth(T.carry[0], T.carry[1], t);
+      const follow: View = { at: b.group.position.clone().addScaledVector(UP, 0.05), dir: zoneView.dir.clone().lerp(readView.dir, going).normalize(), w: size * 3.4, h: size * 2.5 };
+      target = this.blend(zoneView, close, smooth(T.slide[0] + 0.3, T.lift[1], t));
+      target = this.blend(target, follow, smooth(T.descend[0], T.carry[0] + 0.7, t));
+      target = this.blend(target, readView, smooth(T.land[0] - 0.4, T.land[1], t));
     }
     this.view.at.setTarget(target.at);
     this.view.dir.setTarget(target.dir);
@@ -661,66 +690,81 @@ export class LibraryScene {
   }
 
   /**
-   * The take-down, as a timeline in seconds (TL): hook the top out, slide
-   * the book off the shelf, hold it up to look at the cover, carry it across
-   * the room, set it down on the table, open it. Putting back runs it
-   * backwards, a little quicker.
+   * The take-down, at a person's pace: hook the top out, draw the book off
+   * the shelf, bring it up close and look at the spine, then the cover, to
+   * be sure it is the right one; come down the ladder if it was high, walk it
+   * to the table at walking speed, lay it flat and set it down, then open it.
+   * Putting it back runs the same steps backwards, a little quicker.
    */
   private pose(b: Book, dt: number) {
+    const T = this.T;
     if (this.holding) {
-      if (this.tlRun) this.tl = Math.min(TL.end, this.tl + dt);
-      this.cover.target = this.tl >= TL.end ? 1 : 0;
+      if (this.tlRun) this.tl = Math.min(T.end, this.tl + dt * this.speed);
+      this.cover.target = this.tl >= T.end ? 1 : 0;
     } else {
       this.cover.target = 0;
-      if (this.cover.value < 0.08) this.tl = Math.max(0, this.tl - dt * 1.5);
+      if (this.cover.value < 0.08) this.tl = Math.max(0, this.tl - dt * 1.8 * this.speed);
     }
     const t = this.tl;
-    // the camera follows the book once it leaves the shelf
-    this.read.target = this.holding ? (t > TL.carry[0] ? 1 : 0) : t > TL.carry[0] + 0.6 ? 1 : 0;
+    this.read.target = t > T.land[0] ? 1 : 0;
     const cv = this.cover.update(dt);
     b.pivot.rotation.y = -cv * Math.PI * 0.985;
     b.left.visible = cv > 0.02;
     if (cv > 0.3 && !this.ready) {
       this.ready = true;
+      this.speed = 1;
       this.on.ready();
     }
 
     // 1. a finger hooks the top of the spine and tips it out
-    const hook = smooth(TL.hook[0], TL.hook[1], t) * (1 - smooth(TL.slide[0] + 0.3, TL.slide[1], t));
-    b.hook.set(this.tlRun || !this.holding ? hook : b.hook.value);
-    b.flankLean.target = t > TL.slide[0] + 0.25 && t < TL.carry[1] + 0.4 ? 1 : 0;
+    const hook = smooth(T.hook[0], T.hook[1], t) * (1 - smooth(T.slide[0] + 0.4, T.slide[1], t));
+    if (this.tlRun || !this.holding) b.hook.set(hook);
+    b.flankLean.target = t > T.slide[0] + 0.4 ? 1 : 0;
     const restP = new THREE.Vector3(), restQ = new THREE.Quaternion();
     b.rest(restP, restQ);
 
-    // 2. slide it off the shelf (a stick lifts out of its slot)
-    const slide = smooth(TL.slide[0], TL.slide[1], t);
+    // 2. draw it off the shelf, against the friction of its neighbours (a stick lifts out of its slot)
+    const slide = smooth(T.slide[0], T.slide[1], t);
     const p1 = restP.clone();
     if (b.news) p1.addScaledVector(UP, slide * 0.2).addScaledVector(b.shelf.out, slide * 0.14);
-    else p1.addScaledVector(b.shelf.out, slide * b.W * 1.12).addScaledVector(UP, slide * 0.01);
+    else p1.addScaledVector(b.shelf.out, slide * b.W * 1.15).addScaledVector(UP, slide * 0.01);
 
-    // 3. hold it up, cover to the eye, for a moment
-    const toEye = this.camera.position.clone().sub(p1).setY(0).normalize();
-    const holdP = p1.clone().addScaledVector(b.shelf.out, 0.42).addScaledVector(UP, b.news ? 0.05 : 0.14);
-    const holdQ = new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().makeBasis(new THREE.Vector3().crossVectors(UP, toEye).normalize(), UP, toEye));
-    holdQ.multiply(new THREE.Quaternion().setFromEuler(new THREE.Euler(-0.12, 0.18, 0)));
-    const hold = smooth(TL.hold[0], TL.hold[1], t);
-    this.holdAt.copy(holdP);
-    const p2 = p1.clone().lerp(holdP, hold);
-    const q2 = restQ.clone().slerp(holdQ, hold);
+    // 3. bring it up close: spine to the eye first, then turn it to the cover
+    const eye = this.camera.position.clone().sub(p1).setY(0).normalize();
+    const side = new THREE.Vector3().crossVectors(UP, eye).normalize();
+    const coverQ = new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().makeBasis(side, UP, eye));
+    const spineQ = new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().makeBasis(eye.clone().negate(), UP, side));
+    const look = smooth(T.inspect[0] + 0.25, T.inspect[0] + (T.inspect[1] - T.inspect[0]) * 0.55, t);
+    const inspectQ = spineQ.clone().slerp(coverQ, look);
+    // tipped back a little to read it, and never quite still in the hand
+    const sway = Math.sin(t * 2.1) * 0.02 * smooth(T.lift[0], T.lift[1], t) * (1 - smooth(T.land[0], T.land[1], t));
+    inspectQ.multiply(new THREE.Quaternion().setFromEuler(new THREE.Euler(-0.14 + sway, sway * 0.6, 0)));
+    const inspectP = (b.news ? p1.clone() : restP.clone().addScaledVector(b.shelf.out, b.W * 1.15)).addScaledVector(b.shelf.out, 0.36).addScaledVector(UP, 0.05);
+    const lift = smooth(T.lift[0], T.lift[1], t);
+    this.holdAt.copy(inspectP);
+    let p = p1.clone().lerp(inspectP, lift);
+    let q = restQ.clone().slerp(inspectQ, lift);
 
-    // 4. carry it across the room, over the chairs, and 5. set it down
+    // 4. down the ladder (or just lowered) to where a hand carries a book
+    const hand = inspectP.clone().addScaledVector(b.shelf.out, 0.25);
+    hand.y = 1.15;
+    p.lerp(hand, smooth(T.descend[0], T.descend[1], t));
+
+    // 5. walk it to the table, the book bobbing a little with each step
     const spot = this.room.readingSpot.clone();
     spot.y = TABLE_H + b.T / 2 + 0.001;
     spot.x += (b.W / 2) * cv;
-    const carry = smooth(TL.carry[0], TL.carry[1], t);
-    const above = spot.clone().addScaledVector(UP, 0.06);
-    const p3 = p2.clone().lerp(above, carry);
-    p3.y += Math.sin(carry * Math.PI) * 0.9;
-    const land = smooth(TL.land[0], TL.land[1], t);
-    p3.lerp(spot, land);
+    const above = spot.clone().addScaledVector(UP, 0.32);
+    const walk = smooth(T.carry[0], T.carry[1], t);
+    p = p.clone().lerp(above, walk);
+    p.y += Math.abs(Math.sin(walk * Math.PI * T.steps)) * 0.014 * Math.sin(walk * Math.PI);
+
+    // 6. lay it flat over the table and set it down
     const tableQ = new THREE.Quaternion().setFromEuler(new THREE.Euler(-Math.PI / 2, 0, 0.03));
-    b.group.position.copy(p3);
-    b.group.quaternion.copy(q2).slerp(tableQ, smooth(TL.carry[0] + 0.15, TL.carry[1] - 0.05, t));
+    p.lerp(spot, smooth(T.land[0] + 0.25, T.land[1], t));
+    q = q.slerp(tableQ, smooth(T.land[0] - 0.2, T.land[0] + 0.5, t));
+    b.group.position.copy(p);
+    b.group.quaternion.copy(q);
 
     if (!this.holding && t <= 0 && cv < 0.01) {
       b.left.visible = false;
@@ -742,11 +786,11 @@ export class LibraryScene {
       const q = this.queued;
       this.queued = null;
       if (q) this.take(q.id, q.pages, q.page);
-    } else if (this.holding && b.prev && t > TL.slide[0]) {
+    } else if (this.holding && t > T.slide[0] + 0.4) {
       // catalogued neighbours (the desk shelf) lean in the same way
-      b.prev.lean.target = 1;
+      if (b.prev) b.prev.lean.target = 1;
       if (b.next) b.next.lean.target = -1;
-    } else if (this.holding && b.next && t > TL.slide[0]) b.next.lean.target = -1;
+    }
   }
 
   /* ------------------------------------------------------------------ */
@@ -793,7 +837,7 @@ export class LibraryScene {
   private bind() {
     const c = this.canvas;
     c.addEventListener('pointerdown', (e) => {
-      if (this.holding) return;
+      if (this.holding) return this.hurry();
       this.drag = { x: e.clientX, pan: this.pan.target, moved: 0, id: e.pointerId };
     });
     window.addEventListener('pointermove', (e) => {
@@ -881,4 +925,18 @@ export class LibraryScene {
     this.camera.aspect = w / h;
     this.camera.updateProjectionMatrix();
   }
+}
+
+/** Steps of a take-down, each overlapping the next a little. */
+function timeline(walk: number, high: boolean): Timeline {
+  const hook: [number, number] = [0, 0.55];
+  const slide: [number, number] = [0.45, 1.6];
+  const lift: [number, number] = [1.5, 2.3];
+  const inspect: [number, number] = [2.3, 4.0];
+  const descend: [number, number] = [4.0, 4.0 + (high ? 1.4 : 0.5)];
+  // about one and a half metres a second, as somebody walking with a book
+  const go = Math.min(6.5, Math.max(2, walk / 1.5));
+  const carry: [number, number] = [descend[1] - 0.15, descend[1] - 0.15 + go];
+  const land: [number, number] = [carry[1] - 0.15, carry[1] + 0.85];
+  return { hook, slide, lift, inspect, descend, carry, land, end: land[1] + 0.1, steps: Math.max(3, Math.round(walk / 0.7)) };
 }
