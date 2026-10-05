@@ -74,3 +74,4 @@
 
 /* The display face is for titles only; at label size it breaks up */
 [data-lang='zh'] .rail__colname { font-family: var(--f-sans); font-size: max(.82rem, 13px); letter-spacing: .06em; }
+[data-lang='zh'] .map__item-name { font-family: var(--f-sans); font-size: max(.95rem, 14px); letter-spacing: .08em; }
