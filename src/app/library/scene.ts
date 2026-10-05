@@ -52,7 +52,7 @@ interface Look {
   shadow: number;
 }
 const LOOKS: Record<'day' | 'night', Look> = {
-  day: { hemi: 0.9, sun: 2.5, env: 0.38, pend: 0, key: 0, night: 0, shadow: 0.32 },
+  day: { hemi: 0.9, sun: 2.5, env: 0.38, pend: 1.1, key: 0, night: 0, shadow: 0.32 },
   night: { hemi: 0.07, sun: 0.18, env: 0.05, pend: 2.6, key: 16, night: 1, shadow: 0.7 },
 };
 
@@ -108,6 +108,21 @@ export class LibraryScene {
   private reduce = reducedMotion();
   private raf = 0;
   private last = 0;
+  private frameStart = 0;
+
+  /**
+   * Quality steps down only when the device cannot keep up, never back up
+   * (that would flicker). 0 is everything: book shadows, 4096 shadow map,
+   * live pendant light, light shafts, full resolution.
+   */
+  tier = 0;
+  /** ?full keeps everything on, however slow. */
+  private locked = new URLSearchParams(location.search).has('full');
+  private samples: number[] = [];
+  private settleAt = performance.now() + 2500;
+  readonly gpu: string = '';
+  /** Average frame time over the last second, for the ?perf readout. */
+  frameMs = 16.7;
 
   constructor(private canvas: HTMLCanvasElement, private bays: LibBay[], catalogue: CatDrawer[], private on: LibEvents) {
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true, powerPreference: 'high-performance' });
@@ -116,6 +131,13 @@ export class LibraryScene {
     this.renderer.toneMapping = THREE.NoToneMapping;
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFShadowMap;
+    try {
+      const gl = this.renderer.getContext();
+      const info = gl.getExtension('WEBGL_debug_renderer_info');
+      (this as { gpu: string }).gpu = String(info ? gl.getParameter(info.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER));
+    } catch {
+      /* unknown */
+    }
 
     // reflections: a soft procedural room, nothing loaded
     const pmrem = new THREE.PMREMGenerator(this.renderer);
@@ -143,7 +165,7 @@ export class LibraryScene {
 
     // daylight through the windows
     this.sun.castShadow = true;
-    this.sun.shadow.mapSize.set(2048, 2048);
+    this.sun.shadow.mapSize.set(4096, 4096);
     this.sun.shadow.bias = -0.0003;
     this.sun.shadow.normalBias = 0.015;
     this.sun.shadow.radius = 3;
@@ -502,14 +524,14 @@ export class LibraryScene {
     this.sun.intensity = L.sun;
     this.scene.environmentIntensity = L.env;
     this.shadowMat.opacity = L.shadow;
-    // lights that are off cost nothing: they leave the shader when dark
+    // the pendants burn day and night, as in any reading room; brighter after dark
     for (const p of this.room.pendants) {
       p.light.intensity = L.pend;
-      p.light.visible = L.pend > 0.05;
-      p.globe.emissiveIntensity = 0.12 + L.night * 1.25;
+      p.light.visible = this.tier < 3;
+      p.globe.emissiveIntensity = 0.55 + L.night * 0.8;
     }
     for (const g of this.room.nightGlass) g.opacity = L.night;
-    this.room.shaftMat.uniforms.uOpacity.value = (1 - L.night) * 0.075;
+    this.room.shaftMat.uniforms.uOpacity.value = this.tier < 3 ? (1 - L.night) * 0.075 : 0;
     (this.room.dust.material as THREE.PointsMaterial).opacity = 0.15 + (1 - L.night) * 0.4;
     this.room.rain.offset.y += dt * 0.03;
     const dp = this.room.dust.geometry.attributes.position as THREE.BufferAttribute;
@@ -574,6 +596,8 @@ export class LibraryScene {
     this.leaves.update(dt);
 
     this.renderer.render(this.scene, this.camera);
+    this.measure(now - (this.frameStart || now));
+    this.frameStart = now;
   }
 
   private blend(a: View, b: View, t: number): View {
@@ -729,10 +753,38 @@ export class LibraryScene {
     window.addEventListener('resize', () => this.resize());
   }
 
+  private measure(ms: number) {
+    if (!ms || document.hidden) return;
+    this.samples.push(ms);
+    if (this.samples.length > 60) this.samples.shift();
+    this.frameMs = this.samples.reduce((a, b) => a + b, 0) / this.samples.length;
+    // judge only after the room has loaded, on a full second of frames
+    const now = performance.now();
+    if (now < this.settleAt || this.samples.length < 60 || this.tier >= 3 || this.locked) return;
+    if (this.frameMs > 28) {
+      this.setTier(this.tier + 1);
+      this.samples = [];
+      this.settleAt = now + 2000;
+    }
+  }
+
+  private setTier(t: number) {
+    this.tier = t;
+    // 1: lower resolution · 2: books stop casting, smaller shadow map · 3: no live pendant light, no shafts
+    if (t >= 2) {
+      for (const f of this.room.fillers) f.castShadow = false;
+      this.sun.shadow.mapSize.set(2048, 2048);
+      this.sun.shadow.map?.dispose();
+      this.sun.shadow.map = null;
+    }
+    this.resize();
+  }
+
   private resize() {
     const w = this.canvas.clientWidth, h = this.canvas.clientHeight;
     if (!w || !h) return;
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
+    const dpr = window.devicePixelRatio || 1;
+    this.renderer.setPixelRatio(Math.min(dpr, this.tier === 0 ? 2 : this.tier === 1 ? 1.25 : 1));
     this.renderer.setSize(w, h, false);
     // the drawer room's long lens; a phone needs a wider one
     this.camera.fov = w / h < 0.85 ? 30 : 19;
