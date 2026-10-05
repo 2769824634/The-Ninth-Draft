@@ -36,7 +36,7 @@ export const QUESTIONS: [Question, Question, Question] = [
       {
         v: { en: 'After two', zh: '两点以后' },
         note: { en: 'The hour when nobody checks the register. You fall into the gap.', zh: '这个钟点没人核对名册，你正好落在缝里。' },
-        react: { en: 'Nobody checks the register at that hour. Convenient. For someone.', zh: '那个钟点没人核对名册。方便。对某些人。' },
+        react: { en: 'Nobody checks the register at that hour. Handy, depending on who you are.', zh: '那个钟点没人核对名册。挺方便的，看对谁。' },
       },
       {
         v: { en: 'Clock unreliable', zh: '钟不太准' },

@@ -11,20 +11,20 @@
     "Access logged.",
     "File access recorded.",
     "Reading time is being measured.",
-    "Your interest in this file has been noted.",
+    "Interest in this file has been noted.",
     "Do not copy this document.",
     "File checked against the previous draft."
   ],
   "classified": [
     "Clearance level insufficient. Proceeding anyway.",
-    "This file is under review. So is this session.",
-    "Restricted material. Lower your voice.",
-    "Unauthorised interest detected."
+    "File under review. Session under review.",
+    "Restricted material. Access logged.",
+    "Unauthorised access attempt recorded."
   ],
   "reveal": [
     "Redaction removal logged.",
-    "That bar was there for a reason.",
-    "Correction filed against your session."
+    "Redaction integrity compromised.",
+    "Correction filed against this session."
   ],
   "early": [
     "Earlier drafts are not admissible.",
