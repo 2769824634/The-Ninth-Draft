@@ -143,12 +143,13 @@
 .sitenav a:hover { color: var(--ink); }
 .sitenav a[aria-current='page'] { color: var(--ink); }
 .sitenav a[aria-current='page']::after { transform: scaleX(1); }
+/* the page nav is the second line on the right, under the tools, so the two never meet */
 .archive .sitenav {
   position: absolute;
   z-index: 6;
-  top: calc(var(--edge) + .45rem);
-  left: 50%;
-  transform: translateX(-50%);
+  top: calc(var(--edge) + 3.1rem);
+  right: var(--edge);
+  justify-content: flex-end;
 }
 .archive[data-boot='on'] .sitenav { opacity: 0; }
 
@@ -174,8 +175,8 @@
 .tool:hover { color: var(--ink); }
 a.tool { text-decoration: none; }
 a.tool[aria-current='page'] { color: var(--ink); }
-/* Below 1500px the archive keeps icons only for Index and Sound, so the page nav fits */
-@media (max-width: 1500px) {
+/* On narrower screens the tools keep icons only for Index and Sound */
+@media (max-width: 1180px) {
   .archive #btn-search > span:not(.kbd), .archive #sound-label { display: none; }
   .archive .tools { gap: 1.6rem; }
 }
@@ -520,6 +521,7 @@ a.tool[aria-current='page'] { color: var(--ink); }
     left: var(--edge);
     right: var(--edge);
     transform: none;
+    justify-content: flex-start;
     gap: 1.1rem;
     overflow-x: auto;
     scrollbar-width: none;

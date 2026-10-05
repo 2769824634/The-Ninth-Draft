@@ -24,9 +24,9 @@
 /* ---------- header ---------- */
 .fhead {
   display: grid;
-  grid-template-columns: auto 1fr auto;
-  align-items: end;
-  gap: 2rem;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: 1rem 2rem;
   padding: var(--edge) 0 1.2rem;
   border-bottom: 2px solid var(--ink);
   background: var(--bg);
@@ -35,7 +35,10 @@
 .fhead__brand .brand__l2 { font-size: .78rem; }
 @keyframes flat-blink { 50% { opacity: .25; } }
 .fhead__tools.tools { position: static; display: flex; align-items: center; gap: 1.6rem; font-size: .68rem; }
-.fhead .sitenav { justify-content: center; }
+.fhead__brand { grid-row: 1 / 3; align-self: end; }
+.fhead__tools.tools { grid-column: 2; justify-self: end; }
+.fhead .sitenav { grid-column: 2; grid-row: 2; justify-content: flex-end; }
+@media (max-width: 1180px) { .fhead__tools #btn-index > span:not(.kbd), .fhead__tools #sound-label { display: none; } }
 
 .fmain { padding: 2.6rem 0 4rem; min-width: 0; }
 
@@ -385,6 +388,8 @@ textarea.f-input { font-family: var(--f-serif); font-size: 1.05rem; resize: vert
 @media (max-width: 900px) {
   .flat { padding: 0 1rem; }
   .fhead { grid-template-columns: 1fr auto; gap: 1rem; padding-top: 1.2rem; }
+  .fhead__brand { grid-row: 1; }
+  .fhead__tools.tools { grid-column: 2; }
   .fhead .sitenav { grid-column: 1 / -1; grid-row: 2; justify-content: flex-start; gap: 1.1rem; overflow-x: auto; scrollbar-width: none; }
   .fhead__brand .brand__l1 { font-size: 1.15rem; white-space: nowrap; }
   .fhead__tools #btn-index > span:not(.kbd), .fhead__tools #sound-label, .fhead__tools #nav-me > span { display: none; }
