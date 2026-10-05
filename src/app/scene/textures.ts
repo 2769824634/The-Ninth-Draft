@@ -676,3 +676,89 @@ export function loadPhoto(src: string): Promise<HTMLImageElement | null> {
     img.src = src;
   });
 }
+
+/* ======================================================================
+   String-and-button envelope (TOP SECRET records)
+   ====================================================================== */
+export const KRAFT = '#b48a58';
+
+/** Front of the envelope, under the flap: printed routing form, typed file, stamp. */
+export function envelopeTexture(rec: ArchiveRecord, seed: number, stampText = rec.stamp) {
+  const W = 1024, H = 724;
+  const [c, g] = canvas(W, H);
+  paper(g, W, H, KRAFT, seed, 1.4);
+  const ink = 'rgba(38,26,12,.78)';
+  g.fillStyle = ink;
+  g.strokeStyle = ink;
+  // the flap covers the top third; the print starts below it
+  const top = 300;
+  g.font = `600 22px ${SANS}`;
+  g.fillText('RECORDS OFFICE  ·  GERIMIS', 64, top);
+  g.font = `400 15px ${MONO}`;
+  g.fillText('FORM 9-E / SECURE ENVELOPE  ·  BY HAND ONLY  ·  DO NOT BEND', 64, top + 26);
+  g.lineWidth = 2;
+  g.beginPath();
+  g.moveTo(64, top + 42);
+  g.lineTo(W - 64, top + 42);
+  g.stroke();
+  // routing grid: passed to / date / initials
+  const gx = 64, gy = top + 70, rows = 5, rh = 52;
+  const cols = [0, 300, 470, 600];
+  g.lineWidth = 1.3;
+  g.font = `400 13px ${MONO}`;
+  g.fillText('PASSED TO', gx + 8, gy - 8);
+  g.fillText('DATE', gx + cols[1] + 8, gy - 8);
+  g.fillText('INIT.', gx + cols[2] + 8, gy - 8);
+  for (let r = 0; r <= rows; r++) {
+    g.beginPath();
+    g.moveTo(gx, gy + r * rh);
+    g.lineTo(gx + cols[3], gy + r * rh);
+    g.stroke();
+  }
+  for (const x of cols) {
+    g.beginPath();
+    g.moveTo(gx + x, gy);
+    g.lineTo(gx + x, gy + rows * rh);
+    g.stroke();
+  }
+  // two hands have signed for it already
+  const s = hash(rec.file);
+  typed(g, 'DATA SECTION', gx + 10, gy + 36, 22, s + 5, 'rgba(25,30,70,.75)');
+  typed(g, '09.11.99', gx + cols[1] + 10, gy + 36, 22, s + 6, 'rgba(25,30,70,.75)');
+  typed(g, 'H.', gx + cols[2] + 20, gy + 36, 24, s + 7, 'rgba(25,30,70,.75)');
+  typed(g, 'REGISTRY', gx + 10, gy + 36 + rh, 22, s + 8, 'rgba(25,30,70,.75)');
+  // file number and title, typed on a pasted label
+  g.fillStyle = '#ece4cf';
+  g.fillRect(690, top + 66, 270, 120);
+  g.strokeStyle = 'rgba(0,0,0,.2)';
+  g.strokeRect(690, top + 66, 270, 120);
+  typed(g, rec.file, 706, top + 112, 36, s);
+  typed(g, fit(g, rec.title.toUpperCase(), 236, `500 16px ${MONO}`), 706, top + 150, 16, s + 1);
+  stamp(g, stampText, 740, top + 290, 40, -0.08 - (s % 5) * 0.012, s);
+  return toTexture(c);
+}
+
+/** The flap: kraft, a gummed edge, the seal initialled across. */
+export function flapTexture(seed: number) {
+  const W = 1024, H = 280;
+  const [c, g] = canvas(W, H);
+  paper(g, W, H, KRAFT, seed + 9, 1.6);
+  const grd = g.createLinearGradient(0, H - 46, 0, H);
+  grd.addColorStop(0, 'rgba(70,45,15,0)');
+  grd.addColorStop(1, 'rgba(70,45,15,.28)');
+  g.fillStyle = grd;
+  g.fillRect(0, 0, W, H);
+  g.fillStyle = 'rgba(38,26,12,.7)';
+  g.font = `600 15px ${MONO}`;
+  g.fillText('SEAL', 120, H - 70);
+  g.save();
+  g.strokeStyle = 'rgba(25,30,70,.6)';
+  g.lineWidth = 3;
+  g.beginPath();
+  g.moveTo(180, H - 60);
+  g.bezierCurveTo(230, H - 120, 260, H - 20, 320, H - 80);
+  g.bezierCurveTo(350, H - 110, 380, H - 40, 410, H - 70);
+  g.stroke();
+  g.restore();
+  return toTexture(c);
+}

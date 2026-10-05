@@ -1,0 +1,154 @@
+/* ==========================================================================
+   The visitor's sealed envelope (/me/, first visit). Kraft, a flap with a
+   fibre disc, another disc on the body, a figure-of-eight string between.
+   ========================================================================== */
+.senv[hidden], .me[hidden] { display: none !important; }
+.senv {
+  display: grid;
+  align-content: center;
+  min-height: calc(100dvh - 14rem);
+  justify-items: center;
+  gap: 1.6rem;
+  padding: 2rem 0 3rem;
+  opacity: 0;
+  transform: translateY(1rem);
+  transition: opacity 700ms var(--ease), transform 900ms var(--ease);
+}
+.senv.is-on { opacity: 1; transform: none; }
+.senv.is-gone { opacity: 0; transform: translateY(2.5rem); transition-duration: 600ms; }
+.senv__stage { perspective: 1600px; padding-top: 9%; width: min(38rem, 92vw); }
+.senv__env {
+  --kraft: #b48a58;
+  position: relative;
+  aspect-ratio: 10 / 7;
+  transform-style: preserve-3d;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+  filter: drop-shadow(.4rem .6rem .5rem rgb(0 0 0 / .22));
+  container-type: inline-size;
+}
+.senv.is-turning .senv__env { cursor: grabbing; }
+.senv.is-loose .senv__env { cursor: default; }
+
+/* kraft: base colour, long fibres, mottling */
+.senv__back, .senv__front, .senv__flap {
+  background-color: var(--kraft);
+  background-image:
+    radial-gradient(120% 80% at 20% 10%, rgb(255 240 210 / .14), transparent 60%),
+    radial-gradient(90% 70% at 85% 90%, rgb(60 35 10 / .18), transparent 60%),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9 .06' numOctaves='3' seed='4'/%3E%3CfeColorMatrix values='0 0 0 0 .25 0 0 0 0 .16 0 0 0 0 .06 0 0 0 .32 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+.senv__back { position: absolute; z-index: 0; inset: 0; filter: brightness(.82); }
+
+/* the file inside, which comes up out of the mouth */
+.senv__sheet {
+  position: absolute;
+  left: 5%;
+  right: 5%;
+  top: 3%;
+  bottom: 5%;
+  z-index: 2;
+  display: grid;
+  align-content: start;
+  gap: .5rem;
+  padding: 1.2rem 1.4rem;
+  background: #efe9db;
+  box-shadow: 0 .2rem .6rem rgb(0 0 0 / .18);
+  transform: translateZ(1px);
+  transition: transform 1100ms cubic-bezier(.3, .1, .2, 1);
+}
+.senv__sheet .micro { color: rgb(29 27 23 / .55); }
+.senv__sheet b { font: 600 1.6rem/1 var(--f-mono); color: #1d1b17; }
+.senv__sheet i { display: block; height: .4rem; background: rgb(29 27 23 / .18); }
+.senv__sheet i:nth-of-type(2) { width: 82%; }
+.senv__sheet i:nth-of-type(4) { width: 64%; }
+.senv.is-out .senv__sheet { transform: translateY(-64%) translateZ(4px); }
+
+/* front panel: printed routing form and a typed label below the flap */
+.senv__front {
+  position: absolute;
+  z-index: 3;
+  inset: 0;
+  padding: 45% 6% 5%;
+  color: rgb(38 26 12 / .82);
+  transform: translateZ(2px);
+  display: grid;
+  grid-template-columns: 1.3fr 1fr;
+  grid-template-rows: auto 1fr;
+  gap: .6rem 1.2rem;
+}
+.senv__org { grid-column: 1 / -1; font-size: 1.55cqi; display: flex; justify-content: space-between; gap: 1rem; margin: 0; padding-bottom: .35rem; border-bottom: 1.5px solid currentColor; }
+.senv__grid { font-size: 1.5cqi; display: grid; grid-template-columns: 1.4fr 1fr .6fr; align-content: start; border-top: 1px solid currentColor; border-left: 1px solid currentColor; }
+.senv__grid span { min-height: 3.6cqi; padding: .5cqi .8cqi; border-right: 1px solid currentColor; border-bottom: 1px solid currentColor; overflow: hidden; white-space: nowrap; }
+.senv__grid span:nth-child(-n + 3) { font-size: 1.25cqi; opacity: .75; }
+.senv__grid span:nth-child(n + 4) { font-family: var(--f-note); font-style: italic; color: rgb(25 30 70 / .8); text-transform: none; letter-spacing: 0; font-size: 2.1cqi; }
+.senv__label { align-self: start; display: grid; gap: .4cqi; padding: 1.4cqi 1.6cqi 5cqi; background: #ece4cf; color: #1d1b17; box-shadow: 0 0 0 1px rgb(0 0 0 / .15); }
+.senv__label b { font: 600 3.4cqi/1 var(--f-mono); }
+.senv__label span { font: 500 2.2cqi/1.3 var(--f-mono); overflow-wrap: anywhere; }
+.senv__stamp {
+  position: absolute;
+  right: 7%;
+  bottom: 6%;
+  padding: .4cqi 1.2cqi;
+  border: .55cqi solid #6b5a8a;
+  color: #6b5a8a;
+  font: 700 2.4cqi/1.2 var(--f-mono);
+  letter-spacing: .1em;
+  transform: rotate(-7deg);
+  opacity: .8;
+}
+
+/* the flap, hinged at the top, lifting outward and over */
+.senv__flap {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 42%;
+  z-index: 4;
+  transform-origin: 50% 0;
+  transform: translateZ(3px);
+  clip-path: polygon(0 0, 100% 0, 100% 52%, 72% 80%, 50% 100%, 28% 80%, 0 52%);
+  filter: brightness(.94);
+  /* once it passes upright it is behind the mouth, so the file comes out over it */
+  transition: transform 900ms cubic-bezier(.45, .05, .25, 1), z-index 0s linear 420ms, filter 900ms;
+  transform-style: preserve-3d;
+}
+.senv__flap::after { content: ''; position: absolute; inset: auto 0 0; height: 18%; background: linear-gradient(transparent, rgb(70 45 15 / .25)); }
+.senv.is-flap .senv__flap { z-index: 1; transform: translateZ(3px) rotateX(188deg); filter: brightness(.78); }
+.senv:not(.is-flap) .senv__disc--upper { z-index: 5; }
+
+/* fibre discs on brass rivets */
+.senv__disc {
+  position: absolute;
+  z-index: 5;
+  width: 6.2%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #7a3b2e, #4d2219 70%);
+  box-shadow: 0 .1rem .2rem rgb(0 0 0 / .4), inset 0 0 0 2px rgb(0 0 0 / .18);
+  transform: translate(-50%, -50%);
+}
+.senv__disc i { position: absolute; inset: 38%; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #e2c58a, #8a6a34); }
+.senv__disc i::after { content: ''; position: absolute; left: -60%; right: -60%; top: 45%; height: 10%; background: rgb(0 0 0 / .15); }
+.senv__disc--upper { left: 50%; top: 80.3%; }
+.senv__disc--lower { left: 50%; top: 50.3%; transform: translate(-50%, -50%) translateZ(4px); }
+
+/* the string, over everything until it comes off */
+.senv__string { position: absolute; inset: 0; z-index: 6; width: 100%; height: 100%; overflow: visible; pointer-events: none; transform: translateZ(6px); transition: opacity 700ms var(--ease), transform 700ms cubic-bezier(.5, 0, .9, .5); }
+.senv__string path { fill: none; stroke: #efe5cc; stroke-width: 3.4; stroke-linecap: round; stroke-linejoin: round; filter: drop-shadow(0 1.5px 1px rgb(0 0 0 / .35)); }
+.senv.is-flap .senv__string { opacity: 0; transform: translateZ(6px) translateY(3%); }
+
+.senv__foot { display: grid; justify-items: center; gap: .9rem; max-width: 34rem; text-align: center; transition: opacity 500ms var(--ease); }
+.senv__hint { margin: 0; font-family: var(--f-serif); font-size: 1rem; line-height: 1.6; color: var(--ink-2); }
+.senv.is-loose .senv__foot { opacity: 0; pointer-events: none; }
+
+/* the file, arriving out of the envelope */
+.me.is-arriving { animation: me-arrive 900ms var(--ease) both; }
+@keyframes me-arrive { from { opacity: 0; transform: translateY(-1.2rem); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .senv, .senv__sheet, .senv__flap, .senv__string { transition: none; }
+  .me.is-arriving { animation: none; }
+}

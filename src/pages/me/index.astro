@@ -1,6 +1,8 @@
 ---
 import Flat from '../../layouts/Flat.astro';
 import { loadRecords } from '../../lib/records';
+import SealedEnvelope from '../../components/SealedEnvelope.astro';
+import '../../styles/envelope.css';
 
 const base = import.meta.env.BASE_URL;
 const records = await loadRecords(base);
@@ -18,6 +20,8 @@ const payload = JSON.stringify({ base, records: list }).replace(/</g, '\\u003c')
       <a class="f-btn" href={`${base}register/`}><span>Register</span><svg viewBox="0 0 24 12" aria-hidden="true"><path d="M0 6h22M17 1l5 5-5 5" /></svg></a>
     </div>
   </section>
+
+  <SealedEnvelope />
 
   <div class="me" id="file" hidden>
     <aside class="me__left">
@@ -60,6 +64,7 @@ const payload = JSON.stringify({ base, records: list }).replace(/</g, '\\u003c')
         <a class="f-btn" href={`${base}map/`}><span>Find my district</span><svg viewBox="0 0 24 12" aria-hidden="true"><path d="M0 6h22M17 1l5 5-5 5" /></svg></a>
         <a class="f-btn f-btn--ghost" href={`${base}baseline/`}><span>Baseline test</span></a>
         <a class="f-btn f-btn--ghost" href={base}><span>Back to the archive</span></a>
+        <button class="f-btn f-btn--ghost" type="button" id="reseal"><span data-l="en">Seal it again</span><span data-l="zh">重新封上</span></button>
         <button class="f-btn f-btn--ghost" type="button" id="forget"><span>Revise me out</span></button>
       </div>
     </div>
@@ -79,6 +84,7 @@ const payload = JSON.stringify({ base, records: list }).replace(/</g, '\\u003c')
   import { makeSecret, type SecretRecord } from '../../app/visitor/secret';
   import { fileNo, forgetVisitor, loadVisitor } from '../../app/visitor/store';
   import { loadBaseline, VERDICTS } from '../../app/baseline/rounds';
+  import { opened, reseal, sealed } from '../../app/visitor/envelope';
 
   const data = JSON.parse(document.getElementById('me-data')!.textContent!) as { base: string; records: SecretRecord[] };
   const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -131,7 +137,28 @@ const payload = JSON.stringify({ base, records: list }).replace(/</g, '\\u003c')
   if (!v) {
     $('none').hidden = false;
   } else {
-    $('file').hidden = false;
+    const no = fileNo(v);
+    const show = (arriving: boolean) => {
+      $('file').hidden = false;
+      if (arriving) $('file').classList.add('is-arriving');
+    };
+    // the first time, the file arrives sealed
+    if (opened(no)) show(false);
+    else
+      void sealed(no, (el) => {
+        el.no.textContent = no;
+        el.sheetNo.textContent = no;
+        el.code.textContent = v.code;
+        el.district.textContent = districtName(v.district, isZh());
+        el.to.textContent = v.code;
+        const filed = new Date(v.at);
+        el.date.textContent = `${String(filed.getDate()).padStart(2, '0')}.${String(filed.getMonth() + 1).padStart(2, '0')}.99`;
+      }).then(() => show(true));
+    $('reseal').addEventListener('click', () => {
+      reseal();
+      audio.stamp();
+      location.reload();
+    });
     render();
     const c = halftone(null, fileNo(v), 300, 375);
     $<HTMLCanvasElement>('me-photo').getContext('2d')!.drawImage(c, 0, 0, 300, 375);

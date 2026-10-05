@@ -1,0 +1,43 @@
+---
+/**
+ * The visitor's file, as it arrives: a kraft string-and-button envelope.
+ * The string is unwound by turning the lower disc (or with the button);
+ * then the flap lifts and the file comes out. Filled in by visitor/envelope.ts.
+ */
+---
+
+<section class="senv" id="senv" hidden aria-label="Sealed envelope">
+  <div class="senv__stage">
+    <div class="senv__env" id="senv-env">
+      <div class="senv__back"></div>
+      <div class="senv__sheet" id="senv-sheet" aria-hidden="true">
+        <span class="micro">Residents' Register</span>
+        <b id="senv-sheet-no">V-0000</b>
+        <i></i><i></i><i></i><i></i>
+      </div>
+      <div class="senv__front">
+        <p class="senv__org micro"><span>Records Office · Gerimis</span><span data-l="en">Residents' Register · By hand only</span><span data-l="zh">住户登记 · 专人递送</span></p>
+        <div class="senv__grid micro" aria-hidden="true">
+          <span>Passed to</span><span>Date</span><span>Init.</span>
+          <span>Counter</span><span id="senv-date">00.00.99</span><span>R.</span>
+          <span id="senv-to"></span><span></span><span></span>
+        </div>
+        <div class="senv__label">
+          <b id="senv-no">V-0000</b>
+          <span id="senv-code"></span>
+          <span class="micro" id="senv-district"></span>
+        </div>
+        <span class="senv__stamp" aria-hidden="true">PROVISIONAL</span>
+      </div>
+      <div class="senv__flap" id="senv-flap">
+        <span class="senv__disc senv__disc--upper" id="senv-upper"><i></i></span>
+      </div>
+      <span class="senv__disc senv__disc--lower" id="senv-lower"><i></i></span>
+      <svg class="senv__string" id="senv-string" viewBox="0 0 1000 700" aria-hidden="true"><path id="senv-path" d="" /></svg>
+    </div>
+  </div>
+  <div class="senv__foot">
+    <p class="senv__hint" id="senv-hint"><span data-l="en">Your file has come back from the counter, sealed. Turn the lower disc to unwind the string.</span><span data-l="zh">你的档案从柜台转回来了，封着口。转动下面那颗扣，把线绕开。</span></p>
+    <button type="button" class="f-btn f-btn--ghost" id="senv-unwind"><span data-l="en">Unwind it for me</span><span data-l="zh">帮我绕开</span></button>
+  </div>
+</section>
