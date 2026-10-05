@@ -1,37 +1,9 @@
 ---
 import Flat from '../../layouts/Flat.astro';
-import { DISTRICTS } from '../../app/visitor/districts';
+import IslandMap from '../../components/IslandMap.astro';
 
 const base = import.meta.env.BASE_URL;
-const QUESTIONS = [
-  {
-    en: 'What time do you usually go to sleep?',
-    zh: '你一般几点睡？',
-    opts: [
-      ['Before eleven', '十一点前'],
-      ['After two', '两点以后'],
-      ['Hard to say. The clock is unreliable.', '说不准，钟不太准'],
-    ],
-  },
-  {
-    en: 'The road outside your home: what was it called before?',
-    zh: '你家门口那条路，以前叫什么？',
-    opts: [
-      ['It has always been called this', '一直叫这个'],
-      ['I think it changed', '好像改过'],
-      ['I should not answer this question', '这题我不该答'],
-    ],
-  },
-  {
-    en: 'Where did you last feel that something was off?',
-    zh: '你最近一次觉得「不太对」，是在哪里？',
-    opts: [
-      ['On a bus', '巴士上'],
-      ['In the corridor of my block', '组屋走廊'],
-      ['In front of a mirror', '镜子前'],
-    ],
-  },
-];
+const arrow = '<svg viewBox="0 0 24 12" aria-hidden="true"><path d="M0 6h22M17 1l5 5-5 5" /></svg>';
 ---
 
 <Flat title="Register — The Ninth Draft" description="Register as a resident of Gerimis: a codename, a district, and a small secret only you can read." page="register">
@@ -40,8 +12,8 @@ const QUESTIONS = [
       <p class="f-kicker micro"><b>Form RO-9</b><span>Records Office · Residents' Register</span></p>
       <h1 class="f-title"><span data-l="en">Application for residence</span><span data-l="zh">居民登记申请表</span></h1>
       <p class="f-lede">
-        <span data-l="en">Every resident of Gerimis has a file. You do not, yet. Fill in this form and the Office will open one: a file number, a district, and one small secret that only you will be able to read.</span>
-        <span data-l="zh">霏微的每个居民都有一份档案。你暂时还没有。填好这张表，署里会给你开一份：一个档案编号、一个住处，还有一个只有你自己看得到的小秘密。</span>
+        <span data-l="en">Every resident of Gerimis has a file. You do not, yet. Window 3 is open: answer the clerk, and the Office will open one for you, with a file number, a district and one small secret that only you can read.</span>
+        <span data-l="zh">霏微的每个居民都有一份档案，你暂时还没有。三号窗口开着，回答办事员几个问题，署里就给你开一份：档案编号、住处，还有一个只有你自己看得到的小秘密。</span>
       </p>
 
       <div class="receipt" id="already" hidden>
@@ -49,91 +21,59 @@ const QUESTIONS = [
         <p class="receipt__no" id="already-no">V-0000</p>
         <p class="f-lede" style="margin-top:0"><span data-l="en">You are registered as</span><span data-l="zh">你已登记，代号</span> <b id="already-code"></b>.</p>
         <div class="receipt__acts">
-          <a class="f-btn" href={`${base}me/`}><span>Open my file</span><svg viewBox="0 0 24 12" aria-hidden="true"><path d="M0 6h22M17 1l5 5-5 5" /></svg></a>
+          <a class="f-btn" href={`${base}me/`}><span>Open my file</span><Fragment set:html={arrow} /></a>
           <button class="f-btn f-btn--ghost" type="button" id="again"><span>Register again</span></button>
         </div>
         <p class="f-help"><span data-l="en">Registering again replaces your current file. The old one will be revised out.</span><span data-l="zh">重新登记会替换现在的档案，旧的那份会被修订掉。</span></p>
       </div>
 
-      <form class="form" id="form" novalidate>
-        <div class="form__top micro"><span class="form__no">RO-9 / 1999</span><span>Please write clearly</span></div>
-        <span class="fstamp" id="fstamp" aria-hidden="true">PROVISIONAL</span>
-
-        <section class="f-sec">
-          <h2 class="f-sec__h"><i>01</i><span>Codename</span></h2>
-          <input class="f-input" id="code" name="code" maxlength="24" autocomplete="off" spellcheck="false" placeholder="What should the Office call you?" required />
-          <p class="f-help"><span data-l="en">A name, a nickname or a codename. English or Chinese. Not your real details: the Office does not need them.</span><span data-l="zh">真名、昵称、代号都行，中英文都可以。不用填真实信息，署里用不上。</span></p>
-          <p class="f-err" id="err-code" hidden>Codename required</p>
-        </section>
-
-        <section class="f-sec">
-          <h2 class="f-sec__h"><i>02</i><span>District of residence</span></h2>
-          <fieldset class="dist">
-            <legend class="sr-only">District of residence</legend>
-            {DISTRICTS.map((d) => (
-              <label class="opt">
-                <input type="radio" name="district" value={d.id} />
-                <span class="opt__box">
-                  <span class="opt__name"><span data-l="en">{d.en}</span><span data-l="zh">{d.zh}</span></span>
-                  <span class="opt__sub micro"><span data-l="en">{d.zh}</span><span data-l="zh">{d.en}</span> · <span>{d.note}</span></span>
-                </span>
-              </label>
-            ))}
-          </fieldset>
-          <p class="f-err" id="err-district" hidden>Choose a district</p>
-        </section>
-
-        <section class="f-sec">
-          <h2 class="f-sec__h"><i>03</i><span>Routine questions</span></h2>
-          {QUESTIONS.map((q, i) => (
-            <fieldset class="q">
-              <legend><b>3.{i + 1}</b><span data-l="en">{q.en}</span><span data-l="zh">{q.zh}</span></legend>
-              <div class="q__opts">
-                {q.opts.map(([en, zh], j) => (
-                  <label class="opt">
-                    <input type="radio" name={`q${i}`} value={j} />
-                    <span class="opt__box"><span><span data-l="en">{en}</span><span data-l="zh">{zh}</span></span></span>
-                  </label>
-                ))}
-              </div>
-            </fieldset>
-          ))}
-          <p class="f-err" id="err-q" hidden>Answer all three</p>
-        </section>
-
-        <section class="f-sec">
-          <h2 class="f-sec__h"><i>04</i><span>Optional</span></h2>
-          <label for="line" class="f-qlabel"><span data-l="en">Something you remember that everyone else says never existed.</span><span data-l="zh">一样你记得、但别人都说不存在的东西。</span></label>
-          <textarea class="f-input" id="line" name="line" maxlength="60" rows="2" placeholder="A red payphone, a bakery, a cousin…"></textarea>
-          <p class="f-help"><span data-l="en">It goes into your secret. It is not kept in the recovery phrase.</span><span data-l="zh">它会被写进你的小秘密里，但恢复口令记不住这一句。</span></p>
-        </section>
-
-        <div class="form__sign">
-          <p><span data-l="en">By filing this form you agree that the Office may revise you. It probably will not.</span><span data-l="zh">提交即表示你同意署方在必要时修订你。一般不会。</span></p>
-          <button class="f-btn" type="submit"><span>File application</span><svg viewBox="0 0 24 12" aria-hidden="true"><path d="M0 6h22M17 1l5 5-5 5" /></svg></button>
+      <div class="desk" id="desk">
+        <div class="clerk" aria-live="polite">
+          <p class="clerk__tag micro"><i></i><span>Clerk · Window 3</span></p>
+          <p class="clerk__line" id="clerk-line"></p>
         </div>
-      </form>
 
-      <div class="receipt" id="receipt" hidden aria-live="polite">
-        <p class="micro"><span>Filed · Provisional resident</span></p>
-        <p class="receipt__no" id="rc-no">V-0000</p>
-        <p class="f-lede" style="margin-top:0"><span data-l="en">Your recovery phrase. Write it down with your codename: together they open your file on any other device.</span><span data-l="zh">这是你的恢复口令。和代号一起抄下来，换手机、换电脑都能用它找回档案。</span></p>
-        <ol class="phrase" id="rc-phrase"></ol>
-        <div class="receipt__acts">
-          <a class="f-btn" href={`${base}me/`}><span>Open my file</span><svg viewBox="0 0 24 12" aria-hidden="true"><path d="M0 6h22M17 1l5 5-5 5" /></svg></a>
-          <a class="f-btn f-btn--ghost" href={`${base}map/`}><span>Find my district</span></a>
+        <ol class="steps" id="steps" aria-hidden="true"></ol>
+
+        <form class="form wiz" id="form" novalidate>
+          <div class="form__top micro"><span class="form__no">RO-9 / 1999</span><span id="step-label"></span></div>
+          <div class="wiz__panel" id="panel"></div>
+          <div class="wiz__map" id="map-wrap" hidden>
+            <div class="map__frame"><IslandMap id="reg-map" /></div>
+            <p class="wiz__blurb" id="blurb"></p>
+          </div>
+          <p class="f-err" id="err" hidden></p>
+          <div class="wiz__nav">
+            <button class="f-btn f-btn--ghost" type="button" id="back"><span>Back</span></button>
+            <button class="f-btn" type="submit" id="next"><span>Next step</span><Fragment set:html={arrow} /></button>
+          </div>
+        </form>
+
+        <div class="filing" id="filing" hidden aria-live="polite">
+          <p class="micro"><span>Processing</span></p>
+          <ul id="filing-log"></ul>
+        </div>
+
+        <div class="receipt" id="receipt" hidden aria-live="polite">
+          <p class="micro"><span>Filed · Provisional resident</span></p>
+          <p class="receipt__no" id="rc-no">V-0000</p>
+          <p class="f-lede" style="margin-top:0"><span data-l="en">Your recovery phrase. Write it down with your codename: together they open your file on any other device.</span><span data-l="zh">这是你的恢复口令。和代号一起抄下来，换手机、换电脑都能用它找回档案。</span></p>
+          <ol class="phrase" id="rc-phrase"></ol>
+          <div class="receipt__acts">
+            <a class="f-btn" href={`${base}me/`}><span>Open my file</span><Fragment set:html={arrow} /></a>
+            <a class="f-btn f-btn--ghost" href={`${base}map/`}><span>Find my district</span></a>
+          </div>
         </div>
       </div>
     </div>
 
     <aside class="side">
-      <div class="side__box">
-        <h3>What happens</h3>
-        <ol>
-          <li><span data-l="en">You get a file number and a provisional stamp.</span><span data-l="zh">你会拿到一个档案编号，盖临时居民章。</span></li>
-          <li><span data-l="en">The Office writes your file, including one small secret. Only you can see it.</span><span data-l="zh">署里给你写一份档案，其中有一个小秘密，只有你看得到。</span></li>
-          <li><span data-l="en">The secret points at real files. Go and look.</span><span data-l="zh">小秘密会指向档案馆里真实的档案。去翻翻看。</span></li>
-        </ol>
+      <div class="vcard" id="vcard" aria-label="Your card, as it stands">
+        <p class="micro vcard__top"><span>Residents' Register</span><span id="vc-no">V-????</span></p>
+        <div class="vcard__photo"><canvas id="vc-photo" width="300" height="375" aria-hidden="true"></canvas></div>
+        <h2 class="vcard__code" id="vc-code"></h2>
+        <dl class="vcard__rows" id="vc-rows"></dl>
+        <span class="fstamp" id="fstamp" aria-hidden="true">PROVISIONAL</span>
       </div>
       <div class="side__box">
         <h3>Nothing leaves your browser</h3>
@@ -154,73 +94,337 @@ const QUESTIONS = [
 <script>
   import { flat } from '../../app/flat';
   import { audio } from '../../app/audio';
+  import { isZh, t } from '../../app/i18n';
   import { reducedMotion } from '../../app/prefs';
+  import { halftone } from '../../app/scene/halftone';
   import { toPhrase, fromPhrase } from '../../app/visitor/phrase';
   import { fileNo, loadVisitor, saveVisitor, type Visitor } from '../../app/visitor/store';
-  import type { DistrictId } from '../../app/visitor/districts';
+  import { DISTRICTS, districtName, type DistrictId } from '../../app/visitor/districts';
+  import { QUESTIONS, type L } from '../../app/visitor/questions';
+  import { COUNTER, DISTRICT_TEXT, FILING } from '../../app/visitor/counter';
 
-  const { markMe } = flat();
+  const { markMe } = flat(() => {
+    render();
+    say(lastSay, true, lastVars);
+  });
   const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
   const form = $<HTMLFormElement>('form');
-  const already = $('already');
+  const desk = $('desk');
+  const tx = (l: L) => (isZh() ? l.zh : l.en);
+  const fill = (s: string, vars: Record<string, string>) => s.replace(/\{(\w+)\}/g, (_, k) => vars[k] ?? '');
+  const esc = (s: string) => s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
+  const calm = reducedMotion();
 
+  /* ---------- already registered ---------- */
+  const already = $('already');
+  const current = loadVisitor();
   const showAlready = (v: Visitor) => {
     already.hidden = false;
-    form.hidden = true;
+    desk.hidden = true;
     $('already-no').textContent = fileNo(v);
     $('already-code').textContent = v.code;
   };
-  const current = loadVisitor();
   if (current) showAlready(current);
   $('again').addEventListener('click', () => {
     already.hidden = true;
-    form.hidden = false;
-    $<HTMLInputElement>('code').focus();
+    desk.hidden = false;
+    go(0);
   });
 
-  const showReceipt = (v: Visitor) => {
-    const r = $('receipt');
-    r.hidden = false;
-    $('rc-no').textContent = fileNo(v);
-    $('rc-phrase').innerHTML = toPhrase(v).map((w) => `<li>${w}</li>`).join('');
-    markMe();
-    window.setTimeout(() => r.scrollIntoView({ behavior: reducedMotion() ? 'auto' : 'smooth', block: 'center' }), reducedMotion() ? 0 : 700);
+  /* ---------- state ---------- */
+  const STEPS = 7; // 0 name, 1 district, 2–4 questions, 5 line, 6 review
+  const no = 100 + Math.floor(Math.random() * 3996);
+  const st = { step: 0, code: '', district: null as DistrictId | null, answers: [-1, -1, -1], line: '', back: false };
+
+  /* ---------- the clerk ---------- */
+  const clerk = $('clerk-line');
+  let lastSay: L = COUNTER.greet;
+  let lastVars: Record<string, string> = {};
+  let typing = 0;
+  const say = (l: L, instant = false, vars: Record<string, string> = {}) => {
+    lastSay = l;
+    lastVars = vars;
+    const text = fill(tx(l), vars);
+    window.clearInterval(typing);
+    if (calm || instant) {
+      clerk.textContent = text;
+      return;
+    }
+    clerk.textContent = '';
+    let i = 0;
+    typing = window.setInterval(() => {
+      i += 1;
+      clerk.textContent = text.slice(0, i);
+      if (i >= text.length) window.clearInterval(typing);
+    }, isZh() ? 38 : 20);
+  };
+
+  /* ---------- progress ---------- */
+  const steps = $('steps');
+  steps.innerHTML = Array.from({ length: STEPS }, () => '<li></li>').join('');
+  const LABELS: L[] = [
+    { en: '1 / 7 · Codename', zh: '1 / 7 · 代号' },
+    { en: '2 / 7 · District', zh: '2 / 7 · 住处' },
+    { en: '3 / 7 · Question 1', zh: '3 / 7 · 问题 1' },
+    { en: '4 / 7 · Question 2', zh: '4 / 7 · 问题 2' },
+    { en: '5 / 7 · Question 3', zh: '5 / 7 · 问题 3' },
+    { en: '6 / 7 · Optional', zh: '6 / 7 · 选填' },
+    { en: '7 / 7 · Read back', zh: '7 / 7 · 核对' },
+  ];
+
+  /* ---------- the card ---------- */
+  const photo = $<HTMLCanvasElement>('vc-photo');
+  let seedKey = '';
+  let drawTimer = 0;
+  const drawPhoto = () => {
+    const key = `${st.code}|${st.district}|${st.answers.join('')}`;
+    if (key === seedKey) return;
+    seedKey = key;
+    window.clearTimeout(drawTimer);
+    drawTimer = window.setTimeout(() => {
+      const c = halftone(null, `${no}|${key}`, 300, 375);
+      const g = photo.getContext('2d')!;
+      g.clearRect(0, 0, 300, 375);
+      g.drawImage(c, 0, 0, 300, 375);
+      if (!calm) photo.animate([{ opacity: 0.35 }, { opacity: 1 }], { duration: 320, easing: 'ease-out' });
+    }, 220);
+  };
+  const renderCard = () => {
+    $('vc-no').textContent = fileNo({ no });
+    $('vc-code').textContent = st.code || '— — —';
+    $('vc-code').classList.toggle('is-empty', !st.code);
+    const dash = '—';
+    const rows: [string, string][] = [
+      [t('District'), st.district ? districtName(st.district, isZh()) : dash],
+      ...QUESTIONS.map((q, i) => [tx(q.label), st.answers[i] >= 0 ? tx(q.opts[st.answers[i]].v) : dash] as [string, string]),
+    ];
+    $('vc-rows').innerHTML = rows.map(([k, v]) => `<div class="${v === dash ? 'is-empty' : ''}"><dt class="micro">${esc(k)}</dt><dd>${esc(v)}</dd></div>`).join('');
+    drawPhoto();
+  };
+
+  /* ---------- the panel ---------- */
+  const panel = $('panel');
+  const mapWrap = $('map-wrap');
+  const err = $('err');
+  const nodes = [...mapWrap.querySelectorAll<SVGGElement>('.map__d')];
+
+  const setDistrict = (id: DistrictId, sound = true) => {
+    st.district = id;
+    nodes.forEach((n) => n.classList.toggle('is-home', n.dataset.d === id));
+    $('blurb').innerHTML = `<b>${esc(districtName(id, isZh()))}</b> ${esc(tx(DISTRICT_TEXT[id].blurb))}`;
+    if (sound) {
+      audio.click();
+      say(DISTRICT_TEXT[id].react);
+    }
+    renderCard();
+  };
+
+  const render = () => {
+    const s = st.step;
+    $('step-label').textContent = tx(LABELS[s]);
+    steps.querySelectorAll('li').forEach((li, i) => li.classList.toggle('is-on', i <= s));
+    mapWrap.hidden = s !== 1;
+    err.hidden = true;
+    $('back').hidden = s === 0;
+    $('next').querySelector('span')!.textContent = s === STEPS - 1 ? t('File application') : s === 5 && !st.line ? t('Skip') : t('Next step');
+
+    if (s === 0) {
+      panel.innerHTML = `<label class="f-qlabel" for="code">${isZh() ? '你想让署里怎么称呼你？' : 'What should the Office call you?'}</label>
+        <input class="f-input" id="code" maxlength="24" autocomplete="off" spellcheck="false" value="${esc(st.code)}" placeholder="${isZh() ? '真名、昵称、代号都行' : 'A name, a nickname, a codename'}" />
+        <p class="f-help">${isZh() ? '中英文都可以。不用填真实信息，署里用不上。' : 'English or Chinese. Not your real details: the Office does not need them.'}</p>`;
+      const input = $<HTMLInputElement>('code');
+      let react = 0;
+      input.addEventListener('input', () => {
+        st.code = input.value;
+        renderCard();
+        window.clearTimeout(react);
+        react = window.setTimeout(() => {
+          const name = st.code.trim();
+          if (!name) return say(COUNTER.codeEmpty);
+          const v = { name };
+          if (/^\d+$/.test(name)) return say(COUNTER.codeNum);
+          if ((COUNTER.known as readonly string[]).includes(name.toLowerCase())) return say(COUNTER.codeKnown, false, v);
+          say(name.length > 14 ? COUNTER.codeLong : COUNTER.code, false, v);
+        }, 600);
+      });
+      if (!matchMedia('(pointer: coarse)').matches) input.focus();
+    } else if (s === 1) {
+      panel.innerHTML = `<p class="f-qlabel">${isZh() ? '你住哪一带？在地图上点一个区。' : 'Where do you live? Tap a district on the map.'}</p>`;
+      nodes.forEach((n) => n.classList.toggle('is-home', n.dataset.d === st.district));
+      if (st.district) setDistrict(st.district, false);
+      else $('blurb').textContent = isZh() ? '还没选。' : 'Nothing chosen yet.';
+    } else if (s <= 4) {
+      const i = s - 2;
+      const q = QUESTIONS[i];
+      panel.innerHTML = `<p class="f-qlabel"><b class="q__n">3.${i + 1}</b>${esc(tx(q.q))}</p>
+        <div class="choice">${q.opts
+          .map((o, j) => `<button type="button" class="choice__o${st.answers[i] === j ? ' is-on' : ''}" data-j="${j}"><i>${j + 1}</i><span>${esc(tx(o.v))}</span></button>`)
+          .join('')}</div>`;
+      panel.querySelectorAll<HTMLButtonElement>('.choice__o').forEach((b) => b.addEventListener('click', () => choose(i, Number(b.dataset.j))));
+    } else if (s === 5) {
+      panel.innerHTML = `<label class="f-qlabel" for="line">${isZh() ? '一样你记得、但别人都说不存在的东西。' : 'Something you remember that everyone else says never existed.'}</label>
+        <textarea class="f-input" id="line" maxlength="60" rows="2" placeholder="${isZh() ? '一部红色公用电话、一家面包店、一个表哥……' : 'A red payphone, a bakery, a cousin…'}">${esc(st.line)}</textarea>
+        <p class="f-help">${isZh() ? '选填。它会被写进你的小秘密，但恢复口令记不住这一句。' : 'Optional. It goes into your secret. It is not kept in the recovery phrase.'}</p>`;
+      const ta = $<HTMLTextAreaElement>('line');
+      ta.addEventListener('input', () => {
+        st.line = ta.value;
+        $('next').querySelector('span')!.textContent = st.line.trim() ? t('Next step') : t('Skip');
+      });
+    } else {
+      const row = (label: string, val: string, to: number) =>
+        `<li><span class="micro">${esc(label)}</span><b>${esc(val)}</b><button type="button" data-go="${to}">${isZh() ? '改' : 'Edit'}</button></li>`;
+      panel.innerHTML = `<p class="f-qlabel">${isZh() ? '核对一遍，归档以后这就是第九稿。' : 'Read it back. Once filed, this is the ninth draft.'}</p>
+        <ul class="readback">${[
+          row(t('Codename'), st.code.trim(), 0),
+          row(t('District'), districtName(st.district!, isZh()), 1),
+          ...QUESTIONS.map((q, i) => row(tx(q.label), tx(q.opts[st.answers[i]].v), i + 2)),
+          row(isZh() ? '你记得' : 'You remember', st.line.trim() || (isZh() ? '（没写）' : '(nothing)'), 5),
+        ].join('')}</ul>`;
+      panel.querySelectorAll<HTMLButtonElement>('[data-go]').forEach((b) =>
+        b.addEventListener('click', () => {
+          st.back = true;
+          go(Number(b.dataset.go));
+        }),
+      );
+    }
+    renderCard();
+  };
+
+  const choose = (i: number, j: number) => {
+    st.answers[i] = j;
+    panel.querySelectorAll('.choice__o').forEach((b, k) => b.classList.toggle('is-on', k === j));
+    audio.click();
+    say(QUESTIONS[i].opts[j].react);
+    renderCard();
+    window.clearTimeout(adv);
+    // Let the clerk finish her remark before moving on
+    adv = window.setTimeout(() => step(1), calm ? 600 : 1500);
+  };
+  let adv = 0;
+
+  const go = (n: number) => {
+    window.clearTimeout(adv);
+    st.step = Math.max(0, Math.min(STEPS - 1, n));
+    audio.paper();
+    const swap = () => {
+      render();
+      const s = st.step;
+      if (s === 0) say(st.code ? COUNTER.code : COUNTER.greet, false, { name: st.code.trim() });
+      else if (s === 1) say(COUNTER.district);
+      else if (s <= 4) say({ en: fill(COUNTER.question.en, { n: String(s - 1) }), zh: fill(COUNTER.question.zh, { n: String(s - 1) }) });
+      else if (s === 5) say(COUNTER.lineAsk);
+      else say(COUNTER.review);
+    };
+    if (calm) return swap();
+    panel.animate([{ opacity: 1 }, { opacity: 0, transform: 'translateY(-4px)' }], { duration: 120, easing: 'ease-in' }).onfinish = () => {
+      swap();
+      panel.animate([{ opacity: 0, transform: 'translateY(6px)' }, { opacity: 1, transform: 'none' }], { duration: 260, easing: 'ease-out' });
+    };
+  };
+
+  const complaint = (l: L) => {
+    err.textContent = tx(l);
+    err.hidden = false;
+    audio.click();
+  };
+  const step = (dir: 1 | -1) => {
+    const s = st.step;
+    if (dir === -1) {
+      st.back = false;
+      return go(s - 1);
+    }
+    if (s === 0 && !st.code.trim()) return complaint({ en: 'A name is required.', zh: '代号必填。' });
+    if (s === 1 && !st.district) return complaint({ en: 'Choose a district.', zh: '选一个区。' });
+    if (s >= 2 && s <= 4 && st.answers[s - 2] < 0) return complaint({ en: 'Choose an answer.', zh: '选一个答案。' });
+    if (s === STEPS - 1) return file();
+    if (s === 5) say(st.line.trim() ? COUNTER.lineGiven : COUNTER.lineSkip, false, { line: st.line.trim() });
+    // Returning from an edit goes straight back to the read-back
+    if (st.back && s !== 5) {
+      st.back = false;
+      return go(STEPS - 1);
+    }
+    go(s + 1);
   };
 
   form.addEventListener('submit', (e) => {
     e.preventDefault();
-    const fd = new FormData(form);
-    const code = String(fd.get('code') ?? '').trim();
-    const district = fd.get('district') as DistrictId | null;
-    const answers = [0, 1, 2].map((i) => fd.get(`q${i}`)).map((a) => (a === null ? -1 : Number(a)));
-    $('err-code').hidden = !!code;
-    $('err-district').hidden = !!district;
-    $('err-q').hidden = answers.every((a) => a >= 0);
-    const bad = form.querySelector<HTMLElement>('.f-err:not([hidden])');
-    if (bad) {
-      audio.click();
-      bad.closest('.f-sec')?.scrollIntoView({ behavior: reducedMotion() ? 'auto' : 'smooth', block: 'center' });
-      return;
-    }
-    const line = String(fd.get('line') ?? '').trim().slice(0, 60);
-    const v: Visitor = {
-      no: 100 + Math.floor(Math.random() * 3996),
-      code,
-      district: district!,
-      answers: answers as [number, number, number],
-      ...(line ? { line } : {}),
-      at: Date.now(),
-    };
-    saveVisitor(v);
-    audio.stamp();
-    const st = $('fstamp');
-    st.classList.remove('is-down');
-    void st.offsetWidth;
-    st.classList.add('is-down');
-    form.querySelectorAll<HTMLInputElement | HTMLButtonElement | HTMLTextAreaElement>('input, button, textarea').forEach((el) => (el.disabled = true));
-    showReceipt(v);
+    step(1);
+  });
+  $('back').addEventListener('click', () => step(-1));
+  window.addEventListener('keydown', (e) => {
+    if (desk.hidden || form.hidden || e.metaKey || e.ctrlKey || e.altKey) return;
+    if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+    if (st.step >= 2 && st.step <= 4 && ['1', '2', '3'].includes(e.key)) choose(st.step - 2, Number(e.key) - 1);
   });
 
+  // Clicking the island
+  nodes.forEach((n) => {
+    const pick = () => setDistrict(n.dataset.d as DistrictId);
+    n.addEventListener('click', pick);
+    n.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        pick();
+      }
+    });
+  });
+
+  /* ---------- filing ---------- */
+  const wait = (ms: number) => new Promise<void>((r) => window.setTimeout(r, calm ? Math.min(ms, 60) : ms));
+  const file = async () => {
+    const v: Visitor = {
+      no,
+      code: st.code.trim(),
+      district: st.district!,
+      answers: st.answers as [number, number, number],
+      ...(st.line.trim() ? { line: st.line.trim().slice(0, 60) } : {}),
+      at: Date.now(),
+    };
+    form.hidden = true;
+    steps.hidden = true;
+    const filing = $('filing');
+    const log = $('filing-log');
+    filing.hidden = false;
+    log.innerHTML = '';
+    say(COUNTER.greet, true);
+    clerk.textContent = '';
+    for (const l of FILING.slice(0, -1)) {
+      const li = document.createElement('li');
+      li.textContent = fill(tx(l), { district: districtName(v.district, isZh()) });
+      log.append(li);
+      audio.tick();
+      await wait(520);
+    }
+    const last = document.createElement('li');
+    last.textContent = tx(FILING[FILING.length - 1]);
+    log.append(last);
+    saveVisitor(v);
+    audio.stamp();
+    const stamp = $('fstamp');
+    stamp.classList.remove('is-down');
+    void stamp.offsetWidth;
+    stamp.classList.add('is-down');
+    await wait(700);
+    filing.hidden = true;
+    say(COUNTER.done);
+    const r = $('receipt');
+    r.hidden = false;
+    $('rc-no').textContent = fileNo(v);
+    const ol = $('rc-phrase');
+    ol.innerHTML = '';
+    markMe();
+    window.setTimeout(() => r.scrollIntoView({ behavior: calm ? 'auto' : 'smooth', block: 'center' }), calm ? 0 : 200);
+    for (const w of toPhrase(v)) {
+      const li = document.createElement('li');
+      li.textContent = w;
+      ol.append(li);
+      if (!calm) li.animate([{ opacity: 0, transform: 'translateY(6px)' }, { opacity: 1, transform: 'none' }], { duration: 300, easing: 'ease-out' });
+      audio.pluck();
+      await wait(380);
+    }
+  };
+
+  /* ---------- restore ---------- */
   $('restore').addEventListener('submit', (e) => {
     e.preventDefault();
     const got = fromPhrase($<HTMLInputElement>('rs-code').value, $<HTMLInputElement>('rs-phrase').value);
@@ -232,8 +436,12 @@ const QUESTIONS = [
     const v: Visitor = { ...got, at: Date.now() };
     saveVisitor(v);
     audio.stamp();
-    already.hidden = true;
-    form.hidden = true;
-    showReceipt(v);
+    markMe();
+    showAlready(v);
   });
+
+  if (!current) {
+    render();
+    say(COUNTER.greet, true);
+  }
 </script>

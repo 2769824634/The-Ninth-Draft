@@ -2,15 +2,12 @@
 import Flat from '../../layouts/Flat.astro';
 import { loadRecords } from '../../lib/records';
 import { DISTRICTS } from '../../app/visitor/districts';
+import IslandMap from '../../components/IslandMap.astro';
 
 const base = import.meta.env.BASE_URL;
 const records = await loadRecords(base);
 const inDistrict = (id: string) => records.filter((r) => r.district === id);
 const unplaced = records.filter((r) => !r.district).length;
-const COLS = 'ABCDEFGHIJ';
-// Drawn by hand: a wide island, a northern lobe, the core on the south shore
-const COAST = 'M170 300C160 240 210 200 270 190C320 150 360 90 430 70C490 60 520 110 560 140C620 150 700 140 760 160C820 170 870 210 880 260C885 300 850 330 800 340C740 360 700 400 640 430C600 450 560 470 500 462C440 455 390 440 340 430C280 420 220 380 190 350Z';
-const OLD = 'M330 404C400 412 460 420 520 410C580 400 620 385 690 362';
 ---
 
 <Flat title="Map of Gerimis — The Ninth Draft" description="The seven districts of Gerimis, with every record pinned where it happened." page="map">
@@ -23,36 +20,7 @@ const OLD = 'M330 404C400 412 460 420 520 410C580 400 620 385 690 362';
 
   <div class="map">
     <div class="map__frame">
-      <svg class="map__svg" id="map" viewBox="0 0 1000 560" role="img" aria-label="Map of Gerimis">
-        <defs>
-          <linearGradient id="map-scan" x1="0" x2="1">
-            <stop offset="0" stop-color="var(--accent)" stop-opacity="0" />
-            <stop offset=".9" stop-color="var(--accent)" stop-opacity=".08" />
-            <stop offset="1" stop-color="var(--accent)" stop-opacity=".22" />
-          </linearGradient>
-        </defs>
-        <g class="map__grid" aria-hidden="true">
-          {Array.from({ length: 9 }, (_, i) => <line x1={(i + 1) * 100} y1="0" x2={(i + 1) * 100} y2="560" />)}
-          {Array.from({ length: 5 }, (_, i) => <line x1="0" y1={(i + 1) * 100} x2="1000" y2={(i + 1) * 100} />)}
-          {Array.from({ length: 10 }, (_, i) => <text x={i * 100 + 8} y="18">{COLS[i]}</text>)}
-          {Array.from({ length: 5 }, (_, i) => <text x="8" y={(i + 1) * 100 + 16}>{String(i + 2).padStart(2, '0')}</text>)}
-        </g>
-        <path class="map__sea" d={COAST} transform="translate(0 14) scale(1 1.03)" aria-hidden="true" />
-        <path class="map__land" d={COAST} />
-        <path class="map__old" d={OLD} aria-hidden="true" />
-        <rect class="map__scan" id="map-scan" x="-160" y="0" width="160" height="560" aria-hidden="true" />
-        {DISTRICTS.map((d) => {
-          const n = inDistrict(d.id).length;
-          return (
-            <g class={`map__d${d.id === 'axis' ? ' is-axis' : ''}`} data-d={d.id} tabindex="0" role="button" aria-label={d.en}>
-              <circle cx={d.x} cy={d.y} r={d.id === 'axis' ? 30 : 24} />
-              <circle class="map__pin" cx={d.x} cy={d.y} r="3.5" />
-              <text x={d.left ? d.x - 36 : d.x + 36} y={d.y - 4} text-anchor={d.left ? 'end' : 'start'}><tspan data-l="en">{d.en}</tspan><tspan data-l="zh" class="map__zh">{d.zh}</tspan></text>
-              <text class="map__n" x={d.left ? d.x - 36 : d.x + 36} y={d.y + 13} text-anchor={d.left ? 'end' : 'start'}>{String(n).padStart(2, '0')} REC.</text>
-            </g>
-          );
-        })}
-      </svg>
+      <IslandMap counts={Object.fromEntries(DISTRICTS.map((d) => [d.id, inDistrict(d.id).length]))} />
       <span class="map__coord micro" id="map-coord">Hover a district</span>
     </div>
 
@@ -162,7 +130,7 @@ const OLD = 'M330 404C400 412 460 420 520 410C580 400 620 385 690 362';
 
   // A survey sweep crosses the sheet now and then
   if (!reducedMotion()) {
-    const scan = document.getElementById('map-scan')!;
+    const scan = document.getElementById('map-sweep')!;
     scan.animate([{ transform: 'translateX(0)' }, { transform: 'translateX(1160px)' }], { duration: 5200, iterations: Infinity, easing: 'linear', delay: 600, endDelay: 3800 });
   }
 </script>

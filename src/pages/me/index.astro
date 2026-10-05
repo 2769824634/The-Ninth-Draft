@@ -82,8 +82,7 @@ const payload = JSON.stringify({ base, records: list }).replace(/</g, '\\u003c')
   const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
   const v = loadVisitor();
   const range = $<HTMLInputElement>('sx-range');
-
-  const SLEEP = [['Before eleven', '十一点前'], ['After two', '两点以后'], ['Unknown', '不详']];
+  const secret = v ? makeSecret(v, data.records, data.base) : null;
 
   const render = () => {
     if (!v) return;
@@ -101,14 +100,13 @@ const payload = JSON.stringify({ base, records: list }).replace(/</g, '\\u003c')
       [t('District'), districtName(v.district, zh)],
       [t('Filed'), date],
       [t('Clearance'), 'PROVISIONAL', true],
-      [t('Asleep'), SLEEP[v.answers[0]][zh ? 1 : 0]],
+      [t('Case type'), secret ? secret.kindName(zh) : ''],
       [t('Revisions'), t('{n} on file', { n: 9 })],
     ];
     $('me-meta').innerHTML = meta.map(([k, val, c]) => `<div><dt class="micro">${k}</dt><dd${c ? ' class="is-conf"' : ''}>${val.replace(/</g, '&lt;')}</dd></div>`).join('');
     draw(false);
   };
 
-  const secret = v ? makeSecret(v, data.records, data.base) : null;
   const draw = (animate: boolean) => {
     if (!secret) return;
     const d = Number(range.value);
