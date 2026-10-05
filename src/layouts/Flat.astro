@@ -12,11 +12,11 @@ import '../styles/flat.css';
 interface Props {
   title: string;
   description?: string;
-  page: 'register' | 'me' | 'map' | 'guide' | 'calendar' | 'district' | 'baseline' | 'daily';
+  page: 'register' | 'me' | 'map' | 'guide' | 'calendar' | 'district' | 'baseline' | 'daily' | 'library';
 }
 const { title, description, page } = Astro.props;
 const base = import.meta.env.BASE_URL;
-const current: NavId | null = page === 'district' ? 'map' : (['map', 'calendar', 'guide', 'daily'] as string[]).includes(page) ? (page as NavId) : null;
+const current: NavId | null = page === 'district' ? 'map' : (['map', 'calendar', 'guide', 'daily', 'library'] as string[]).includes(page) ? (page as NavId) : null;
 ---
 
 <Base title={title} description={description}>
