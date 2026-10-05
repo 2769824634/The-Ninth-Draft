@@ -6,6 +6,7 @@ import { hash, loadPhoto } from '../scene/textures';
 import { halftone, hasPortrait } from '../scene/halftone';
 import { attachmentsHtml, paintNegatives, showDraft } from './attachments';
 import { t } from '../i18n';
+import { reducedMotion } from '../prefs';
 
 type Tab = 'overview' | 'record' | 'related' | 'attachments';
 
@@ -313,8 +314,57 @@ export class Dossier {
     $('dr-cur').style.left = `${((n - 1) / 8) * 100}%`;
     const st = document.getElementById('ds-stamp');
     if (st) st.textContent = info.stamp;
-    if (byUser && changed) audio.flick();
+    if (byUser && changed) {
+      audio.flick();
+      this.follow(n);
+    }
     this.hooks.draft(rec, info, byUser && changed);
+  }
+
+  /**
+   * The slider turns the page: bring up what changed in draft `n` (a line
+   * added, struck, blacked out, a margin note, a paper clipped on), switching
+   * tab when the change lives in another one, and mark it for a moment.
+   */
+  private follow(n: number) {
+    const start = (spec: string | undefined) => Number((spec ?? '').split('-')[0]) || 0;
+    const end = (spec: string | undefined) => {
+      const [a, b] = (spec ?? '').split('-');
+      return Number(b ?? 9) || Number(a) || 0;
+    };
+    const changes = [...this.el.querySelectorAll<HTMLElement>('.rv, .rv-note, .clip[data-draft], .slip__rows tr[data-draft]')].filter((el) => {
+      const d = el.dataset;
+      if (el.classList.contains('rv-note')) return inRange(d.note, n);
+      if (d.add) return Number(d.add) === n;
+      if (d.del) return Number(d.del) === n;
+      if (d.redact) return start(d.redact) === n || end(d.redact) + 1 === n;
+      return Number(d.draft) === n;
+    });
+    const log = document.getElementById('dr-log')!;
+    this.el.querySelectorAll('.is-focus').forEach((el) => el.classList.remove('is-focus'));
+    if (!changes.length) {
+      log.textContent = [log.textContent, t('No changes in this draft')].filter(Boolean).join(' · ');
+      return;
+    }
+    // Stay on the current tab when it has a change; otherwise go where the change is
+    const paneOf = (el: HTMLElement) => el.closest<HTMLElement>('[data-pane]')?.dataset.pane as Tab | undefined;
+    const here = changes.filter((el) => paneOf(el) === this.tab);
+    const target = here[0] ?? changes[0];
+    const tab = paneOf(target);
+    if (tab && tab !== this.tab) this.show(tab, true);
+    const marked = changes.filter((el) => paneOf(el) === tab);
+    void this.el.offsetWidth;
+    marked.forEach((el) => el.classList.add('is-focus'));
+    requestAnimationFrame(() => {
+      // On phones the whole dossier is one scrolling column
+      const sc = this.scroller.scrollHeight > this.scroller.clientHeight + 1 ? this.scroller : this.el;
+      const box = target.getBoundingClientRect();
+      const view = sc.getBoundingClientRect();
+      const bar = sc === this.el ? document.getElementById('drafts')!.offsetHeight : 0;
+      if (box.top >= view.top + 24 && box.bottom <= view.bottom - bar - 24) return;
+      const top = sc.scrollTop + box.top - view.top - (view.height - bar) * 0.3;
+      sc.scrollTo({ top: Math.max(0, top), behavior: reducedMotion() ? 'auto' : 'smooth' });
+    });
   }
 
   private async portrait(rec: ArchiveRecord) {

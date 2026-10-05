@@ -12,6 +12,7 @@ import { System } from './ui/system';
 import { Dossier } from './ui/dossier';
 import { Archivist } from './ui/archivist';
 import { quirks } from './ui/quirks';
+import { fileNo, loadVisitor } from './visitor/store';
 import { clearanceKey, INK } from './clearance';
 import { Search } from './ui/search';
 import { boot } from './ui/boot';
@@ -417,6 +418,17 @@ export function start() {
   const search = new Search(records, categories, base, (r) => openRecord(r), () => voice.say('searchEmpty', {}, false));
 
   /* ---------------- language ---------------- */
+  /* ---------------- the visitor's own file ---------------- */
+  const markMe = () => {
+    const v = loadVisitor();
+    const a = document.getElementById('btn-me') as HTMLAnchorElement | null;
+    if (!a) return;
+    a.href = `${base}${v ? 'me/' : 'register/'}`;
+    a.classList.toggle('is-new', !v);
+    $('me-label').textContent = v ? `${t('My file')} · ${fileNo(v)}` : t('Register');
+  };
+  markMe();
+
   const langBtn = document.getElementById('btn-lang') as HTMLButtonElement;
   const markLang = () => langBtn.setAttribute('data-now', lang());
   markLang();
@@ -434,6 +446,7 @@ export function start() {
       applyRecords(records);
       translateDom(root);
       applySound();
+      markMe();
       wallCount();
       renderHud(true);
       dossier.relang();
@@ -598,7 +611,23 @@ export function start() {
       visits = Number(localStorage.getItem('n9:visits') || 0) + 1;
       localStorage.setItem('n9:visits', String(visits));
     } catch { /* ignore */ }
-    if (!initial && data.room !== 'wall') setTimeout(() => voice.say(visits > 1 ? 'welcomeBack' : prefs.get('theme') === 'night' ? 'night' : 'welcome'), 600);
+    const resident = loadVisitor();
+    if (!initial && data.room !== 'wall') {
+      setTimeout(() => {
+        if (resident) voice.say('resident', { code: resident.code, file: fileNo(resident) });
+        else voice.say(visits > 1 ? 'welcomeBack' : prefs.get('theme') === 'night' ? 'night' : 'welcome');
+      }, 600);
+    }
+    // Unregistered visitors hear about the form once per session
+    let nagged = false;
+    try { nagged = sessionStorage.getItem('n9:nag') === '1'; } catch { /* ignore */ }
+    if (!resident && !nagged) {
+      setTimeout(() => {
+        if (loadVisitor()) return;
+        voice.say('unregistered', {}, false);
+        try { sessionStorage.setItem('n9:nag', '1'); } catch { /* ignore */ }
+      }, 35000);
+    }
     if (!seen) system.say('boot', true);
     if (data.room === 'wall') enterWall(null, false, true);
     else audio.sputnik(categories[col].id === 'programs');

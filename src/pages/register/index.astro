@@ -1,0 +1,239 @@
+---
+import Flat from '../../layouts/Flat.astro';
+import { DISTRICTS } from '../../app/visitor/districts';
+
+const base = import.meta.env.BASE_URL;
+const QUESTIONS = [
+  {
+    en: 'What time do you usually go to sleep?',
+    zh: '你一般几点睡？',
+    opts: [
+      ['Before eleven', '十一点前'],
+      ['After two', '两点以后'],
+      ['Hard to say. The clock is unreliable.', '说不准，钟不太准'],
+    ],
+  },
+  {
+    en: 'The road outside your home: what was it called before?',
+    zh: '你家门口那条路，以前叫什么？',
+    opts: [
+      ['It has always been called this', '一直叫这个'],
+      ['I think it changed', '好像改过'],
+      ['I should not answer this question', '这题我不该答'],
+    ],
+  },
+  {
+    en: 'Where did you last feel that something was off?',
+    zh: '你最近一次觉得「不太对」，是在哪里？',
+    opts: [
+      ['On a bus', '巴士上'],
+      ['In the corridor of my block', '组屋走廊'],
+      ['In front of a mirror', '镜子前'],
+    ],
+  },
+];
+---
+
+<Flat title="Register — The Ninth Draft" description="Register as a resident of Gerimis: a codename, a district, and a small secret only you can read." page="register">
+  <div class="reg">
+    <div>
+      <p class="f-kicker micro"><b>Form RO-9</b><span>Records Office · Residents' Register</span></p>
+      <h1 class="f-title"><span data-l="en">Application for residence</span><span data-l="zh">居民登记申请表</span></h1>
+      <p class="f-lede">
+        <span data-l="en">Every resident of Gerimis has a file. You do not, yet. Fill in this form and the Office will open one: a file number, a district, and one small secret that only you will be able to read.</span>
+        <span data-l="zh">霏微的每个居民都有一份档案。你暂时还没有。填好这张表，署里会给你开一份：一个档案编号、一个住处，还有一个只有你自己看得到的小秘密。</span>
+      </p>
+
+      <div class="receipt" id="already" hidden>
+        <p class="micro"><span>Already on file</span></p>
+        <p class="receipt__no" id="already-no">V-0000</p>
+        <p class="f-lede" style="margin-top:0"><span data-l="en">You are registered as</span><span data-l="zh">你已登记，代号</span> <b id="already-code"></b>.</p>
+        <div class="receipt__acts">
+          <a class="f-btn" href={`${base}me/`}><span>Open my file</span><svg viewBox="0 0 24 12" aria-hidden="true"><path d="M0 6h22M17 1l5 5-5 5" /></svg></a>
+          <button class="f-btn f-btn--ghost" type="button" id="again"><span>Register again</span></button>
+        </div>
+        <p class="f-help"><span data-l="en">Registering again replaces your current file. The old one will be revised out.</span><span data-l="zh">重新登记会替换现在的档案，旧的那份会被修订掉。</span></p>
+      </div>
+
+      <form class="form" id="form" novalidate>
+        <div class="form__top micro"><span class="form__no">RO-9 / 1999</span><span>Please write clearly</span></div>
+        <span class="fstamp" id="fstamp" aria-hidden="true">PROVISIONAL</span>
+
+        <section class="f-sec">
+          <h2 class="f-sec__h"><i>01</i><span>Codename</span></h2>
+          <input class="f-input" id="code" name="code" maxlength="24" autocomplete="off" spellcheck="false" placeholder="What should the Office call you?" required />
+          <p class="f-help"><span data-l="en">A name, a nickname or a codename. English or Chinese. Not your real details: the Office does not need them.</span><span data-l="zh">真名、昵称、代号都行，中英文都可以。不用填真实信息，署里用不上。</span></p>
+          <p class="f-err" id="err-code" hidden>Codename required</p>
+        </section>
+
+        <section class="f-sec">
+          <h2 class="f-sec__h"><i>02</i><span>District of residence</span></h2>
+          <fieldset class="dist">
+            <legend class="sr-only">District of residence</legend>
+            {DISTRICTS.map((d) => (
+              <label class="opt">
+                <input type="radio" name="district" value={d.id} />
+                <span class="opt__box">
+                  <span class="opt__name"><span data-l="en">{d.en}</span><span data-l="zh">{d.zh}</span></span>
+                  <span class="opt__sub micro"><span data-l="en">{d.zh}</span><span data-l="zh">{d.en}</span> · <span>{d.note}</span></span>
+                </span>
+              </label>
+            ))}
+          </fieldset>
+          <p class="f-err" id="err-district" hidden>Choose a district</p>
+        </section>
+
+        <section class="f-sec">
+          <h2 class="f-sec__h"><i>03</i><span>Routine questions</span></h2>
+          {QUESTIONS.map((q, i) => (
+            <fieldset class="q">
+              <legend><b>3.{i + 1}</b><span data-l="en">{q.en}</span><span data-l="zh">{q.zh}</span></legend>
+              <div class="q__opts">
+                {q.opts.map(([en, zh], j) => (
+                  <label class="opt">
+                    <input type="radio" name={`q${i}`} value={j} />
+                    <span class="opt__box"><span><span data-l="en">{en}</span><span data-l="zh">{zh}</span></span></span>
+                  </label>
+                ))}
+              </div>
+            </fieldset>
+          ))}
+          <p class="f-err" id="err-q" hidden>Answer all three</p>
+        </section>
+
+        <section class="f-sec">
+          <h2 class="f-sec__h"><i>04</i><span>Optional</span></h2>
+          <label for="line" class="f-qlabel"><span data-l="en">Something you remember that everyone else says never existed.</span><span data-l="zh">一样你记得、但别人都说不存在的东西。</span></label>
+          <textarea class="f-input" id="line" name="line" maxlength="60" rows="2" placeholder="A red payphone, a bakery, a cousin…"></textarea>
+          <p class="f-help"><span data-l="en">It goes into your secret. It is not kept in the recovery phrase.</span><span data-l="zh">它会被写进你的小秘密里，但恢复口令记不住这一句。</span></p>
+        </section>
+
+        <div class="form__sign">
+          <p><span data-l="en">By filing this form you agree that the Office may revise you. It probably will not.</span><span data-l="zh">提交即表示你同意署方在必要时修订你。一般不会。</span></p>
+          <button class="f-btn" type="submit"><span>File application</span><svg viewBox="0 0 24 12" aria-hidden="true"><path d="M0 6h22M17 1l5 5-5 5" /></svg></button>
+        </div>
+      </form>
+
+      <div class="receipt" id="receipt" hidden aria-live="polite">
+        <p class="micro"><span>Filed · Provisional resident</span></p>
+        <p class="receipt__no" id="rc-no">V-0000</p>
+        <p class="f-lede" style="margin-top:0"><span data-l="en">Your recovery phrase. Write it down with your codename: together they open your file on any other device.</span><span data-l="zh">这是你的恢复口令。和代号一起抄下来，换手机、换电脑都能用它找回档案。</span></p>
+        <ol class="phrase" id="rc-phrase"></ol>
+        <div class="receipt__acts">
+          <a class="f-btn" href={`${base}me/`}><span>Open my file</span><svg viewBox="0 0 24 12" aria-hidden="true"><path d="M0 6h22M17 1l5 5-5 5" /></svg></a>
+          <a class="f-btn f-btn--ghost" href={`${base}map/`}><span>Find my district</span></a>
+        </div>
+      </div>
+    </div>
+
+    <aside class="side">
+      <div class="side__box">
+        <h3>What happens</h3>
+        <ol>
+          <li><span data-l="en">You get a file number and a provisional stamp.</span><span data-l="zh">你会拿到一个档案编号，盖临时居民章。</span></li>
+          <li><span data-l="en">The Office writes your file, including one small secret. Only you can see it.</span><span data-l="zh">署里给你写一份档案，其中有一个小秘密，只有你看得到。</span></li>
+          <li><span data-l="en">The secret points at real files. Go and look.</span><span data-l="zh">小秘密会指向档案馆里真实的档案。去翻翻看。</span></li>
+        </ol>
+      </div>
+      <div class="side__box">
+        <h3>Nothing leaves your browser</h3>
+        <p><span data-l="en">Your file is kept only on this device. No email, no password, no real names. Clearing your browser clears your file, unless you keep the phrase.</span><span data-l="zh">档案只存在这台设备的浏览器里。不要邮箱，不要密码，不要真名。清掉浏览器数据，档案也就没了，除非你记着口令。</span></p>
+      </div>
+      <form class="side__box" id="restore" novalidate>
+        <h3>Restore a file</h3>
+        <p><span data-l="en">Registered on another device? Enter the same codename and your four words.</span><span data-l="zh">在别的设备登记过？输入同一个代号和四个词。</span></p>
+        <input class="f-input" id="rs-code" maxlength="24" autocomplete="off" spellcheck="false" placeholder="Codename" />
+        <input class="f-input" id="rs-phrase" autocomplete="off" spellcheck="false" placeholder="Four words" />
+        <p class="f-err" id="err-restore" hidden>No such file. Check the codename and the four words.</p>
+        <button class="f-btn f-btn--ghost" type="submit"><span>Restore</span></button>
+      </form>
+    </aside>
+  </div>
+</Flat>
+
+<script>
+  import { flat } from '../../app/flat';
+  import { audio } from '../../app/audio';
+  import { reducedMotion } from '../../app/prefs';
+  import { toPhrase, fromPhrase } from '../../app/visitor/phrase';
+  import { fileNo, loadVisitor, saveVisitor, type Visitor } from '../../app/visitor/store';
+  import type { DistrictId } from '../../app/visitor/districts';
+
+  const { markMe } = flat();
+  const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
+  const form = $<HTMLFormElement>('form');
+  const already = $('already');
+
+  const showAlready = (v: Visitor) => {
+    already.hidden = false;
+    form.hidden = true;
+    $('already-no').textContent = fileNo(v);
+    $('already-code').textContent = v.code;
+  };
+  const current = loadVisitor();
+  if (current) showAlready(current);
+  $('again').addEventListener('click', () => {
+    already.hidden = true;
+    form.hidden = false;
+    $<HTMLInputElement>('code').focus();
+  });
+
+  const showReceipt = (v: Visitor) => {
+    const r = $('receipt');
+    r.hidden = false;
+    $('rc-no').textContent = fileNo(v);
+    $('rc-phrase').innerHTML = toPhrase(v).map((w) => `<li>${w}</li>`).join('');
+    markMe();
+    window.setTimeout(() => r.scrollIntoView({ behavior: reducedMotion() ? 'auto' : 'smooth', block: 'center' }), reducedMotion() ? 0 : 700);
+  };
+
+  form.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const fd = new FormData(form);
+    const code = String(fd.get('code') ?? '').trim();
+    const district = fd.get('district') as DistrictId | null;
+    const answers = [0, 1, 2].map((i) => fd.get(`q${i}`)).map((a) => (a === null ? -1 : Number(a)));
+    $('err-code').hidden = !!code;
+    $('err-district').hidden = !!district;
+    $('err-q').hidden = answers.every((a) => a >= 0);
+    const bad = form.querySelector<HTMLElement>('.f-err:not([hidden])');
+    if (bad) {
+      audio.click();
+      bad.closest('.f-sec')?.scrollIntoView({ behavior: reducedMotion() ? 'auto' : 'smooth', block: 'center' });
+      return;
+    }
+    const line = String(fd.get('line') ?? '').trim().slice(0, 60);
+    const v: Visitor = {
+      no: 100 + Math.floor(Math.random() * 3996),
+      code,
+      district: district!,
+      answers: answers as [number, number, number],
+      ...(line ? { line } : {}),
+      at: Date.now(),
+    };
+    saveVisitor(v);
+    audio.stamp();
+    const st = $('fstamp');
+    st.classList.remove('is-down');
+    void st.offsetWidth;
+    st.classList.add('is-down');
+    form.querySelectorAll<HTMLInputElement | HTMLButtonElement | HTMLTextAreaElement>('input, button, textarea').forEach((el) => (el.disabled = true));
+    showReceipt(v);
+  });
+
+  $('restore').addEventListener('submit', (e) => {
+    e.preventDefault();
+    const got = fromPhrase($<HTMLInputElement>('rs-code').value, $<HTMLInputElement>('rs-phrase').value);
+    $('err-restore').hidden = !!got;
+    if (!got) {
+      audio.click();
+      return;
+    }
+    const v: Visitor = { ...got, at: Date.now() };
+    saveVisitor(v);
+    audio.stamp();
+    already.hidden = true;
+    form.hidden = true;
+    showReceipt(v);
+  });
+</script>

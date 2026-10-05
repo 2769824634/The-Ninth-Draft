@@ -1,0 +1,77 @@
+---
+import Flat from '../../layouts/Flat.astro';
+
+const base = import.meta.env.BASE_URL;
+const STEPS = [
+  {
+    en: ['Read the files', 'Every file has been revised nine times. You are reading the ninth draft. Slide back through the earlier drafts to see what was added, struck out, blacked out, and what Heuss wrote in the margin.'],
+    zh: ['翻档案', '每份档案都改过九稿，你看到的是定稿。往回拖修订滑杆，能看到哪句是后加的、哪句被划掉、哪句被涂黑，还有 Heuss 在页边写了什么。'],
+  },
+  {
+    en: ['Follow the red string', 'The link wall pins every file to one board. The red string runs between people and events that know each other. Some of them would rather not.'],
+    zh: ['顺着红线走', '线索墙把所有档案钉在一块板上。红线连着彼此认识的人和事，其中有些宁可不认识。'],
+  },
+  {
+    en: ['Register', 'Fill in Form RO-9 and become a resident: a codename, a district, a file number. The Office writes you a small secret that only you can read.'],
+    zh: ['入馆登记', '填一张 RO-9 表，成为霏微居民：代号、住处、档案编号。署里会给你写一个小秘密，只有你自己看得到。'],
+  },
+  {
+    en: ['Look for yourself', 'Your secret points at real files in the archive. Go and find them. Things here have a habit of happening on the 9th.'],
+    zh: ['找你自己', '你的小秘密会指向档案馆里真实的档案，去把它们找出来。这里的事，总爱发生在 9 号。'],
+  },
+];
+---
+
+<Flat title="Visitor's guide — The Ninth Draft" description="What the Records Office of Gerimis is, and what you can do here." page="guide">
+  <div class="guide">
+    <p class="f-kicker micro"><b>Notice</b><span>Records Office · For visitors</span></p>
+    <h1 class="f-title"><span data-l="en">Visitor's guide</span><span data-l="zh">入馆须知</span></h1>
+    <p class="f-lede">
+      <span data-l="en">Gerimis is a small island in a strait. It is 1999, and it will stay 1999. When a file is revised, the island changes with it, and now and then a struck-out draft leaks back into the street. The Office calls this backflow. The Office would like you not to call it anything.</span>
+      <span data-l="zh">霏微是海峡里的一座小岛。现在是 1999 年，以后也是。档案一改，岛跟着改；偶尔，被划掉的旧稿会漏回街上。署里管这叫「回流」。署里希望你什么都别叫它。</span>
+    </p>
+
+    <section class="f-sec">
+      <h2 class="f-sec__h"><i>01</i><span>What you can do here</span></h2>
+      <ol class="guide__grid">
+        {STEPS.map((s) => (
+          <li>
+            <h3><span data-l="en">{s.en[0]}</span><span data-l="zh">{s.zh[0]}</span></h3>
+            <p><span data-l="en">{s.en[1]}</span><span data-l="zh">{s.zh[1]}</span></p>
+          </li>
+        ))}
+      </ol>
+    </section>
+
+    <section class="f-sec">
+      <h2 class="f-sec__h"><i>02</i><span>House rules</span></h2>
+      <div class="guide__rules">
+        <p><span data-l="en">Everything in the files is open to read. If something is locked, it is meant to be, and somewhere on the island there is a way in.</span><span data-l="zh">档案正文全部公开。如果有什么上了锁，那是故意的，而且岛上某处一定有钥匙。</span></p>
+        <p><span data-l="en">Your file lives only in your own browser. Keep your codename and recovery phrase if you want it back.</span><span data-l="zh">你的档案只存在你自己的浏览器里。想找回来，就记好代号和恢复口令。</span></p>
+        <p><span data-l="en">The files are written by residents of Gerimis. Any resemblance to real persons is the previous draft.</span><span data-l="zh">档案由霏微居民执笔。如与现实人物雷同，是上一稿。</span></p>
+        <p><span data-l="en">Click on things. Hold things. The archive notices.</span><span data-l="zh">到处点点，到处按按。档案馆都看在眼里。</span></p>
+      </div>
+    </section>
+
+    <div class="guide__acts">
+      <a class="f-btn" href={`${base}register/`} id="guide-go"><span>Register</span><svg viewBox="0 0 24 12" aria-hidden="true"><path d="M0 6h22M17 1l5 5-5 5" /></svg></a>
+      <a class="f-btn f-btn--ghost" href={base}><span>Enter the archive</span></a>
+    </div>
+  </div>
+</Flat>
+
+<script>
+  import { flat } from '../../app/flat';
+  import { t } from '../../app/i18n';
+  import { loadVisitor } from '../../app/visitor/store';
+
+  const go = document.getElementById('guide-go') as HTMLAnchorElement;
+  const mark = () => {
+    if (!loadVisitor()) return;
+    go.href = go.href.replace(/register\/$/, 'me/');
+    go.querySelector('span')!.textContent = t('Open my file');
+  };
+  const { base } = flat(mark);
+  void base;
+  mark();
+</script>
