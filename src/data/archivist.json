@@ -297,5 +297,34 @@
       "There. Due back on the date shown. Nobody checks.",
       "Stamped. The ink pad's nearly dry, that's why it's pale."
     ]
+  },
+  "machine": {
+    "enter": [
+      "The machine room. Mind the cables, and don't lean on the cabinets; they're warmer than they look.",
+      "Down here it's always the same temperature. The air conditioning is the only thing in the building that works to schedule."
+    ],
+    "log": [
+      "Every draft the Office has ever issued goes through that screen. It scrolls all night whether anyone reads it or not."
+    ],
+    "year": [
+      "Two digits. Heuss has been saying it for a year. Press the button if you like; it's been pressed before."
+    ],
+    "clocks": [
+      "Seven clocks, two of them wrong, and they've been wrong the same way since March."
+    ],
+    "backup": [
+      "YosH's tapes. Every earlier draft is on one of those reels, whatever the Office says."
+    ],
+    "console": [
+      "The operator's terminal. Type HELP; it won't mind.",
+      "That's Heuss's thermos. He'll be back for it."
+    ],
+    "logout": [
+      "Lights off as you go. The fans stay on."
+    ],
+    "idle": [
+      "The fans change note around midnight. Nobody knows why.",
+      "The tape drive clicks every few minutes on its own. It's cleaning itself, apparently."
+    ]
   }
 }
