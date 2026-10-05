@@ -1,0 +1,35 @@
+---
+import Base from '../../layouts/Base.astro';
+
+const base = import.meta.env.BASE_URL;
+---
+
+<Base title="— The Ninth Draft" description="">
+  <main class="out" id="out">
+    <p class="out__line">
+      <span data-l="en">Everything on the island is normal. If anything is different, it is you<a class="out__dot" href={base} aria-label="Return to the archive">.</a></span>
+      <span data-l="zh">本岛一切如常。不对劲的，是你<a class="out__dot" href={base} aria-label="回到档案馆">。</a></span>
+    </p>
+  </main>
+</Base>
+
+<script>
+  import { audio } from '../../app/audio';
+  // The only way back is the full stop; the line itself waits a moment before it appears.
+  const line = document.querySelector<HTMLElement>('.out__line')!;
+  window.setTimeout(() => line.classList.add('is-on'), 1400);
+  window.addEventListener('pointerdown', () => audio.click(), { once: true });
+</script>
+
+<style is:global>
+  html:has(.out) { background: #050606; }
+  .out { min-height: 100vh; min-height: 100dvh; display: grid; place-items: center; padding: 2rem 1.4rem; background: #050606; color: #d9d8d2; }
+  .out__line { margin: 0; max-width: 34rem; text-align: center; font-family: var(--f-serif); font-size: clamp(1.15rem, 3.4vw, 1.7rem); line-height: 1.7; letter-spacing: .02em; opacity: 0; transition: opacity 2200ms var(--ease); }
+  .out__line.is-on { opacity: 1; }
+  html[data-lang='zh'] .out__line { line-height: 2; letter-spacing: .08em; }
+  .out [data-l] { display: none; }
+  html[data-lang='en'] .out [data-l='en'], html[data-lang='zh'] .out [data-l='zh'] { display: inline; }
+  .out__dot { color: inherit; text-decoration: none; cursor: default; padding: .4em .15em; }
+  .out__dot:hover, .out__dot:focus-visible { cursor: pointer; color: #c1272d; outline: none; }
+  @media (prefers-reduced-motion: reduce) { .out__line { transition: none; } }
+</style>
