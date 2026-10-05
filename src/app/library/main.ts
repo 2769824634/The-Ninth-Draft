@@ -376,6 +376,19 @@ export function library() {
       picked: (b) => take(b.id),
     });
     scene.setTheme(prefs.get('theme'));
+    // ?perf: frame rate, quality step and graphics card, to check on a real device
+    if (new URLSearchParams(location.search).has('perf')) {
+      const meter = document.createElement('p');
+      meter.className = 'lib__perf micro';
+      meter.setAttribute('data-no-i18n', '');
+      root.append(meter);
+      const tiers = ['full', 'lower resolution', 'book shadows off', 'pendant light off'];
+      window.setInterval(() => {
+        if (!scene) return;
+        const fps = Math.round(1000 / scene.frameMs);
+        meter.textContent = `${fps} fps · ${scene.frameMs.toFixed(1)} ms · quality ${scene.tier} (${tiers[scene.tier]}) · ${scene.gpu}`;
+      }, 500);
+    }
     requestAnimationFrame(() => root.classList.add('is-lit'));
   } catch (err) {
     console.error('[library] reading room unavailable', err);

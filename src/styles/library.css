@@ -228,6 +228,9 @@
 .lib-desk__stamps .lib-stamp:last-child { color: var(--accent); }
 .lib-desk .f-btn { align-self: flex-start; }
 
+/* ?perf readout */
+.lib__perf { position: absolute; z-index: 5; right: var(--edge); bottom: 3.4rem; margin: 0; padding: .3rem .6rem; background: var(--ink); color: var(--bg); max-width: 60vw; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
 /* no WebGL: lists and panels are the library */
 .lib.no-webgl .lib__canvas { display: none; }
 

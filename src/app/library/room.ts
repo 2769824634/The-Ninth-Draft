@@ -57,6 +57,8 @@ export class Room {
   readonly shaftMat: THREE.ShaderMaterial;
   readonly dust: THREE.Points;
   readonly rain = rainTexture();
+  /** The uncatalogued volumes, one instanced mesh per run. */
+  readonly fillers: THREE.InstancedMesh[] = [];
   readonly rack: Rack;
   readonly cabinet: Cabinet;
   readonly desk: Desk;
@@ -306,8 +308,10 @@ export class Room {
       im.setMatrixAt(i, v.m);
       im.setColorAt(i, v.c);
     });
-    im.receiveShadow = true;
+    // every volume on the shelves casts its own shadow
+    im.castShadow = im.receiveShadow = true;
     this.group.add(im);
+    this.fillers.push(im);
   }
 
   /* ---------------- tables and pendants ---------------- */
