@@ -30,8 +30,22 @@ const base = import.meta.env.BASE_URL;
     background: var(--bg);
     color: var(--ink);
   }
-  .gone :global(.seal) { width: 7rem; height: 7rem; opacity: .85; }
-  .gone :global(.seal__draw) { stroke-dashoffset: 0; }
+  /* the seal's own styles live with the boot overlay, which this page does not load */
+  .gone :global(.seal) { width: 7rem; height: 7rem; overflow: visible; opacity: .85; }
+  .gone :global(.seal__draw) {
+    fill: none;
+    stroke: var(--ink);
+    stroke-width: 2.2;
+    stroke-dasharray: 1;
+    stroke-dashoffset: 1;
+    animation: gone-draw 1.6s var(--ease-io) forwards;
+  }
+  .gone :global(.seal__thin) { stroke-width: .9; animation-delay: .25s; }
+  .gone :global(.seal__orbit) { stroke: var(--accent); stroke-width: 1.4; animation-delay: .7s; }
+  .gone :global(.seal__text) { font-family: var(--f-mono); font-size: 10.5px; letter-spacing: 3.1px; fill: var(--ink); }
+  .gone :global(.seal__nine) { font-family: var(--f-sans); font-weight: 800; font-stretch: 112%; font-size: 76px; fill: var(--ink); }
+  .gone :global(.seal__sat) { display: none; }
+  @keyframes gone-draw { to { stroke-dashoffset: 0; } }
   .gone__no { color: var(--ink-3); }
   .gone__title {
     margin: 0;
@@ -59,5 +73,6 @@ const base = import.meta.env.BASE_URL;
   .gone__back { color: var(--ink); text-decoration: none; border-bottom: 1px solid var(--accent); padding-bottom: .15rem; }
   @media (prefers-reduced-motion: reduce) {
     .gone__old { animation: none; opacity: .55; }
+    .gone :global(.seal__draw) { animation: none; stroke-dashoffset: 0; }
   }
 </style>

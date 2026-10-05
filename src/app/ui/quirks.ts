@@ -153,7 +153,7 @@ function poke(voice: Archivist) {
   el.addEventListener('click', () => {
     window.clearTimeout(reset);
     n += 1;
-    reset = window.setTimeout(() => (n = 0), 4000);
+    reset = window.setTimeout(() => (n = 0), 6000);
     if (n >= 5) {
       n = 0;
       voice.say('pokeAngry');
