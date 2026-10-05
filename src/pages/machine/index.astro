@@ -1,0 +1,51 @@
+---
+import Flat from '../../layouts/Flat.astro';
+import { loadRecords } from '../../lib/records';
+import { buildMachine } from '../../lib/machine';
+import '../../styles/library.css';
+import '../../styles/machine.css';
+
+const base = import.meta.env.BASE_URL;
+const data = buildMachine(await loadRecords(base));
+const payload = JSON.stringify({ ...data, base }).replace(/</g, '\\u003c');
+const zones = [
+  { id: 'overview', en: 'The whole room', zh: '整间机房' },
+  { id: 'log', en: 'Revision log', zh: '修订日志' },
+  { id: 'year', en: 'Year field', zh: '年份字段' },
+  { id: 'clocks', en: 'District clocks', zh: '各区时钟' },
+  { id: 'backup', en: 'Backup tapes', zh: '备份磁带' },
+  { id: 'console', en: 'Operator console', zh: '操作员终端' },
+];
+---
+
+<Flat title="Machine room — The Ninth Draft" description="The Data Section's machines in the basement: the revision log, the year field, the district clocks, the backup tapes and the operator console." page="machine">
+  <div class="mr" id="mr" data-zone="overview">
+    <div class="mr__view" id="mr-view"><div class="mr__world" id="mr-world"></div></div>
+
+    <div class="lib__head mr__head">
+      <p class="lib__kicker micro"><span data-l="en">Basement / Data Section</span><span data-l="zh">地下一层 / 数据组</span></p>
+      <h1 class="lib__title"><span data-l="en">Machine room</span><span data-l="zh">机房</span></h1>
+      <p class="lib__stats micro"><span data-l="en">5 terminals · {data.log.length} revisions logged · {data.files.length} files</span><span data-l="zh">终端 5 台 · 修订 {data.log.length} 条 · 档案 {data.files.length} 份</span></p>
+      <nav class="lib__zones" id="mr-zones" aria-label="Machines">
+        {zones.map((z, i) => (
+          <button type="button" data-zone={z.id} aria-pressed={i === 0 ? 'true' : 'false'}><i>{String(i).padStart(2, '0')}</i><span>{z.en}</span></button>
+        ))}
+      </nav>
+    </div>
+
+    <div class="lib__foot">
+      <p class="voice" id="voice" aria-live="polite"><span class="voice__who"><i></i>Archivist</span><span class="voice__line" id="voice-line"></span></p>
+      <p class="lib__hints micro">
+        <span data-l="en">0–5 machines · ← → next · Esc back</span>
+        <span data-l="zh">0–5 切换机器 · ← → 下一台 · Esc 返回</span>
+      </p>
+    </div>
+  </div>
+
+  <script type="application/json" id="mr-data" set:html={payload} />
+</Flat>
+
+<script>
+  import { machine } from '../../app/machine/main';
+  machine();
+</script>
