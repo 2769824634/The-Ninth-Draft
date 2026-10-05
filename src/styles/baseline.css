@@ -1,19 +1,29 @@
 /* ==========================================================================
-   Baseline test: a 3D booth with the console under it
+   Baseline test: a white booth, flat, with the console under it
    ========================================================================== */
 .bl__defs { position: absolute; }
 .bl { margin-top: 1.6rem; --split: 0px; }
-.bl__stage { position: relative; aspect-ratio: 16 / 8.5; max-height: 68vh; min-height: 16rem; border: 1px solid var(--ink); background: #06080a; overflow: hidden; box-shadow: .5rem .5rem 0 var(--line); }
-.bl__stage canvas { display: block; width: 100%; height: 100%; }
-.bl.is-flat .bl__stage { aspect-ratio: auto; min-height: 5rem; max-height: none; }
-.bl.is-flat .bl__stage canvas { display: none; }
-.bl__hud { position: absolute; inset: 0 0 auto 0; display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: .8rem 1rem; color: #cfe3da; pointer-events: none; }
+.bl__stage { position: relative; aspect-ratio: 16 / 8; max-height: 62vh; min-height: 15rem; border: 1px solid #14181a; background: #e9ebe6; color: #14181a; overflow: hidden; box-shadow: .5rem .5rem 0 var(--line); }
+.bl__stage::before { content: ''; position: absolute; inset: 0; background: linear-gradient(90deg, rgba(20, 24, 26, .06), transparent 18%, transparent 82%, rgba(20, 24, 26, .06)); pointer-events: none; }
+.bl__voice { position: absolute; left: 6%; top: 22%; bottom: 30%; width: 26%; display: flex; flex-direction: column; justify-content: space-between; }
+.bl__voice i { display: block; height: 3px; background: #14181a; opacity: .22; transform-origin: left; transition: opacity var(--t-1) var(--ease), transform var(--t-1) var(--ease); }
+.bl__voice.is-talk i { opacity: .8; animation: bl-talk 640ms var(--ease) infinite alternate; }
+.bl__voice.is-talk i:nth-child(3n) { animation-delay: -.2s; }
+.bl__voice.is-talk i:nth-child(3n + 1) { animation-delay: -.4s; }
+@keyframes bl-talk { from { transform: scaleX(.35); } to { transform: scaleX(1); } }
+.bl__voice p { position: absolute; left: 0; bottom: -1.8rem; margin: 0; color: #14181a; opacity: .7; }
+.bl__scan { position: absolute; right: 5%; top: 14%; width: 38%; height: 62%; }
+.bl__trace { position: absolute; left: 5%; right: 5%; bottom: 7%; width: 90%; height: 16%; }
+.bl__log { position: absolute; left: 36%; right: 46%; top: 40%; display: flex; flex-wrap: wrap; gap: .2rem .6rem; margin: 0; color: #14181a; font-size: .75rem; line-height: 1.5; }
+.bl__log span { opacity: .7; }
+.bl__log span[data-dev='2'] { color: #c1272d; text-decoration: line-through; opacity: 1; }
+.bl__hud { position: absolute; inset: 0 0 auto 0; display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: .8rem 1rem; color: #14181a; pointer-events: none; }
 .bl__segs { display: grid; grid-template-columns: repeat(9, 1.4rem); gap: .25rem; margin: 0; padding: 0; list-style: none; }
-.bl__segs li { height: .3rem; background: rgba(207, 227, 218, .22); transition: background var(--t-2) var(--ease); }
+.bl__segs li { height: .3rem; background: rgba(20, 24, 26, .18); transition: background var(--t-2) var(--ease); }
 .bl__segs li.is-on { background: #c1272d; }
-.bl__dev, .bl__dev span { margin: 0; color: #cfe3da; }
+.bl__dev, .bl__dev span { margin: 0; color: #14181a; }
 .bl__dev b { font-family: var(--f-mono); font-weight: 500; font-size: 1.1rem; margin-left: .4rem; }
-.bl__stamp { position: absolute; right: 8%; bottom: 14%; padding: .5rem 1.2rem; border: 5px double #c1272d; color: #c1272d; background: rgba(6, 8, 10, .55); font-family: var(--f-mono); font-weight: 700; font-size: clamp(1.4rem, 5vw, 3rem); letter-spacing: .2em; transform: rotate(-8deg); opacity: 0; pointer-events: none; }
+.bl__stamp { position: absolute; left: 5%; top: 36%; padding: .5rem 1.2rem; border: 5px double #c1272d; color: #c1272d; background: rgba(233, 235, 230, .8); font-family: var(--f-mono); font-weight: 700; font-size: clamp(1.4rem, 5vw, 3rem); letter-spacing: .2em; transform: rotate(-8deg); opacity: 0; pointer-events: none; }
 .bl__stamp.is-down { animation: bl-stamp 420ms var(--ease) forwards; }
 @keyframes bl-stamp { 0% { opacity: 0; transform: rotate(-8deg) scale(2.2); } 60% { opacity: 1; transform: rotate(-8deg) scale(.94); } 100% { opacity: .95; transform: rotate(-8deg) scale(1); } }
 
@@ -39,9 +49,13 @@
 .bl__verdict { margin: .2rem 0 .6rem; font-family: var(--f-display); font-weight: 800; font-stretch: 120%; font-size: clamp(1.8rem, 5vw, 3.2rem); text-transform: uppercase; line-height: 1; }
 
 @media (max-width: 700px) {
-  .bl__stage { aspect-ratio: 4 / 4.6; max-height: none; }
+  .bl__stage { aspect-ratio: 4 / 5; max-height: none; }
   .bl__segs { grid-template-columns: repeat(9, .9rem); }
   .bl__hud { flex-direction: column; align-items: flex-start; gap: .3rem; }
-  .bl__stamp { right: 6%; bottom: 8%; }
+  .bl__voice { left: 8%; width: 84%; top: 17%; bottom: auto; height: 3.2rem; }
+  .bl__scan { right: 16%; top: 27%; width: 68%; height: 36%; }
+  .bl__log { left: 8%; right: 8%; top: auto; bottom: 21%; font-size: .65rem; }
+  .bl__trace { bottom: 5%; height: 13%; }
+  .bl__stamp { left: 50%; top: 40%; margin-left: -5rem; }
 }
-@media (prefers-reduced-motion: reduce) { .bl__stamp.is-down { animation: none; opacity: .95; } .bl__opt:hover:not(:disabled) { transform: none; } }
+@media (prefers-reduced-motion: reduce) { .bl__stamp.is-down { animation: none; opacity: .95; } .bl__opt:hover:not(:disabled) { transform: none; } .bl__voice.is-talk i { animation: none; } }

@@ -19,7 +19,13 @@ const arrow = '<svg viewBox="0 0 24 12" aria-hidden="true"><path d="M0 6h22M17 1
 
   <div class="bl" id="bl" data-state="intro">
     <div class="bl__stage">
-      <canvas id="bl-canvas" aria-hidden="true"></canvas>
+      <div class="bl__voice" id="bl-voice" aria-hidden="true">
+        <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+        <p class="micro"><span data-l="en">Voice only</span><span data-l="zh">仅有声音</span></p>
+      </div>
+      <canvas class="bl__scan" id="bl-scan" aria-hidden="true"></canvas>
+      <canvas class="bl__trace" id="bl-trace" aria-hidden="true"></canvas>
+      <p class="bl__log micro" id="bl-log" aria-hidden="true"></p>
       <div class="bl__hud">
         <ol class="bl__segs" id="bl-segs" aria-hidden="true"></ol>
         <p class="bl__dev micro"><span>Deviation</span> <b id="bl-dev">00%</b></p>
@@ -67,7 +73,7 @@ const arrow = '<svg viewBox="0 0 24 12" aria-hidden="true"><path d="M0 6h22M17 1
   import { speakCold, stopSpeaking } from '../../app/ui/voice';
   import { downpour, isStorming } from '../../app/ui/downpour';
   import { canvasFontsReady } from '../../app/scene/textures';
-  import { Booth } from '../../app/baseline/booth';
+  import { Scan } from '../../app/baseline/scan';
   import { MAX_POINTS, POINTS, REMARKS, ROUNDS, VERDICTS, loadBaseline, saveBaseline, verdictOf, type Dev } from '../../app/baseline/rounds';
   import type { L } from '../../app/visitor/questions';
 
@@ -80,13 +86,9 @@ const arrow = '<svg viewBox="0 0 24 12" aria-hidden="true"><path d="M0 6h22M17 1
   const LIMIT = 10000;
   const SLOW = 6000;
 
-  let booth: Booth | null = null;
-  try {
-    booth = new Booth($<HTMLCanvasElement>('bl-canvas'));
-  } catch {
-    // no WebGL: the test still works, only the room is missing
-    root.classList.add('is-flat');
-  }
+  const booth = new Scan($<HTMLCanvasElement>('bl-scan'), $<HTMLCanvasElement>('bl-trace'), calm);
+  const voice = $('bl-voice');
+  const log = $('bl-log');
 
   const st = { round: -1, answers: [] as Dev[], points: 0, shown: 0, open: false, order: [0, 1, 2] as Dev[] };
   let timer = 0;
@@ -128,9 +130,8 @@ const arrow = '<svg viewBox="0 0 24 12" aria-hidden="true"><path d="M0 6h22M17 1
     // visual deviation climbs faster than the final score, so the room reacts early
     const d = Math.min(1, points / 110);
     wob = d * 0.4;
-    booth?.setDeviation(d);
+    booth.setDeviation(d);
     $('bl-dev').textContent = `${String(Math.round(Math.min(100, (points / MAX_POINTS) * 100))).padStart(2, '0')}%`;
-    booth?.setMonitor({ dev: d });
   };
 
   /* ---------- a round ---------- */
@@ -161,11 +162,10 @@ const arrow = '<svg viewBox="0 0 24 12" aria-hidden="true"><path d="M0 6h22M17 1
     $('bl-remark').textContent = '';
     draw();
     segs.querySelectorAll('li').forEach((li, i) => li.classList.toggle('is-on', i <= r));
-    booth?.setProgress(r / (N - 1));
-    booth?.setMonitor({ state: 'round', round: r + 1, total: N, text: tx(ROUNDS[r].say) });
     audio.paper();
-    booth?.speak(true);
-    window.setTimeout(() => booth?.speak(false), 1600);
+    booth.speak(true);
+    voice.classList.add('is-talk');
+    window.setTimeout(() => { booth.speak(false); voice.classList.remove('is-talk'); }, 1600);
     speakCold(tx(ROUNDS[r].say));
     // ten seconds to answer
     const t0 = performance.now();
@@ -191,7 +191,10 @@ const arrow = '<svg viewBox="0 0 24 12" aria-hidden="true"><path d="M0 6h22M17 1
     st.answers.push(dev);
     st.points += POINTS[dev] + (slow ? 3 : 0);
     const text = timedOut ? '—' : optLabel(st.round, dev);
-    booth?.addWord(text, dev, st.round);
+    const w = document.createElement('span');
+    w.textContent = text;
+    w.dataset.dev = String(dev);
+    log.append(w);
     $('bl-opts').querySelectorAll<HTMLButtonElement>('.bl__opt').forEach((b, k) => {
       b.disabled = true;
       b.classList.toggle('is-picked', k === i);
@@ -200,7 +203,7 @@ const arrow = '<svg viewBox="0 0 24 12" aria-hidden="true"><path d="M0 6h22M17 1
     if (dev) {
       audio.glitch();
       impulse = dev === 2 ? 1 : 0.5;
-      booth?.kick(dev === 2 ? 1 : 0.5);
+      booth.kick(dev === 2 ? 1 : 0.5);
     }
     audio.pulse(Math.min(1, st.points / 110));
     setDev(st.points);
@@ -223,8 +226,6 @@ const arrow = '<svg viewBox="0 0 24 12" aria-hidden="true"><path d="M0 6h22M17 1
       $('bl-verdict').textContent = tx(v.name);
       $('bl-body').textContent = tx(v.body);
       $('bl-saved').textContent = t('Written to your file. Only on this device.');
-      booth?.setMonitor({ state: 'verdict', text: tx(v.name) });
-      booth?.setProgress(1);
     };
     const stampIt = () => {
       const stamp = $('bl-stamp');
@@ -237,10 +238,10 @@ const arrow = '<svg viewBox="0 0 24 12" aria-hidden="true"><path d="M0 6h22M17 1
       speakCold(tx(VERDICTS[verdict].name));
     };
     if (verdict === 'DEVIATED') {
-      // The room gives way: it shakes harder, the lamp dies down, then the page falls back to 1900
+      // The booth gives way: it shakes harder, then the page falls back to 1900
       st.open = false;
       impulse = 1.6;
-      booth?.kick(1.2);
+      booth.kick(1.2);
       audio.glitch();
       await new Promise((r) => window.setTimeout(r, calm ? 300 : 900));
       await downpour({ onPeak: fillResult });
@@ -255,7 +256,8 @@ const arrow = '<svg viewBox="0 0 24 12" aria-hidden="true"><path d="M0 6h22M17 1
     stopSpeaking();
     st.answers = [];
     st.points = 0;
-    booth?.reset();
+    booth.reset();
+    log.textContent = '';
     $('bl-stamp').classList.remove('is-down');
     setDev(0);
     segs.querySelectorAll('li').forEach((li) => li.classList.remove('is-on'));
@@ -291,6 +293,6 @@ const arrow = '<svg viewBox="0 0 24 12" aria-hidden="true"><path d="M0 6h22M17 1
   window.addEventListener('pagehide', () => {
     cancelAnimationFrame(wobRaf);
     stopSpeaking();
-    booth?.dispose();
+    booth.dispose();
   });
 </script>
