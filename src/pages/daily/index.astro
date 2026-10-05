@@ -1,0 +1,19 @@
+---
+import Flat from '../../layouts/Flat.astro';
+import DailyIssue from '../../components/DailyIssue.astro';
+import { loadRecords } from '../../lib/records';
+import { buildIssues } from '../../lib/daily';
+import '../../styles/daily.css';
+
+const issues = buildIssues(await loadRecords(import.meta.env.BASE_URL));
+const issue = issues[0];
+---
+
+<Flat title="Gerimis Daily — The Ninth Draft" description="The island's newspaper, 1999. It prints the official version." page="daily">
+  <DailyIssue issue={issue} prev={issues[1]} all={issues} />
+</Flat>
+
+<script>
+  import { flat } from '../../app/flat';
+  flat();
+</script>
