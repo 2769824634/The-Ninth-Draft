@@ -113,8 +113,15 @@ export function library() {
       for (const { book, bay } of all) {
         if (bay.zone !== zone) continue;
         const b = item(book.mark, `${T(book.spine)} · ${T(book.sub)}`, () => take(book.id), { cloth: book.color });
-        b.addEventListener('pointerenter', () => callout(book));
-        b.addEventListener('pointerleave', () => callout(null));
+        b.addEventListener('pointerenter', () => {
+          callout(book);
+          scene?.peek(book.id);
+        });
+        b.addEventListener('pointerleave', () => {
+          callout(null);
+          scene?.peek(null);
+        });
+        b.addEventListener('focus', () => scene?.peek(book.id));
       }
       if (zone === 'desk') {
         const b = item('DS/Y2K/09', isZh() ? '（空位）' : '(empty slot)', gap, { dim: true });

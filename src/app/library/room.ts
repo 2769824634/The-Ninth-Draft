@@ -31,6 +31,26 @@ export interface ShelfRun {
   used: { row: number; a: number; b: number }[];
 }
 
+interface FillerBook {
+  m: THREE.Matrix4;
+  c: THREE.Color;
+  row: number;
+  a: number;
+  b: number;
+  pos: THREE.Vector3;
+  quat: THREE.Quaternion;
+  size: THREE.Vector3;
+}
+
+/** One uncatalogued volume, found beside a catalogued one. */
+export interface FillerRef {
+  mesh: THREE.InstancedMesh;
+  item: FillerBook;
+  index: number;
+  along: THREE.Vector3;
+  side: -1 | 1;
+}
+
 export const basis = (out: THREE.Vector3, along: THREE.Vector3) =>
   new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().makeBasis(out.clone().negate(), UP, along));
 
@@ -57,8 +77,10 @@ export class Room {
   readonly shaftMat: THREE.ShaderMaterial;
   readonly dust: THREE.Points;
   readonly rain = rainTexture();
+  private beamGroup = new THREE.Group();
   /** The uncatalogued volumes, one instanced mesh per run. */
   readonly fillers: THREE.InstancedMesh[] = [];
+  private shelved: { run: ShelfRun; mesh: THREE.InstancedMesh; items: FillerBook[] }[] = [];
   readonly rack: Rack;
   readonly cabinet: Cabinet;
   readonly desk: Desk;
@@ -202,9 +224,15 @@ export class Room {
   private beams() {
     const { x0, x1, h } = ROOM;
     for (const z of [-1.2, 2.3]) {
-      this.box(x1 - x0, 0.32, 0.18, this.iron, (x0 + x1) / 2, h - 0.2, z);
-      this.box(0.02, 0.32, 0.18, this.poche, x1 + 0.01, h - 0.2, z, false);
+      this.beamGroup.add(this.box(x1 - x0, 0.32, 0.18, this.iron, (x0 + x1) / 2, h - 0.2, z));
+      this.beamGroup.add(this.box(0.02, 0.32, 0.18, this.poche, x1 + 0.01, h - 0.2, z, false));
     }
+    this.group.add(this.beamGroup);
+  }
+
+  /** The beams are part of the cutaway: seen from outside the room only, so a camera inside never meets one. */
+  showBeams(cam: THREE.Vector3) {
+    this.beamGroup.visible = cam.y > ROOM.h + 0.4 || cam.x > ROOM.x1 + 0.5 || cam.z > ROOM.z1 + 0.5;
   }
 
   /* ---------------- stacks ---------------- */
@@ -270,7 +298,7 @@ export class Room {
   fill(run: ShelfRun, seed: number, skip?: (row: number, a: number) => boolean) {
     // old buckram, faded: browns, greys, a few dull reds, greens and blues
     const CL = ['#4a3426', '#3b3a33', '#5a4a36', '#2f3530', '#6b5a42', '#4d2c26', '#3c4044', '#7a6b52', '#2e2b28', '#55493a', '#3f3a2c', '#5e4e3b', '#433a36', '#6a5f4c', '#33383a', '#5a3a2e'];
-    const list: { m: THREE.Matrix4; c: THREE.Color }[] = [];
+    const list: FillerBook[] = [];
     const q0 = basis(run.out, run.along);
     const m = new THREE.Matrix4();
     let k = seed;
@@ -296,7 +324,7 @@ export class Room {
         const q = q0.clone();
         if (lean) q.premultiply(new THREE.Quaternion().setFromAxisAngle(run.out, lean));
         m.compose(pose.pos, q, new THREE.Vector3(w, h, t));
-        list.push({ m: m.clone(), c: new THREE.Color(CL[(k * 7) % CL.length]).multiplyScalar(0.7 + ((k * 13) % 7) * 0.05) });
+        list.push({ m: m.clone(), c: new THREE.Color(CL[(k * 7) % CL.length]).multiplyScalar(0.7 + ((k * 13) % 7) * 0.05), row, a: x, b: x + t, pos: pose.pos.clone(), quat: q, size: new THREE.Vector3(w, h, t) });
         x += t + 0.0012;
       }
     }
@@ -312,6 +340,39 @@ export class Room {
     im.castShadow = im.receiveShadow = true;
     this.group.add(im);
     this.fillers.push(im);
+    this.shelved.push({ run, mesh: im, items: list });
+  }
+
+  /**
+   * The uncatalogued volume standing right beside [a, b] on a row, on the
+   * given side (-1 before, +1 after), if there is one within a finger's width.
+   */
+  neighbour(run: ShelfRun, row: number, a: number, b: number, side: -1 | 1): FillerRef | null {
+    const set = this.shelved.find((x) => x.run === run);
+    if (!set) return null;
+    let best = -1, gap = 0.06;
+    set.items.forEach((it, i) => {
+      if (it.row !== row) return;
+      const d = side < 0 ? a - it.b : it.a - b;
+      if (d >= -0.001 && d < gap) {
+        gap = d;
+        best = i;
+      }
+    });
+    return best < 0 ? null : { mesh: set.mesh, item: set.items[best], index: best, along: run.along, side };
+  }
+
+  /** Lean a neighbour into the gap: `v` 0 upright → 1 resting against the next book. */
+  leanFiller(r: FillerRef, v: number) {
+    const it = r.item;
+    // the gap is on the far side from where the neighbour stands
+    const g = r.along.clone().multiplyScalar(-r.side);
+    const axis = new THREE.Vector3().crossVectors(UP, g).normalize();
+    const pivot = it.pos.clone().addScaledVector(UP, -it.size.y / 2).addScaledVector(g, it.size.z / 2);
+    const q = new THREE.Quaternion().setFromAxisAngle(axis, v * 0.09);
+    const pos = it.pos.clone().sub(pivot).applyQuaternion(q).add(pivot);
+    r.mesh.setMatrixAt(r.index, new THREE.Matrix4().compose(pos, it.quat.clone().premultiply(q), it.size));
+    r.mesh.instanceMatrix.needsUpdate = true;
   }
 
   /* ---------------- tables and pendants ---------------- */
