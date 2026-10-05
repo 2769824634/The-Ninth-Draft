@@ -4,7 +4,7 @@
  * Works from a real photograph, or from a procedural head-and-shoulders
  * silhouette when a personnel file has none.
  */
-import { hash } from './textures';
+import { hash } from '../visitor/store';
 
 const PAPER = '#e6dfcd';
 const BLACK = '#1d1b17';
