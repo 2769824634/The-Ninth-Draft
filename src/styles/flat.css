@@ -33,44 +33,9 @@
 }
 .fhead__brand .brand__l1 { font-size: 1.5rem; }
 .fhead__brand .brand__l2 { font-size: .78rem; }
-.fhead__nav {
-  display: flex;
-  gap: 1.6rem;
-  justify-content: center;
-  font-size: .68rem;
-}
-.fhead__nav a {
-  position: relative;
-  color: var(--ink-2);
-  text-decoration: none;
-  padding-bottom: .3rem;
-}
-.fhead__nav a::after {
-  content: '';
-  position: absolute;
-  left: 0; right: 0; bottom: 0;
-  height: 2px;
-  background: var(--accent);
-  transform: scaleX(0);
-  transform-origin: left;
-  transition: transform 420ms var(--ease);
-}
-.fhead__nav a:hover { color: var(--ink); }
-.fhead__nav a[aria-current='page'] { color: var(--ink); }
-.fhead__nav a[aria-current='page']::after { transform: scaleX(1); }
-/* An unregistered visitor sees a small red light on the entry */
-.fhead__nav a.is-new span::before {
-  content: '';
-  display: inline-block;
-  width: .4rem;
-  height: .4rem;
-  margin-right: .45rem;
-  background: var(--accent);
-  vertical-align: .08em;
-  animation: flat-blink 2.4s steps(1) infinite;
-}
 @keyframes flat-blink { 50% { opacity: .25; } }
-.fhead__tools { display: flex; align-items: center; gap: 1.6rem; font-size: .68rem; letter-spacing: .06em; text-transform: uppercase; }
+.fhead__tools.tools { position: static; display: flex; align-items: center; gap: 1.6rem; font-size: .68rem; }
+.fhead .sitenav { justify-content: center; }
 
 .fmain { padding: 2.6rem 0 4rem; min-width: 0; }
 
@@ -119,6 +84,7 @@
   text-decoration: none;
   transition: background var(--t-1) var(--ease), color var(--t-1) var(--ease);
 }
+.f-btn:not(.f-btn--ghost) { border: 0; clip-path: polygon(0 0, calc(100% - .7rem) 0, 100% .7rem, 100% 100%, 0 100%); }
 .f-btn:hover, .f-btn:focus-visible { background: var(--accent); border-color: var(--accent); }
 .f-btn--ghost { background: none; color: var(--ink); }
 .f-btn--ghost:hover { color: var(--bg); }
@@ -370,7 +336,8 @@ textarea.f-input { font-family: var(--f-serif); font-size: 1.05rem; resize: vert
 .map__d { cursor: pointer; }
 .map__d circle { fill: var(--bg); stroke: var(--ink); stroke-width: 1.4; transition: r var(--t-2) var(--ease), fill var(--t-1) var(--ease); }
 .map__d .map__pin { fill: var(--ink); stroke: none; }
-.map__d text { fill: var(--ink); font-family: var(--f-mono); font-size: 13px; letter-spacing: .1em; text-transform: uppercase; }
+.map__d text { fill: var(--ink); font-family: var(--f-mono); font-size: 13px; letter-spacing: .1em; text-transform: uppercase; paint-order: stroke; stroke: var(--bg); stroke-width: 5px; stroke-linejoin: round; }
+.map__grid text { paint-order: stroke; stroke: var(--bg); stroke-width: 4px; }
 .map__d .map__zh { font-family: var(--f-display); font-size: 15px; letter-spacing: .06em; }
 .map__d .map__n { fill: var(--ink-3); font-size: 11px; }
 .map__d.is-axis circle { stroke-width: 2.2; }
@@ -418,8 +385,10 @@ textarea.f-input { font-family: var(--f-serif); font-size: 1.05rem; resize: vert
 @media (max-width: 900px) {
   .flat { padding: 0 1rem; }
   .fhead { grid-template-columns: 1fr auto; gap: 1rem; padding-top: 1.2rem; }
-  .fhead__nav { grid-column: 1 / -1; grid-row: 2; justify-content: flex-start; gap: 1.1rem; overflow-x: auto; }
-  .fhead__tools { gap: .9rem; }
+  .fhead .sitenav { grid-column: 1 / -1; grid-row: 2; justify-content: flex-start; gap: 1.1rem; overflow-x: auto; scrollbar-width: none; }
+  .fhead__brand .brand__l1 { font-size: 1.15rem; white-space: nowrap; }
+  .fhead__tools #btn-index > span:not(.kbd), .fhead__tools #sound-label, .fhead__tools #nav-me > span { display: none; }
+  .fhead__tools.tools { gap: .9rem; }
   .reg, .me, .map { grid-template-columns: 1fr; gap: 1.6rem; }
   .side, .me__left { position: static; }
   .me__left { display: grid; grid-template-columns: 8rem 1fr; gap: 1rem; align-items: end; }
@@ -437,7 +406,7 @@ textarea.f-input { font-family: var(--f-serif); font-size: 1.05rem; resize: vert
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .fhead__nav a.is-new span::before, .map__home-ring, .sx__body.is-swap { animation: none; }
+  .map__home-ring, .sx__body.is-swap { animation: none; }
   .fstamp.is-down { animation: none; opacity: .85; }
 }
 

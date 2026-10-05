@@ -19,7 +19,7 @@ const others = DISTRICTS.filter((x) => x.id !== d.id);
 ---
 
 <Flat title={`${d.en} — The Ninth Draft`} description={text.blurb.en} page="district">
-  <p class="f-kicker micro"><b>District file</b><span>Records Office · Survey Section · Grid {grid}</span></p>
+  <p class="f-kicker micro"><b>District file</b><span><span data-l="en">Records Office · Survey Section · Grid {grid}</span><span data-l="zh">记录署 · 测绘科 · 方格 {grid}</span></span></p>
   <h1 class="f-title"><span data-l="en">{d.en}</span><span data-l="zh">{d.zh}</span></h1>
   <p class="f-lede"><span data-l="en">{text.blurb.en}</span><span data-l="zh">{text.blurb.zh}</span></p>
 
@@ -42,7 +42,7 @@ const others = DISTRICTS.filter((x) => x.id !== d.id);
       <dl class="dist-page__facts">
         <div>
           <dt class="micro">Local clock</dt>
-          <dd><b class="dist-clock" id="dclock" data-tz={d.tz}>23:59:50</b> <span class="micro">{offset ? `Axis ${offset} h` : 'Axis time'}</span></dd>
+          <dd><b class="dist-clock" id="dclock" data-tz={d.tz}>23:59:50</b> <span class="micro">{offset ? <><span data-l="en">{`Axis ${offset} h`}</span><span data-l="zh">{`中枢 ${offset} 小时`}</span></> : 'Axis time'}</span></dd>
         </div>
         <div>
           <dt class="micro">Weather</dt>

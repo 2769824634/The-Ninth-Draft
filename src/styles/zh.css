@@ -61,3 +61,16 @@
   .tools { gap: .7rem; }
   .brand__l1 { font-size: 1.02rem; }
 }
+
+/* Floor for small Chinese labels: CJK below 12px turns to mush */
+[data-lang='zh'] :is(.micro, .sitenav, .f-sec__h span, .tabs button span, .rel__cat, .slip__rows, .slip__file, .slip__x, .kbd + span, .dossier__meta dt, .drafts__log) {
+  font-size: max(.62rem, 12px);
+  letter-spacing: .04em;
+}
+[data-lang='zh'] .sitenav { font-size: max(.68rem, 13px); }
+
+/* Rolling glyphs need a taller window for CJK, or the top half is cut off */
+[data-lang='zh'] .swap__c { height: 1.36em; line-height: 1.36; }
+
+/* The display face is for titles only; at label size it breaks up */
+[data-lang='zh'] .rail__colname { font-family: var(--f-sans); font-size: max(.82rem, 13px); letter-spacing: .06em; }

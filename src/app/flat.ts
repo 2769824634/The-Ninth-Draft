@@ -32,8 +32,25 @@ export function flat(relang?: () => void) {
     if (!me) return;
     me.href = v ? `${base}me/` : `${base}register/`;
     me.querySelector('span')!.textContent = v ? `${t('My file')} · ${fileNo(v)}` : t('Register');
+    soundLabel();
     me.classList.toggle('is-new', !v);
   };
+
+  // Sound: same switch as in the archive room
+  const sound = document.getElementById('btn-sound');
+  const soundLabel = () => {
+    const on = prefs.get('sound');
+    sound?.setAttribute('aria-pressed', String(on));
+    const l = document.getElementById('sound-label');
+    if (l) l.textContent = t(on ? 'Sound on' : 'Sound off');
+  };
+  sound?.addEventListener('click', () => {
+    audio.unlock();
+    prefs.set('sound', !prefs.get('sound'));
+    audio.apply();
+    audio.click();
+    soundLabel();
+  });
 
   const title = document.title;
   translateDom(root);
@@ -45,6 +62,11 @@ export function flat(relang?: () => void) {
     if (e.metaKey || e.ctrlKey || e.altKey) return;
     if (e.key === 'l' || e.key === 'L') setLang(isZh() ? 'en' : 'zh');
     if (e.key === 'n' || e.key === 'N') applyTheme(prefs.get('theme') === 'day' ? 'night' : 'day');
+    if (e.key === '/') {
+      e.preventDefault();
+      location.href = `${base}#index`;
+    }
+    if (e.key === 'w' || e.key === 'W') location.href = `${base}wall/`;
   });
   onLang(() => {
     audio.click();
