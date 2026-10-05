@@ -244,7 +244,20 @@ const arrow = '<svg viewBox="0 0 24 12" aria-hidden="true"><path d="M0 6h22M17 1
       booth.kick(1.2);
       audio.glitch();
       await new Promise((r) => window.setTimeout(r, calm ? 300 : 900));
-      await downpour({ onPeak: fillResult });
+      // Hidden: nine lines, none of them repeated exactly. The Office sends the subject out, to a page with one line on it.
+      const expelled = st.answers.length === N && st.answers.every((a) => a !== 0);
+      await downpour({ onPeak: expelled ? undefined : fillResult });
+      if (expelled) {
+        const veil = document.createElement('div');
+        veil.style.cssText = 'position:fixed;inset:0;z-index:9500;background:#050606;opacity:0;transition:opacity 1100ms ease';
+        document.body.append(veil);
+        void veil.offsetWidth;
+        veil.style.opacity = '1';
+        audio.stamp();
+        await new Promise((r) => window.setTimeout(r, calm ? 300 : 1300));
+        location.href = `${import.meta.env.BASE_URL}exit/`;
+        return;
+      }
       stampIt();
       return;
     }
