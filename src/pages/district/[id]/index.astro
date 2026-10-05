@@ -1,0 +1,113 @@
+---
+import Flat from '../../../layouts/Flat.astro';
+import { loadRecords } from '../../../lib/records';
+import { DISTRICTS } from '../../../app/visitor/districts';
+import { DISTRICT_TEXT } from '../../../app/visitor/counter';
+
+export function getStaticPaths() {
+  return DISTRICTS.map((d) => ({ params: { id: d.id } }));
+}
+
+const base = import.meta.env.BASE_URL;
+const { id } = Astro.params;
+const d = DISTRICTS.find((x) => x.id === id)!;
+const text = DISTRICT_TEXT[d.id];
+const records = (await loadRecords(base)).filter((r) => r.district === d.id);
+const offset = d.tz === 0 ? '' : d.tz > 0 ? `+${d.tz}` : `${d.tz}`;
+const grid = `${'ABCDEFGHIJ'[Math.floor(d.x / 100)]}-${String(Math.floor(d.y / 100) + 1).padStart(2, '0')}`;
+const others = DISTRICTS.filter((x) => x.id !== d.id);
+---
+
+<Flat title={`${d.en} — The Ninth Draft`} description={text.blurb.en} page="district">
+  <p class="f-kicker micro"><b>District file</b><span>Records Office · Survey Section · Grid {grid}</span></p>
+  <h1 class="f-title"><span data-l="en">{d.en}</span><span data-l="zh">{d.zh}</span></h1>
+  <p class="f-lede"><span data-l="en">{text.blurb.en}</span><span data-l="zh">{text.blurb.zh}</span></p>
+
+  <div class="dist-page">
+    <section class="f-sec">
+      <h2 class="f-sec__h"><i>01</i><span>Records filed here</span></h2>
+      {records.length ? (
+        <ul class="dist-page__recs">
+          {records.map((r) => (
+            <li><a href={`${base}records/${r.slug}/`}><b>{r.file}</b><span data-l="en">{r.title}</span><span data-l="zh">{r.zh?.title ?? r.title}</span></a></li>
+          ))}
+        </ul>
+      ) : (
+        <p class="f-help"><span data-l="en">Nothing filed here yet. The Office says this is normal. The Office says that about everything.</span><span data-l="zh">这里还没有档案。署里说这很正常，署里什么都说正常。</span></p>
+      )}
+    </section>
+
+    <section class="f-sec">
+      <h2 class="f-sec__h"><i>02</i><span>Conditions</span></h2>
+      <dl class="dist-page__facts">
+        <div>
+          <dt class="micro">Local clock</dt>
+          <dd><b class="dist-clock" id="dclock" data-tz={d.tz}>23:59:50</b> <span class="micro">{offset ? `Axis ${offset} h` : 'Axis time'}</span></dd>
+        </div>
+        <div>
+          <dt class="micro">Weather</dt>
+          <dd><span data-l="en">Drizzle.</span><span data-l="zh">毛毛雨。</span> <span class="micro"><span data-l="en">As always</span><span data-l="zh">一如既往</span></span></dd>
+        </div>
+        <div>
+          <dt class="micro">Neighbours</dt>
+          <dd id="neigh"><span data-l="en">Register to find out who lives next door.</span><span data-l="zh">登记以后，才知道隔壁住着谁。</span></dd>
+        </div>
+      </dl>
+      {d.tz !== 0 && (
+        <p class="f-help"><span data-l="en">The clocks in this district do not agree with the Axis. The Office has asked them to. They have not replied.</span><span data-l="zh">这个区的钟和中枢对不上。署里发函让它们改，没有回音。</span></p>
+      )}
+    </section>
+
+    <section class="f-sec">
+      <h2 class="f-sec__h"><i>03</i><span>Other districts</span></h2>
+      <ul class="dist-page__others">
+        {others.map((o) => <li><a href={`${base}district/${o.id}/`}><span data-l="en">{o.en}</span><span data-l="zh">{o.zh}</span></a></li>)}
+      </ul>
+    </section>
+
+    <div class="me__acts">
+      <a class="f-btn" href={`${base}map/`}><span>Back to the map</span></a>
+      <a class="f-btn f-btn--ghost" href={`${base}calendar/`}><span>Calendar</span></a>
+    </div>
+  </div>
+</Flat>
+
+<script define:vars={{ id: d.id }}>
+  window.__district = id;
+</script>
+
+<script>
+  import { flat } from '../../../app/flat';
+  import { loadVisitor } from '../../../app/visitor/store';
+  import { isZh } from '../../../app/i18n';
+
+  const clock = document.getElementById('dclock')!;
+  const tz = Number(clock.dataset.tz);
+  const id = (window as unknown as { __district: string }).__district;
+  const neigh = document.getElementById('neigh')!;
+  const original = neigh.innerHTML;
+
+  const live = () => {
+    const v = loadVisitor();
+    if (!v) {
+      neigh.innerHTML = original;
+      return;
+    }
+    // Only the district the visitor lives in has "their" neighbours, for now
+    const mine = v.district === id;
+    neigh.textContent = mine
+      ? isZh() ? `你住这里。你的邻居们对你一无所知，暂时。` : `You live here. Your neighbours know nothing about you. For now.`
+      : isZh() ? `你不住这里。署里已记下你来过。` : `You do not live here. The Office has noted your visit.`;
+  };
+  flat(live);
+  live();
+
+  // 23:59:50 → 23:59:59, back to 50: the island never reaches midnight. District clocks are offset whole hours.
+  let s = 50;
+  const tick = () => {
+    clock.textContent = `${23 + tz}:59:${String(s).padStart(2, '0')}`;
+    s = s >= 59 ? 50 : s + 1;
+  };
+  tick();
+  window.setInterval(tick, 1000);
+</script>

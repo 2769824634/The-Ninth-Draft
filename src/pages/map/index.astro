@@ -44,6 +44,7 @@ const unplaced = records.filter((r) => !r.district).length;
                 <li class="map__empty"><span data-l="en">Nothing filed here yet.</span><span data-l="zh">这里还没有档案。</span></li>
               )}
             </ul>
+            <a class="map__more micro" href={`${base}district/${d.id}/`}><span>District file</span> →</a>
           </li>
         );
       })}

@@ -37,6 +37,11 @@
     "Associations recorded.",
     "Linking is not evidence."
   ],
+  "backflow": [
+    "Backflow logged. Year restored.",
+    "Unscheduled reversion to 1900. Records unaffected.",
+    "Draft 9 reinstated."
+  ],
   "rollover": [
     "Year rollover denied.",
     "Year field locked. Remediation pending."

@@ -228,5 +228,22 @@
   "Skip": "跳过",
   "Clerk · Window 3": "办事员 · 三号窗口",
   "Processing": "办理中",
-  "Your card, as it stands": "你的证件，目前的样子"
+  "Your card, as it stands": "你的证件，目前的样子",
+  "Calendar": "年历",
+  "Pick a day": "选一天",
+  "Nothing filed. The 9th is not blank, only unfiled.": "没有归档。9 号不是空白，只是尚未归档。",
+  "Nothing filed on this day.": "这一天没有归档。",
+  "Office clock": "署内时钟",
+  "District file": "区志",
+  "Records filed here": "在此归档的档案",
+  "Conditions": "现状",
+  "Other districts": "其他区",
+  "Local clock": "本地时钟",
+  "Weather": "天气",
+  "Neighbours": "邻居",
+  "Back to the map": "回到地图",
+  "Calendar — The Ninth Draft": "年历 — 第九稿",
+  "Records Office · 1999": "记录署 · 1999",
+  "Records Office · Survey Section · Grid": "记录署 · 测绘科 · 方格",
+  "Axis time": "中枢时间"
 }

@@ -11,13 +11,14 @@ import '../styles/flat.css';
 interface Props {
   title: string;
   description?: string;
-  page: 'register' | 'me' | 'map' | 'guide';
+  page: 'register' | 'me' | 'map' | 'guide' | 'calendar' | 'district';
 }
 const { title, description, page } = Astro.props;
 const base = import.meta.env.BASE_URL;
 const nav = [
   { id: 'archive', href: base, label: 'Archive' },
   { id: 'map', href: `${base}map/`, label: 'Map' },
+  { id: 'calendar', href: `${base}calendar/`, label: 'Calendar' },
   { id: 'guide', href: `${base}guide/`, label: 'Guide' },
   { id: 'me', href: `${base}register/`, label: 'Register' },
 ];
@@ -32,7 +33,7 @@ const nav = [
       </a>
       <nav class="fhead__nav micro" aria-label="Pages">
         {nav.map((n) => (
-          <a href={n.href} id={`nav-${n.id}`} aria-current={n.id === page || (n.id === 'me' && page === 'register') ? 'page' : undefined}><span>{n.label}</span></a>
+          <a href={n.href} id={`nav-${n.id}`} aria-current={n.id === page || (n.id === 'map' && page === 'district') || (n.id === 'me' && page === 'register') ? 'page' : undefined}><span>{n.label}</span></a>
         ))}
       </nav>
       <div class="fhead__tools">
