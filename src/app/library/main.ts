@@ -244,8 +244,9 @@ export function library() {
       fetching.add(id);
       fetch(book.src)
         .then((r) => r.json())
-        .then((d: { pages: LibBook['pages'] }) => {
-          book.pages = d.pages;
+        .then((d: { pages: Array<Omit<LibPage, 'head' | 'html'> & { head: string | LibPage['head']; html: string | LibPage['html'] }> }) => {
+          const both = <T,>(v: string | T) => (typeof v === 'string' ? ({ en: v, zh: v } as T) : v);
+          book.pages = d.pages.map((p) => ({ ...p, head: both(p.head), html: both(p.html) }));
           book.src = undefined;
         })
         .catch(() => {})
