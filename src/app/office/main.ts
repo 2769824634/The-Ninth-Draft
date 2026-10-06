@@ -9,7 +9,8 @@ import type { MachineData } from '../../lib/machine';
 import type { ArchivistLines } from '../types';
 import { flat } from '../flat';
 import { audio } from '../audio';
-import { isZh } from '../i18n';
+import { isZh, onLang } from '../i18n';
+import { canvasFontsReady } from '../scene/textures';
 import { isFiled } from '../island';
 import { prefs } from '../prefs';
 import { Archivist } from '../ui/archivist';
@@ -576,6 +577,10 @@ export function office() {
   });
 
   /* ---------------- the room ---------------- */
+  // slides and labels are painted on canvas, which never asks for a font slice itself
+  const warmFonts = () => isZh() && void canvasFontsReady(`${document.getElementById('of-data')?.textContent ?? ''}霏微，按区区图全岛片头本盘完照片个区档案份未分区张`);
+  warmFonts();
+  onLang(warmFonts);
   const call = $('of-callout');
   try {
     scene = new OfficeScene(root, $('of-canvas') as HTMLCanvasElement, pc, data.notices.map((n) => ({ ...n, title: n.title.en })), {
