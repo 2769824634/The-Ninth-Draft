@@ -20,11 +20,12 @@ const SANS = '"Archivo Variable", "Archivo", "N9 KuHei", "N9 DIN Bold", Arial, s
 const SERIF = '"Source Serif 4 Variable", "N9 HuoSong", Georgia, serif';
 
 /** Families a canvas may need for Chinese; see `canvasFontsReady`. */
-export const CJK_CANVAS_FONTS = ['N9 HuoSong', 'N9 KuHei', 'N9 DIN Bold'];
+export const CJK_CANVAS_FONTS = ['N9 HuoSong', 'N9 KuHei', 'N9 DIN', 'N9 DIN Bold'];
 
 /**
  * Canvas text does not trigger web font loading, and the Chinese faces only
- * load on demand (unicode-range). Load the glyphs for `text` before drawing.
+ * load on demand, slice by slice (unicode-range). Load the glyphs for `text`
+ * before drawing.
  */
 export async function canvasFontsReady(text: string) {
   if (!document.fonts || !/[\u3000-\u9fff\uff00-\uffef]/.test(text)) return;
