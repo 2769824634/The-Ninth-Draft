@@ -221,48 +221,32 @@ const links = new Set(records.flatMap((r) => r.related.filter((f) => records.som
   <article class="dossier" id="dossier" aria-hidden="true">
     <span class="dossier__spine micro" id="ds-spine" aria-hidden="true">Archive terminal // Gerimis</span>
     <i class="dossier__scan" aria-hidden="true"></i>
-    <header class="dossier__head">
-      <div class="retrieve" id="ds-retrieve" aria-hidden="true">
-        <div class="retrieve__in">
-          <div class="retrieve__row micro"><b id="rt-state">Retrieving</b><span id="rt-path"></span><span class="retrieve__pct" id="rt-pct">000%</span></div>
-          <div class="retrieve__bar"><i id="rt-bar"></i></div>
-          <p class="retrieve__tip"><span class="micro">Archivist tip</span><span id="rt-tip"></span></p>
+    <!-- Earlier drafts lie under the final; their tabs stick out past its edge -->
+    <nav class="sheaf" id="ds-sheaf" aria-label="Earlier drafts" hidden></nav>
+    <div class="dossier__scroll dossier__paper" id="ds-scroll">
+      <header class="dossier__head">
+        <div class="retrieve" id="ds-retrieve" aria-hidden="true">
+          <div class="retrieve__in">
+            <div class="retrieve__row micro"><b id="rt-state">Retrieving</b><span id="rt-path"></span><span class="retrieve__pct" id="rt-pct">000%</span></div>
+            <div class="retrieve__bar"><i id="rt-bar"></i></div>
+            <p class="retrieve__tip"><span class="micro">Archivist tip</span><span id="rt-tip"></span></p>
+          </div>
         </div>
-      </div>
-      <div class="dossier__crumbs micro"><span id="ds-file">File P-0001</span><span class="barcode" id="ds-barcode" aria-hidden="true"></span></div>
-      <h2 class="dossier__title" id="ds-title"></h2>
-      <p class="dossier__sub" id="ds-sub"></p>
-      <button type="button" class="mystamp-btn micro" id="ds-mystamp" aria-label="Put your own stamp on this file"><span>Stamp</span></button>
-      <span class="mystamp" id="ds-mystamp-ink" aria-hidden="true" hidden></span>
-    </header>
-    <dl class="dossier__meta" id="ds-meta"></dl>
-    <div class="tabs" role="tablist">
-      <button role="tab" type="button" data-tab="overview" aria-selected="true"><span>01</span>Overview</button>
-      <button role="tab" type="button" data-tab="record" aria-selected="false"><span>02</span>Record</button>
-      <button role="tab" type="button" data-tab="related" aria-selected="false"><span>03</span>Related</button>
-      <button role="tab" type="button" data-tab="attachments" aria-selected="false"><span>04</span>Attached</button>
-      <i class="tabs__bar" aria-hidden="true"></i>
+        <div class="dossier__crumbs micro"><span id="ds-file">File P-0001</span><span class="barcode" id="ds-barcode" aria-hidden="true"></span></div>
+        <p class="dossier__old micro" id="ds-old" hidden></p>
+        <h2 class="dossier__title" id="ds-title"></h2>
+        <p class="dossier__sub" id="ds-sub"></p>
+        <button type="button" class="mystamp-btn micro" id="ds-mystamp" aria-label="Put your own stamp on this file"><span>Stamp</span></button>
+        <span class="mystamp" id="ds-mystamp-ink" aria-hidden="true" hidden></span>
+        <span class="superseded" aria-hidden="true" data-no-i18n>Superseded</span>
+      </header>
+      <dl class="dossier__meta" id="ds-meta"></dl>
+      <section class="pane" id="ds-overview"></section>
+      <section class="pane prose" id="ds-record"></section>
+      <section class="pane pane--attach" id="ds-attach"></section>
+      <p class="dossier__see" id="ds-see"></p>
     </div>
-    <div class="dossier__scroll" id="ds-scroll">
-      <section class="pane" data-pane="overview" id="ds-overview"></section>
-      <section class="pane prose" data-pane="record" id="ds-record" hidden></section>
-      <section class="pane" data-pane="related" id="ds-related" hidden></section>
-      <section class="pane" data-pane="attachments" id="ds-attach" hidden></section>
-    </div>
-    <i class="dossier__thumb" id="ds-thumb" aria-hidden="true"></i>
-    <section class="drafts" id="drafts" aria-label="Revision history">
-      <div class="drafts__row">
-        <span class="drafts__no"><span>Draft</span> <b id="dr-no">09</b> / 09</span>
-        <span class="drafts__log micro" id="dr-log">Final · as filed</span>
-      </div>
-      <p class="drafts__hint" id="dr-hint" hidden></p>
-      <div class="drafts__ticks">
-        <input id="dr-range" type="range" min="1" max="9" step="1" value="9" aria-label="Draft number" />
-        <i class="drafts__rail"></i>
-        <span class="drafts__marks" id="dr-marks"></span>
-        <i class="drafts__cur" id="dr-cur"></i>
-      </div>
-    </section>
+    <div class="cite-slip" id="ds-slip" role="dialog" aria-label="File reference" hidden></div>
     <footer class="dossier__foot">
       <button type="button" class="dossier__step" data-dstep="-1"><svg viewBox="0 0 24 12" aria-hidden="true"><path d="M24 6H2M7 1 2 6l5 5" /></svg><span>Previous</span></button>
       <span class="micro" id="ds-count">01 / 04</span>

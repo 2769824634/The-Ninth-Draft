@@ -9,6 +9,7 @@ import { hash, loadPhoto } from '../scene/textures';
 import { halftone } from '../scene/halftone';
 import { esc } from './text';
 import { isZh, t } from '../i18n';
+import { isFiled } from '../island';
 
 /** Same archivist who signs the margin notes. */
 const NOTE_BY = 'Heuss';
@@ -31,14 +32,15 @@ const initials = (name?: string) =>
 
 function routingSlip(rec: ArchiveRecord) {
   const rows: { n: number; what: string; date: string; who: string }[] = [];
-  const dated = [...rec.drafts].sort((a, b) => a.n - b.n);
+  // a draft whose day has not come round on the island is not on the slip yet
+  const dated = rec.drafts.filter((d) => isFiled(d.date)).sort((a, b) => a.n - b.n);
   if (dated.length) {
     for (const d of dated) rows.push({ n: d.n, what: `${t('Draft {n}', { n: pad(d.n) })}${d.label ? ` · ${esc(d.label)}` : ''}`, date: esc(d.date ?? '—'), who: initials(d.by) });
   } else {
     rows.push({ n: 1, what: t('Registry'), date: rec.category === 'personnel' ? '—' : esc(rec.date?.split(/\s*[–-]\s*/)[0] ?? '—'), who: 'R.' });
     rows.push({ n: 5, what: t('Records office'), date: '—', who: initials() });
   }
-  rows.push({ n: 9, what: t('Draft 09 · Filed'), date: '—', who: initials() });
+  rows.push({ n: 9, what: t('On file'), date: '—', who: initials() });
   const xref = rec.related.length ? `<p class="slip__x">${t('Cross-filed:')} ${rec.related.map(esc).join(', ')}</p>` : '';
   return `
     <span class="slip__head"><b>${t('Routing slip')}</b><span>No. ${1000 + (hash(rec.file) % 9000)}</span></span>

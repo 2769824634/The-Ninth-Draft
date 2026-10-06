@@ -65,7 +65,7 @@
     ],
     "DECLASSIFIED": [
       "{file}. Declassified. The interesting parts went out with the old drafts.",
-      "{title}. Fully open. Read it, then slide back a few drafts."
+      "{title}. Fully open. Read it, then have a look at the older pages underneath."
     ]
   },
   "draftEarly": [
@@ -74,7 +74,7 @@
     "Draft {draft}. Look at the margins. That's where the real argument was."
   ],
   "draftFinal": [
-    "Back to draft 09, the one everybody agreed to sign.",
+    "Back to the top copy, the one everybody agreed to sign.",
     "Final draft. Neat, approved, and a little shorter than it used to be."
   ],
   "reveal": [
@@ -142,12 +142,12 @@
   ],
   "retrieve": {
     "notes": [
-      "Heuss wrote in the margins of {drafts}. Drag the slider back to read him.",
+      "Heuss wrote in the margins of {drafts}. Pull those pages out from under the file.",
       "There are notes in {drafts}. He signs every one, even the ones he shouldn't.",
       "Check the margins in {drafts}. Nobody else writes that small."
     ],
     "any": [
-      "Drag the draft slider back to see what this said before it said this.",
+      "There are older pages under this one. Pull one out and see what it said before.",
       "You can click the black bars. I'd rather you didn't, but you can.",
       "Press W to see who {file} is connected to.",
       "Anything clipped to the folder can be picked up. Put it back where it was.",
