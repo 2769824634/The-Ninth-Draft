@@ -684,3 +684,73 @@ export function slideBoxTexture() {
   g.fillText('Survey, 1999', 42, 112);
   return tex(c);
 }
+
+/** Card stock for the slide-tray boxes: mustard board, a little worn. */
+function boxBoard(g: CanvasRenderingContext2D, w: number, h: number, seed: number) {
+  g.fillStyle = '#c99a32';
+  g.fillRect(0, 0, w, h);
+  grain(g, w, h, seed, 0.07);
+}
+
+/** The lid of a slide-tray box: maker's print, and the office's typed label. */
+export function trayLidTexture(code: string, title: string, count: number, ink: string, zh: boolean) {
+  const S = 512;
+  const [c, g] = canvas(S, S);
+  boxBoard(g, S, S, code.length * 31 + count);
+  // the maker's print round the edge
+  g.fillStyle = '#3a2a10';
+  g.font = `700 22px ${COND}`;
+  g.fillText('RO-DS', 30, 50);
+  g.font = `500 16px ${MONO}`;
+  g.fillText('CAROUSEL TRAY · 80 SLIDES · 2×2 IN', 112, 49);
+  g.fillRect(30, 62, S - 60, 3);
+  g.fillText('KEEP DRY · DO NOT STORE NEAR THE LAMP', 30, S - 30);
+  // the label, a little crooked, typed
+  g.save();
+  g.translate(S / 2, S / 2 + 10);
+  g.rotate(-0.025);
+  g.fillStyle = '#efe7d2';
+  g.fillRect(-190, -120, 380, 240);
+  g.fillStyle = ink;
+  g.fillRect(-190, -120, 380, 14);
+  g.fillStyle = '#1d1b17';
+  g.font = `600 54px ${MONO}`;
+  g.fillText(code, -168, -40);
+  g.font = zh ? `400 40px ${SERIF}` : `italic 400 40px ${SERIF}`;
+  let t = title;
+  while (g.measureText(t).width > 336 && t.length > 2) t = t.slice(0, -2) + '…';
+  g.fillText(t, -168, 20);
+  g.font = `500 22px ${MONO}`;
+  g.fillStyle = '#5c5952';
+  g.fillText(zh ? `${count} 张 · 记录署数据组` : `${count} slides · Data Section`, -168, 80);
+  g.restore();
+  return tex(c);
+}
+
+/** The narrow edge of a slide-tray box, seen standing in the crate. */
+export function traySpineTexture(code: string, title: string, ink: string) {
+  const W = 512, H = 144;
+  const [c, g] = canvas(W, H);
+  boxBoard(g, W, H, code.length * 17);
+  g.fillStyle = '#efe7d2';
+  g.fillRect(18, 22, W - 36, H - 44);
+  g.fillStyle = ink;
+  g.fillRect(18, 22, 30, H - 44);
+  g.fillStyle = '#1d1b17';
+  g.textBaseline = 'middle';
+  g.font = `600 40px ${MONO}`;
+  g.fillText(code, 64, H / 2 + 2);
+  const x = 64 + g.measureText(code).width + 20;
+  g.font = `italic 400 38px ${SERIF}`;
+  let t = title;
+  while (g.measureText(t).width > W - 40 - x && t.length > 2) t = t.slice(0, -2) + '…';
+  g.fillText(t, x, H / 2 + 2);
+  return tex(c);
+}
+
+/** Plain board for the box's other faces. */
+export function trayBoardTexture() {
+  const [c, g] = canvas(256, 256);
+  boxBoard(g, 256, 256, 7);
+  return tex(c);
+}
