@@ -22,9 +22,9 @@ const current: NavId | null = page === 'district' ? 'map' : (['map', 'calendar',
 <Base title={title} description={description}>
   <div class="flat" data-page={page}>
     <header class="fhead">
-      <a class="brand__link fhead__brand" href={base} aria-label="The Ninth Draft — archive overview">
-        <span class="brand__l1">The Ninth Draft</span>
-        <span class="brand__l2">Records Office · Gerimis</span>
+      <a class="brand__link fhead__brand" href={base} aria-label="Public Archive — overview">
+        <span class="brand__l1">Gerimis Records Office</span>
+        <span class="brand__l2">Public Archive</span>
       </a>
       <SiteNav current={current} />
       <div class="fhead__tools tools">
@@ -58,7 +58,7 @@ const current: NavId | null = page === 'district' ? 'map' : (['map', 'calendar',
       <slot />
     </main>
     <footer class="ffoot micro">
-      <span>Records Office · Gerimis · 1999</span>
+      <span class="ffoot__time" data-island-clock data-no-i18n>Records Office · Gerimis · 1999</span>
       <span><span>Everything on the island is normal.</span> <span>If it isn't, it's the previous draft.</span></span>
     </footer>
   </div>

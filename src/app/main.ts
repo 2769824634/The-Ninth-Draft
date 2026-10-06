@@ -6,6 +6,7 @@ import type { ArchiveData, ArchiveRecord } from './types';
 import { Stage } from './scene/stage';
 import { Wall } from './scene/wall';
 import { Iris } from './ui/iris';
+import { hms, isFiled, islandDateLabel, islandNow, visitorClock } from './island';
 import { Chapter } from './ui/chapter';
 import { Retrieve } from './ui/retrieve';
 import { System } from './ui/system';
@@ -26,7 +27,25 @@ export function start() {
   const data: ArchiveData = JSON.parse(document.getElementById('archive-data')!.textContent!);
   const root = document.getElementById('archive')!;
   const $ = (id: string) => document.getElementById(id)!;
+  // A record dated to a day still to come on the island is not on file yet: it turns up on the day
+  const onFile = new Set(data.records.filter((r) => isFiled(r.date)).map((r) => r.file));
+  data.records = data.records.filter((r) => onFile.has(r.file)).map((r) => ({ ...r, related: r.related.filter((f) => onFile.has(f)) }));
+  if (data.initial && !onFile.has(data.initial)) {
+    data.initial = null;
+    document.title = 'Public Archive — The Ninth Draft';
+  }
   const { categories, records, base } = data;
+  document.querySelectorAll<HTMLElement>('#wall-list > li').forEach((li) => {
+    const r = records.find((x) => x.file === li.dataset.file);
+    if (!r) return li.remove();
+    const rel = li.querySelector('span');
+    if (rel) rel.textContent = r.related.length ? ` — linked to ${r.related.join(', ')}` : '';
+  });
+  {
+    const el = $('wall-count');
+    el.dataset.records = String(records.length);
+    el.dataset.links = String(new Set(records.flatMap((r) => r.related.map((f) => [r.file, f].sort().join('|')))).size);
+  }
   // Language first: every module below reads the records as they are now
   markDocument();
   applyRecords(records);
@@ -589,12 +608,16 @@ export function start() {
   }, { passive: true });
 
   /* ---------------- clock & coordinates ---------------- */
+  const yearEl = $('year');
   const tick = () => {
-    const d = new Date();
+    const d = islandNow();
     const p = (n: number) => String(n).padStart(2, '0');
-    clock.textContent = `${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
-    // Local sidereal-ish drift: right ascension advances with the clock.
-    const ra = (d.getHours() * 3600 + d.getMinutes() * 60 + d.getSeconds()) * 1.0027;
+    const zh = isZh();
+    const you = visitorClock();
+    yearEl.textContent = islandDateLabel(zh);
+    clock.textContent = `${zh ? '霏微' : 'Gerimis'} ${hms(d.hours, d.minutes, d.seconds)}${you ? ` · ${zh ? '你那边' : 'yours'} ${you}` : ''}`;
+    // Sidereal-ish drift: right ascension advances with the island clock.
+    const ra = (d.hours * 3600 + d.minutes * 60 + d.seconds) * 1.0027;
     if (boardCoords && roomTarget === 'wall') return;
     coords.textContent = `RA ${p(Math.floor(ra / 3600) % 24)}h ${p(Math.floor(ra / 60) % 60)}m ${p(Math.floor(ra) % 60)}s · Dec +61° 12′`;
   };

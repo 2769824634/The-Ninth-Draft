@@ -43,10 +43,9 @@ const links = new Set(records.flatMap((r) => r.related.filter((f) => records.som
 
   <!-- ===================== HUD ===================== -->
   <header class="brand">
-    <a class="brand__link" href={base} data-nav="home" aria-label="The Ninth Draft — archive overview">
-      <span class="brand__l1">The Ninth Draft</span>
-      <span class="brand__l2">Records Office · Gerimis</span>
-      <span class="brand__l3"><span>Archive</span> <b>N°9</b></span>
+    <a class="brand__link" href={base} data-nav="home" aria-label="Public Archive — overview">
+      <span class="brand__l1">Gerimis Records Office</span>
+      <span class="brand__l2">Public Archive</span>
     </a>
   </header>
 
@@ -144,9 +143,9 @@ const links = new Set(records.flatMap((r) => r.related.filter((f) => records.som
   <footer class="foot">
     <p class="voice" id="voice" aria-live="polite"><span class="voice__who"><i></i>Archivist</span><span class="voice__line" id="voice-line">Clearance granted.</span></p>
     <span class="foot__coords micro" id="coords">RA 04h 21m 07s · Dec +61° 12′</span>
-    <button type="button" class="foot__year micro" id="year" aria-label="Year"><span>Dec</span> <b>1999</b></button>
-    <span class="foot__clock micro" id="clock">00:00:00</span>
-    <span class="foot__mark">Archive of <b>The Ninth Draft</b><i></i></span>
+    <span class="foot__year micro" id="year" data-no-i18n>1999</span>
+    <span class="foot__clock micro" id="clock" data-no-i18n>00:00:00</span>
+    <span class="foot__mark"><b>Gerimis</b> <span>Records Office</span><i></i></span>
   </footer>
 
   <!-- ===================== DOSSIER ===================== -->
@@ -186,7 +185,7 @@ const links = new Set(records.flatMap((r) => r.related.filter((f) => records.som
     </div>
     <ol class="wallhud__list" id="wall-list">
       {records.map((r) => (
-        <li>
+        <li data-file={r.file}>
           <a href={`${base}records/${r.slug}/`} data-file={r.file}><b>{r.file}</b> {r.title}</a>
           {r.related.length > 0 && <span> — linked to {r.related.join(', ')}</span>}
         </li>
@@ -205,7 +204,7 @@ const links = new Set(records.flatMap((r) => r.related.filter((f) => records.som
       <defs><path id="patch-arc" d="M60 60m-44 0a44 44 0 1 1 88 0a44 44 0 1 1-88 0" /></defs>
       <circle cx="60" cy="60" r="56" class="chapter__ring" />
       <circle cx="60" cy="60" r="34" class="chapter__inner" />
-      <text class="chapter__arc"><textPath href="#patch-arc" textLength="272" lengthAdjust="spacing">ARCHIVE N°9 · PROGRAMS · ARCHIVE N°9 · PROGRAMS ·</textPath></text>
+      <text class="chapter__arc"><textPath href="#patch-arc" textLength="272" lengthAdjust="spacing">RECORDS OFFICE · PROGRAMS · RECORDS OFFICE · PROGRAMS ·</textPath></text>
       <ellipse cx="60" cy="60" rx="30" ry="11" transform="rotate(-24 60 60)" class="chapter__orbit" />
       <circle cx="60" cy="60" r="6" class="chapter__core" />
       <circle cx="86" cy="48" r="2.6" class="chapter__sat" />
@@ -220,7 +219,7 @@ const links = new Set(records.flatMap((r) => r.related.filter((f) => records.som
   <canvas class="iris" id="iris" aria-hidden="true" hidden></canvas>
 
   <article class="dossier" id="dossier" aria-hidden="true">
-    <span class="dossier__spine micro" id="ds-spine" aria-hidden="true">Archive terminal // N°9</span>
+    <span class="dossier__spine micro" id="ds-spine" aria-hidden="true">Archive terminal // Gerimis</span>
     <i class="dossier__scan" aria-hidden="true"></i>
     <header class="dossier__head">
       <div class="retrieve" id="ds-retrieve" aria-hidden="true">
@@ -289,6 +288,7 @@ const links = new Set(records.flatMap((r) => r.related.filter((f) => records.som
 
   <!-- ===================== BOOT ===================== -->
   <div class="boot" id="boot">
+    <p class="boot__work micro" data-no-i18n>The Ninth Draft</p>
     <div class="boot__center">
       <Seal />
       <div class="boot__id">

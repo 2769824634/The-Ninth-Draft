@@ -3,6 +3,7 @@
  * amber phosphor, scanlines, a little bloom. Everything they say is in the
  * SYSTEM voice: system actions only, no jokes.
  */
+import { islandDate } from '../island';
 import type { LogLine, MachineData, MachineFile } from '../../lib/machine';
 import { audio } from '../audio';
 import { isZh } from '../i18n';
@@ -124,7 +125,7 @@ export class ClockScreen {
     this.tick();
   }
   private tick() {
-    const now = new Date();
+    const now = islandDate();
     for (const d of DISTRICTS) {
       const fig = this.screen.body.querySelector<HTMLElement>(`[data-d="${d.id}"]`);
       if (!fig) continue;

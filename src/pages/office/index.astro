@@ -11,9 +11,9 @@ const base = import.meta.env.BASE_URL;
 const records = await loadRecords(base);
 const data = buildMachine(records);
 // the latest backflow events, for the notice board
+// (all of them: the page keeps the last five that are on file by the island's today)
 const notices = records
   .filter((r) => r.category === 'events')
-  .slice(-5)
   .map((r) => ({ file: r.file, slug: r.slug, title: { en: r.title, zh: r.zh?.title ?? r.title }, date: r.date, stamp: r.stamp, category: r.category }));
 const tapes = buildTapes(records, base);
 // what the projector's slides are made from
@@ -29,7 +29,9 @@ const slides = records.map((r) => ({
   place: r.place ? { en: r.place, zh: r.zh?.place ?? r.place } : undefined,
   image: r.image,
 }));
-const payload = JSON.stringify({ ...data, base, notices, tapes, slides }).replace(/</g, '\\u003c');
+// the day each record turns up, for the ones dated to a day of 1999
+const filedOn = Object.fromEntries(records.map((r) => [r.file, r.date]));
+const payload = JSON.stringify({ ...data, base, notices, tapes, slides, filedOn }).replace(/</g, '\\u003c');
 const zones = [
   { id: 'overview', en: 'The whole room', zh: '整间办公室' },
   { id: 'desk', en: 'Desk and computer', zh: '办公桌和电脑' },

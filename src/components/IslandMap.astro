@@ -34,7 +34,7 @@ const OLD = 'M330 404C400 412 460 420 520 410C580 400 620 385 690 362';
         <circle cx={d.x} cy={d.y} r={d.id === 'axis' ? 30 : 24} />
         <circle class="map__pin" cx={d.x} cy={d.y} r="3.5" />
         <text x={d.left ? d.x - 36 : d.x + 36} y={d.y - 4} text-anchor={d.left ? 'end' : 'start'}><tspan data-l="en">{d.en}</tspan><tspan data-l="zh" class="map__zh">{d.zh}</tspan></text>
-        {n !== undefined && <text class="map__n" x={d.left ? d.x - 36 : d.x + 36} y={d.y + 13} text-anchor={d.left ? 'end' : 'start'}>{String(n).padStart(2, '0')} REC.</text>}
+        {n !== undefined && <text class="map__n" x={d.left ? d.x - 36 : d.x + 36} y={d.y + 13} text-anchor={d.left ? 'end' : 'start'}><tspan data-island-count={`#map-list .map__item[data-d="${d.id}"] > ul > li[data-island-date]`}>{String(n).padStart(2, '0')}</tspan> REC.</text>}
       </g>
     );
   })}

@@ -5,8 +5,10 @@
  * WebGL the lists and panels still work; nothing moves.
  */
 import type { CatDrawer, LibBay, LibBook, LibPage } from '../../lib/library';
+import { contents } from '../../lib/toc';
 import type { ArchivistLines } from '../types';
 import { flat } from '../flat';
+import { hideFuture, isFiled, islandDate, islandIso } from '../island';
 import { audio } from '../audio';
 import { isZh } from '../i18n';
 import { prefs, reducedMotion } from '../prefs';
@@ -38,6 +40,16 @@ export function library() {
   const $ = (id: string) => document.getElementById(id)!;
   const data = JSON.parse($('lib-data').textContent || '{}') as { bays: LibBay[]; catalogue: CatDrawer[] };
   const { bays, catalogue } = data;
+  // A record dated to a day still to come is not bound in, and its card is not in the drawer yet
+  for (const b of bays) {
+    for (const book of b.books) {
+      const kept = book.pages.filter((p) => !p.drop || isFiled(p.date));
+      if (kept.length === book.pages.length) continue;
+      if (kept[0]?.toc) kept[0] = { ...kept[0], html: contents(kept.slice(1)) };
+      book.pages = kept;
+    }
+  }
+  for (const d of catalogue) d.cards = d.cards.filter((c) => isFiled(c.date));
   const all = bays.flatMap((b) => b.books.map((book) => ({ book, bay: b })));
   const root = $('lib');
   const voice = new Archivist(lines as unknown as ArchivistLines, 'library.idle');
@@ -66,7 +78,7 @@ export function library() {
     }
   };
   const today = () => {
-    const d = new Date();
+    const d = islandDate();
     return `${String(d.getDate()).padStart(2, '0')} ${MON[d.getMonth()]} 1999`;
   };
 
@@ -191,7 +203,10 @@ export function library() {
       $('rd-mark').textContent = open.book.mark;
       $('rd-book').textContent = `${T(open.book.spine)} · ${T(open.book.sub)}`;
       $('rd-head').textContent = T(p.head);
-      $('rd-body').innerHTML = T(p.html);
+      $('rd-body').innerHTML = p.date && p.date > islandIso()
+        ? (isZh() ? '<p class="lib-small">这一期还没付印。</p>' : '<p class="lib-small">This issue has not gone to press yet.</p>')
+        : T(p.html);
+      hideFuture($('rd-body'));
       $('rd-no').textContent = isZh() ? `第 ${page + 1} 页 / 共 ${open.pages.length} 页` : `p. ${page + 1} / ${open.pages.length}`;
       ($('rd-prev') as HTMLButtonElement).disabled = page === 0;
       ($('rd-next') as HTMLButtonElement).disabled = page === open.pages.length - 1;

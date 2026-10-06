@@ -18,7 +18,7 @@ export const COUNTER = {
   lineAsk: { en: 'One last thing, optional. Everyone remembers something the Office says never existed.', zh: '最后一项，选填。人人都记得点什么东西，而署里说那从没有过。' },
   lineGiven: { en: '“{line}”. Noted. The Office will say it never existed.', zh: '「{line}」。记下了。署里会说那从没有过。' },
   lineSkip: { en: 'Nothing? Everyone remembers something. Fine.', zh: '没有？人人都记得点什么。算了。' },
-  review: { en: 'Read it back. Once it is filed, it is the ninth draft.', zh: '核对一遍。归档以后，这就是第九稿。' },
+  review: { en: 'Read it back. Once it is filed, it is the version we keep.', zh: '核对一遍。归档以后，署里就认这一份。' },
   done: { en: 'Filed. You are on the register. That is not a threat.', zh: '归档完毕。你已在册。这不是威胁。' },
   known: ['heuss', 'yosh', 'frank'],
 } as const;

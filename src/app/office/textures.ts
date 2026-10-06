@@ -4,6 +4,7 @@
  * corduroy, the cassette deck's face, the wall calendar, the island map,
  * the clock face and the cards on the notice board.
  */
+import { islandDate } from '../island';
 import * as THREE from 'three';
 import { DISTRICTS } from '../visitor/districts';
 
@@ -388,7 +389,7 @@ export function counterTexture() {
 }
 
 /** Wall calendar for the current month of 1999, today circled. */
-export function calendarTexture(now = new Date()) {
+export function calendarTexture(now = islandDate()) {
   const W = 512, H = 700;
   const [c, g] = canvas(W, H);
   g.fillStyle = '#efe9da';

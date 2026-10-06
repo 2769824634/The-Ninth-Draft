@@ -12,6 +12,8 @@
  * languages. The reader shows one page at a time.
  */
 import type { ClientRecord } from './records';
+import { islandDay } from '../app/island';
+import { contents } from './toc';
 import { buildIssues, isoDate, longDate, MONTHS_EN } from './daily';
 import { DISTRICTS } from '../app/visitor/districts';
 import { DISTRICT_TEXT } from '../app/visitor/counter';
@@ -21,6 +23,12 @@ type L = { en: string; zh: string };
 export interface LibPage {
   head: L;
   html: L;
+  /** An issue of the Daily, or a record: not shown before its day on the island. */
+  date?: string;
+  /** Leave the page out altogether until then (a record), instead of showing it unprinted (an issue). */
+  drop?: boolean;
+  /** The contents page, rebuilt in the browser when pages are left out. */
+  toc?: boolean;
 }
 
 export interface LibBook {
@@ -89,6 +97,8 @@ export interface CatCard {
   stamp: string;
   title: L;
   line: L;
+  /** The record's day, when it has one: the card goes in the drawer on that day. */
+  date?: string;
 }
 export interface CatDrawer {
   label: string;
@@ -106,9 +116,14 @@ export const CAT_DRAWERS = 20;
 export function buildLibrary(records: ClientRecord[], base: string): Library {
   const zhOf = (r: ClientRecord) => r.zh;
   const title = (r: ClientRecord): L => ({ en: r.title, zh: zhOf(r)?.title ?? r.title });
+  // a line about a record waits for the record's own day as well as its own
+  const when = (r: ClientRecord, date = '') => {
+    const d = [date, islandDay(r.date) ?? ''].sort().pop();
+    return d ? ` data-island-date="${d}"` : ' data-island-date=""';
+  };
   const recLine = (r: ClientRecord): L => ({
-    en: `<li><a href="${base}records/${r.slug}/"><b>${r.file}</b> ${esc(r.title)}</a></li>`,
-    zh: `<li><a href="${base}records/${r.slug}/"><b>${r.file}</b> ${esc(title(r).zh)}</a></li>`,
+    en: `<li${when(r)}><a href="${base}records/${r.slug}/"><b>${r.file}</b> ${esc(r.title)}</a></li>`,
+    zh: `<li${when(r)}><a href="${base}records/${r.slug}/"><b>${r.file}</b> ${esc(title(r).zh)}</a></li>`,
   });
   const list = (items: L[]): L => ({ en: `<ul class="lib-list">${items.map((i) => i.en).join('')}</ul>`, zh: `<ul class="lib-list">${items.map((i) => i.zh).join('')}</ul>` });
 
@@ -122,6 +137,7 @@ export function buildLibrary(records: ClientRecord[], base: string): Library {
   const issuePage = (x: Issue): LibPage => {
     const d = longDate(x.date);
     return {
+      date: x.date,
       head: { en: `No. ${x.no} · ${d.en}`, zh: `第 ${x.no} 期 · ${d.zh}` },
       html: join(
         { en: `<h4>${esc(strip(x.lead.head.en))}</h4>`, zh: `<h4>${esc(strip(x.lead.head.zh))}</h4>` },
@@ -155,8 +171,8 @@ export function buildLibrary(records: ClientRecord[], base: string): Library {
               list(set.map((x) => {
                 const dl = dayLabel(x);
                 return {
-                  en: `<li><a href="${base}daily/${x.date}/"><b>${dl.en}</b> ${esc(strip(x.lead.head.en))}</a></li>`,
-                  zh: `<li><a href="${base}daily/${x.date}/"><b>${dl.zh}</b> ${esc(strip(x.lead.head.zh))}</a></li>`,
+                  en: `<li data-island-date="${x.date}"><a href="${base}daily/${x.date}/"><b>${dl.en}</b> ${esc(strip(x.lead.head.en))}</a></li>`,
+                  zh: `<li data-island-date="${x.date}"><a href="${base}daily/${x.date}/"><b>${dl.zh}</b> ${esc(strip(x.lead.head.zh))}</a></li>`,
                 };
               })),
             )
@@ -223,7 +239,10 @@ export function buildLibrary(records: ClientRecord[], base: string): Library {
       {
         head: { en: 'Files on record', zh: '在册档案' },
         html: recs.length
-          ? list(recs.map(recLine))
+          ? join(list(recs.map(recLine)), {
+              en: `<p data-island-empty="#rd-body .lib-list > li[data-island-date]">Nothing filed from this district yet. The page was ruled for it all the same.</p>`,
+              zh: `<p data-island-empty="#rd-body .lib-list > li[data-island-date]">本区还没有档案归进来。格子照样画好了。</p>`,
+            })
           : p('Nothing filed from this district yet. The page was ruled for it all the same.', '本区还没有档案归进来。格子照样画好了。'),
       },
     ];
@@ -233,8 +252,8 @@ export function buildLibrary(records: ClientRecord[], base: string): Library {
         html: list(dated.map(({ date, r, what }) => {
           const ld = longDate(date);
           return what
-            ? { en: `<li><b>${date.slice(8)} ${MON[Number(date.slice(5, 7)) - 1]}</b> ${r.file}, draft ${String(what.n).padStart(2, '0')} issued</li>`, zh: `<li><b>${ld.zh.split(' · ')[0].replace('1999 年 ', '')}</b> ${r.file} 第 ${String(what.n).padStart(2, '0')} 稿发布</li>` }
-            : { en: `<li><b>${date.slice(8)} ${MON[Number(date.slice(5, 7)) - 1]}</b> ${esc(r.title)}</li>`, zh: `<li><b>${ld.zh.split(' · ')[0].replace('1999 年 ', '')}</b> ${esc(title(r).zh)}</li>` };
+            ? { en: `<li${when(r, date)}><b>${date.slice(8)} ${MON[Number(date.slice(5, 7)) - 1]}</b> ${r.file}, draft ${String(what.n).padStart(2, '0')} issued</li>`, zh: `<li${when(r, date)}><b>${ld.zh.split(' · ')[0].replace('1999 年 ', '')}</b> ${r.file} 第 ${String(what.n).padStart(2, '0')} 稿发布</li>` }
+            : { en: `<li${when(r, date)}><b>${date.slice(8)} ${MON[Number(date.slice(5, 7)) - 1]}</b> ${esc(r.title)}</li>`, zh: `<li${when(r, date)}><b>${ld.zh.split(' · ')[0].replace('1999 年 ', '')}</b> ${esc(title(r).zh)}</li>` };
         })),
       });
     }
@@ -290,6 +309,8 @@ export function buildLibrary(records: ClientRecord[], base: string): Library {
               zh: [r.stamp, date ? longDate(date).zh : z?.date ?? r.date, where?.zh].filter(Boolean).join(' · '),
             };
             return {
+              date: islandDay(r.date),
+              drop: true,
               head: { en: `${r.file} · ${r.title}`, zh: `${r.file} · ${title(r).zh}` },
               html: join(
                 { en: `<p class="lib-small">${esc(meta.en)}</p>`, zh: `<p class="lib-small">${esc(meta.zh)}</p>` },
@@ -315,8 +336,8 @@ export function buildLibrary(records: ClientRecord[], base: string): Library {
       head: { en: `Revision log · ${i + 1}–${i + Math.max(1, chunk.length)}`, zh: `修订登记簿 · 第 ${i + 1}–${i + Math.max(1, chunk.length)} 条` },
       html: chunk.length
         ? list(chunk.map(({ date, r, d }) => ({
-            en: `<li><a href="${base}records/${r.slug}/"><b>${date}</b> ${r.file} · draft ${String(d.n).padStart(2, '0')}${d.label ? ` · ${esc(d.label)}` : ''}</a></li>`,
-            zh: `<li><a href="${base}records/${r.slug}/"><b>${date}</b> ${r.file} · 第 ${String(d.n).padStart(2, '0')} 稿${d.label ? ` · ${esc(zhOf(r)?.drafts?.find((x) => x.n === d.n)?.label ?? d.label)}` : ''}</a></li>`,
+            en: `<li${when(r, date)}><a href="${base}records/${r.slug}/"><b>${date}</b> ${r.file} · draft ${String(d.n).padStart(2, '0')}${d.label ? ` · ${esc(d.label)}` : ''}</a></li>`,
+            zh: `<li${when(r, date)}><a href="${base}records/${r.slug}/"><b>${date}</b> ${r.file} · 第 ${String(d.n).padStart(2, '0')} 稿${d.label ? ` · ${esc(zhOf(r)?.drafts?.find((x) => x.n === d.n)?.label ?? d.label)}` : ''}</a></li>`,
           })))
         : p('No dated revisions entered yet.', '还没有登记过带日期的修订。'),
     });
@@ -419,6 +440,7 @@ export function buildLibrary(records: ClientRecord[], base: string): Library {
             file: r.file,
             slug: r.slug,
             stamp: r.stamp,
+            date: islandDay(r.date),
             title: title(r),
             line: {
               en: [c.en, where?.en, date ? longDate(date).en : null].filter(Boolean).join(' · '),
@@ -455,13 +477,7 @@ function bind(b: LibBook): LibBook {
   if (kind === 'cloth' && n <= 3) kind = 'pamphlet';
   const pages = n >= 4 && kind !== 'binder'
     ? [
-        {
-          head: { en: 'Contents', zh: '目录' },
-          html: {
-            en: `<ol class="lib-toc">${b.pages.map((x, i) => `<li><a href="#" data-page="${i + 1}"><span>${esc(x.head.en)}</span><i>${i + 2}</i></a></li>`).join('')}</ol>`,
-            zh: `<ol class="lib-toc">${b.pages.map((x, i) => `<li><a href="#" data-page="${i + 1}"><span>${esc(x.head.zh)}</span><i>${i + 2}</i></a></li>`).join('')}</ol>`,
-          },
-        },
+        { head: { en: 'Contents', zh: '目录' }, html: contents(b.pages), toc: true },
         ...b.pages,
       ]
     : b.pages;

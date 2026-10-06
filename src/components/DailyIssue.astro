@@ -26,7 +26,12 @@ const monthLabel = (k: string) => {
 };
 ---
 
-<article class="paper" data-special={issue.special ? 'yes' : undefined}>
+<article class="paper paper--unprinted" data-island-until={issue.date} hidden>
+  <p class="micro"><span data-l="en">The Gerimis Daily</span><span data-l="zh">霏微日报</span> · <span data-l="en">{ld.en}</span><span data-l="zh">{ld.zh}</span></p>
+  <p><span data-l="en">This issue has not gone to press yet.</span><span data-l="zh">这一期还没付印。</span></p>
+</article>
+
+<article class="paper" data-special={issue.special ? 'yes' : undefined} data-island-date={issue.date}>
   <header class="paper__mast">
     <div class="paper__ear micro">
       <span><span data-l="en">Est. 1946</span><span data-l="zh">创刊于 1946 年</span></span>
@@ -105,21 +110,21 @@ const monthLabel = (k: string) => {
 
 <nav class="papernav" aria-label="Issues">
   {prev ? <a class="f-btn f-btn--ghost" href={`${base}daily/${prev.date}/`}><span>← <span data-l="en">{longDate(prev.date).en}</span><span data-l="zh">{longDate(prev.date).zh}</span></span></a> : <span></span>}
-  {next ? <a class="f-btn f-btn--ghost" href={`${base}daily/${next.date}/`}><span><span data-l="en">{longDate(next.date).en}</span><span data-l="zh">{longDate(next.date).zh}</span> →</span></a> : <span></span>}
+  {next ? <a class="f-btn f-btn--ghost" href={`${base}daily/${next.date}/`} data-island-date={next.date}><span><span data-l="en">{longDate(next.date).en}</span><span data-l="zh">{longDate(next.date).zh}</span> →</span></a> : <span></span>}
 </nav>
 
 <section class="f-sec papers">
-  <h2 class="f-sec__h"><i>{String(all.length).padStart(2, '0')}</i><span>Back issues</span></h2>
+  <h2 class="f-sec__h"><i data-island-count=".papers li[data-island-date]">{String(all.length).padStart(2, '0')}</i><span>Back issues</span></h2>
   <p class="f-help papers__key"><span data-l="en">Bold days carry news from the files. The rest are ordinary days, which the island also has.</span><span data-l="zh">加粗的日子有档案里的新闻。其余是平常日子，岛上也有平常日子。</span></p>
   <div class="papers__months">
     {[...byMonth.entries()].reverse().map(([k, list]) => (
-      <div class:list={['papers__month', { 'papers__month--loose': list.length < 28 }]}>
+      <div class:list={['papers__month', { 'papers__month--loose': list.length < 28 }]} data-island-date={`${k}-01`}>
         <h3 class="micro"><span data-l="en">{monthLabel(k).en}</span><span data-l="zh">{monthLabel(k).zh}</span></h3>
         <ul>
           {list.length >= 28 && ['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((d, j) => <li class="is-dow micro" aria-hidden="true"><span data-l="en">{d}</span><span data-l="zh">{'一二三四五六日'[j]}</span></li>)}
           {list.length >= 28 && Array.from({ length: (new Date(Date.UTC(Number(k.slice(0, 4)), Number(k.slice(5, 7)) - 1, 1)).getUTCDay() + 6) % 7 }, () => <li class="is-pad" aria-hidden="true"></li>)}
           {list.map((i) => (
-            <li class:list={[{ 'is-on': i.date === issue.date, 'is-nine': i.date.endsWith('-09'), 'is-news': !i.quiet }]}>
+            <li class:list={[{ 'is-on': i.date === issue.date, 'is-nine': i.date.endsWith('-09'), 'is-news': !i.quiet }]} data-island-date={i.date}>
               <a href={`${base}daily/${i.date}/`} title={i.lead.head.en}><b>{Number(i.date.slice(8))}</b></a>
             </li>
           ))}

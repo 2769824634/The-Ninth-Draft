@@ -6,6 +6,7 @@ import { audio } from './audio';
 import { isZh, markDocument, onLang, setLang, t, translateDom } from './i18n';
 import { prefs, reducedMotion } from './prefs';
 import { fileNo, loadVisitor } from './visitor/store';
+import { hideFuture, hms, islandDateLabel, islandNow, visitorClock } from './island';
 
 export function flat(relang?: () => void) {
   const root = document.querySelector<HTMLElement>('.flat')!;
@@ -51,6 +52,18 @@ export function flat(relang?: () => void) {
     audio.click();
     soundLabel();
   });
+
+  // The island's date and time in the footer, with the visitor's own beside it
+  const foot = document.querySelector<HTMLElement>('[data-island-clock]');
+  const tick = () => {
+    if (!foot) return;
+    const zh = isZh(), d = islandNow(), you = visitorClock();
+    foot.textContent = `${zh ? '霏微记录署' : 'Gerimis Records Office'} · ${islandDateLabel(zh)} · ${hms(d.hours, d.minutes)}${you ? ` · ${zh ? '你那边' : 'yours'} ${you}` : ''}`;
+  };
+  tick();
+  window.setInterval(tick, 15000);
+  hideFuture();
+  onLang(tick);
 
   const title = document.title;
   translateDom(root);
