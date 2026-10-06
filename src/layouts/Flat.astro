@@ -8,6 +8,8 @@ import SiteNav, { type NavId } from '../components/SiteNav.astro';
 import '../styles/hud.css';
 import '../styles/zh.css';
 import '../styles/flat.css';
+import '../styles/fileslip.css';
+import { CATEGORIES, loadRecords } from '../lib/records';
 
 interface Props {
   title: string;
@@ -16,6 +18,18 @@ interface Props {
 }
 const { title, description, page } = Astro.props;
 const base = import.meta.env.BASE_URL;
+// Every file on record, small: a file mentioned on this page opens a call
+// slip here (where it is kept, what it says) instead of carrying the reader off.
+const fileIndex = (await loadRecords(base)).map((r) => ({
+  file: r.file,
+  slug: r.slug,
+  category: r.category,
+  stamp: r.stamp,
+  date: r.date,
+  en: { title: r.title, subtitle: r.subtitle, place: r.place, summary: r.summary },
+  zh: r.zh ? { title: r.zh.title, subtitle: r.zh.subtitle, place: r.zh.place, summary: r.zh.summary } : undefined,
+}));
+const categories = CATEGORIES.map((c) => c.id);
 const current: NavId | null = page === 'district' ? 'map' : (['map', 'calendar', 'guide', 'daily', 'library', 'office'] as string[]).includes(page) ? (page as NavId) : null;
 ---
 
@@ -62,4 +76,5 @@ const current: NavId | null = page === 'district' ? 'map' : (['map', 'calendar',
       <span><span>Everything on the island is normal.</span> <span>If it isn't, it's the previous draft.</span></span>
     </footer>
   </div>
+  <script type="application/json" id="file-index" set:html={JSON.stringify({ categories, files: fileIndex }).replace(/</g, '\\u003c')} />
 </Base>

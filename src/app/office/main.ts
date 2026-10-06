@@ -4,7 +4,7 @@
  * revision log, the year field, the district clocks, the backup tapes and
  * the terminal), the head column, the keyboard and ARCHIVIST.
  */
-import { fromHere } from '../ui/recordlink';
+import { openFile } from '../ui/fileslip';
 import type { MachineData } from '../../lib/machine';
 import type { ArchivistLines } from '../types';
 import { flat } from '../flat';
@@ -137,7 +137,7 @@ export function office() {
     else if (zone === 'deck') drawDeck(item);
     else if (zone === 'sofa') drawShow(item);
     else if (zone === 'wall') {
-      for (const n of data.notices) item(n.file, T(n.title), () => (location.href = fromHere(`${base}records/${n.slug}/`)));
+      for (const n of data.notices) item(n.file, T(n.title), () => openFile(n.slug));
       item('⌚', isZh() ? '墙上的钟：换一个区' : 'The clock: another district', cycleClock);
     }
   };
@@ -402,7 +402,7 @@ export function office() {
     );
     listEl.append(li);
     const f = fileOfSlide();
-    if (f) item('→', z ? `打开档案 ${f.file}` : `Open file ${f.file}`, () => (location.href = fromHere(`${base}records/${f.slug}/`)));
+    if (f) item('→', z ? `调阅单 ${f.file}` : `Call slip ${f.file}`, () => openFile(f.slug));
     // the tray on the projector
     const h = document.createElement('li');
     h.className = 'of-shelf micro';
@@ -606,7 +606,7 @@ export function office() {
             : k === 'clock' ? (isZh() ? '挂钟 · 点一下换一个区' : 'Wall clock · click for another district') : T(ZONE_NAME[k as Zone] ?? { en: k, zh: k });
         call.classList.add('is-on');
       },
-      notice: (slug) => (location.href = fromHere(`${base}records/${slug}/`)),
+      notice: (slug) => openFile(slug),
       clock: cycleClock,
       deck: () => press(),
       projector: () => {

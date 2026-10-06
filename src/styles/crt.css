@@ -110,3 +110,4 @@
 @media (prefers-reduced-motion: reduce) {
   .crt__log, .crt__scan::after, .crt.is-glitch .crt__in { animation: none; }
 }
+.is-props .crt__year { display: none; }

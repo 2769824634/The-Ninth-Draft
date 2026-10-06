@@ -288,8 +288,7 @@ export class LibraryScene {
           b.placeOnShelf();
           this.add(b);
         });
-      } else if (bay.id === 'records') spread(bay, bi, [2, 3, 4]);
-      else if (bay.id === 'gazetteer') spread(bay, bi, [5, 6, 7, 8]);
+      } else if (bay.id === 'gazetteer') spread(bay, bi, [5, 6, 7, 8]);
       else if (bay.zone === 'desk') onRun(bay, bi, back, 2, 18.0);
     });
     this.room.fill(west, 11);

@@ -3,8 +3,9 @@
  * amber phosphor, scanlines, a little bloom. Everything they say is in the
  * SYSTEM voice: system actions only, no jokes.
  */
-import { fromHere } from '../ui/recordlink';
-import { islandDate } from '../island';
+import { openFile } from '../ui/fileslip';
+import { islandDate, isFiled } from '../island';
+import { PROPOSALS, proposalDay } from './proposals';
 import type { LogLine, MachineData, MachineFile } from '../../lib/machine';
 import { audio } from '../audio';
 import { isZh } from '../i18n';
@@ -60,13 +61,33 @@ export class YearScreen {
       <p class="crt__dim">${zh ? '字段长度：2 位 · 字段：YR' : 'FIELD LENGTH: 2 · FIELD: YR'}</p>
       <p class="crt__year"><span>YEAR:</span> <b id="yr-val">99</b></p>
       <ol class="crt__out" id="yr-out"><li>${zh ? '待命。' : 'STANDING BY.'}</li></ol>
-      <p class="crt__acts"><button type="button" class="crt__btn" id="yr-test">[ ${zh ? '跨年测试' : 'TEST ROLLOVER'} ]</button><a class="crt__btn" href="${this.base}records/r-0001/">[ R-0001 ]</a></p>`;
+      <p class="crt__acts"><button type="button" class="crt__btn" id="yr-test">[ ${zh ? '跨年测试' : 'TEST ROLLOVER'} ]</button><button type="button" class="crt__btn" id="yr-props">[ ${zh ? '整改方案' : 'PROPOSALS'} ]</button><a class="crt__btn" href="${this.base}records/r-0001/">[ R-0001 ]</a></p>`;
     this.screen.body.querySelector('#yr-test')!.addEventListener('click', () => void this.rollover());
+    this.screen.body.querySelector('#yr-props')!.addEventListener('click', () => this.proposals());
   }
   private say(line: string) {
     const out = this.screen.body.querySelector('#yr-out')!;
+    if (this.screen.body.classList.contains('is-props')) {
+      this.screen.body.classList.remove('is-props');
+      out.innerHTML = '';
+    }
     out.insertAdjacentHTML('beforeend', `<li>${line}</li>`);
     while (out.children.length > 5) out.firstElementChild!.remove();
+  }
+  /** Heuss's proposals: what came back, and with which slip. */
+  proposals() {
+    if (this.busy) return;
+    const zh = isZh();
+    const out = this.screen.body.querySelector('#yr-out')!;
+    // the list needs the room the big year number takes
+    this.screen.body.classList.add('is-props');
+    const on = PROPOSALS.filter((x) => isFiled(proposalDay(x.date)));
+    out.innerHTML = [
+      `<li class="crt__dim">${zh ? '年份字段整改 · 提交人 HEUSS' : 'YEAR-FIELD REMEDIATION · SUBMITTED BY HEUSS'}</li>`,
+      ...on.map((x, i) => `<li>0${i + 1}  ${x.date}  ${esc(zh ? x.zh : x.en.toUpperCase())}</li>`),
+      on.length === PROPOSALS.length ? `<li class="crt__dim">09  ${zh ? '未提交。' : 'NOT SUBMITTED.'}</li>` : '',
+    ].join('');
+    audio.tick();
   }
   /** 99 → 00, read as 1900, then rolled back. */
   async rollover() {
@@ -363,8 +384,8 @@ export class ConsoleScreen {
           p('FILE NOT FOUND.', '找不到档案。');
           break;
         }
-        p(`OPENING ${f.file}.`, `正在调取 ${f.file}。`);
-        window.setTimeout(() => (location.href = fromHere(`${this.base}records/${f.slug}/`)), 700);
+        p(`CALL SLIP PRINTED: ${f.file}. FILE HELD IN ARCHIVE.`, `已打印 ${f.file} 调阅单。原件在档案室。`);
+        window.setTimeout(() => openFile(f.slug), 500);
         break;
       }
       case 'DIFF': {
