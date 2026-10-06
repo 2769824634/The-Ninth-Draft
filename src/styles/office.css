@@ -104,4 +104,37 @@
   .of[data-zone='deck'] .lib__head > .lib__list, .of[data-zone='sofa'] .lib__head > .lib__list { opacity: 1; pointer-events: auto; }
   .of[data-zone='sofa'] .lib__list { max-height: 30vh !important; }
   .of[data-zone='deck'] .lib__list, .of[data-zone='sofa'] .lib__list { display: block; position: fixed; left: 1rem; right: 1rem; bottom: 3.4rem; max-height: 42vh; padding: .5rem .7rem; background: var(--bg); border-top: 2px solid var(--ink); }
+  /* at the calendar: the months and the ringed days, until a slip is pinned over them */
+  .of[data-cal='on'] .lib__head > .lib__list { opacity: 1; pointer-events: auto; }
+  .of[data-cal='on'] .lib__list { display: block; position: fixed; left: 1rem; right: 1rem; bottom: 3.4rem; max-height: 30vh; padding: .5rem .7rem; background: var(--bg); border-top: 2px solid var(--ink); }
+  .of[data-cal='on'][data-day='on'] .lib__head > .lib__list { opacity: 0; pointer-events: none; }
+}
+
+/* ---------- the slip pinned under the wall calendar ---------- */
+.of-day {
+  position: absolute; z-index: 3; right: 1.6rem; top: 50%; translate: 0 -50%;
+  width: min(21rem, calc(100vw - 2rem)); max-height: 70vh; overflow: auto;
+  padding: 1.5rem 1.15rem 1rem; background: #f6f1e2; color: #1d1b17;
+  background-image: repeating-linear-gradient(transparent 0 1.55rem, rgb(40 70 120 / .14) 1.55rem calc(1.55rem + 1px));
+  background-position: 0 3.4rem;
+  box-shadow: 0 1px 0 rgb(0 0 0 / .08), 0 14px 32px -12px rgb(0 0 0 / .45);
+  rotate: .6deg;
+}
+.of-day[hidden] { display: none; }
+.of-day::before { content: ''; position: absolute; top: .45rem; left: 50%; width: .8rem; height: .8rem; margin-left: -.4rem; border-radius: 50%; background: radial-gradient(circle at 35% 35%, #e5604a, #a8261a 70%); box-shadow: 0 2px 3px rgb(0 0 0 / .35); }
+.of-day__head { display: flex; align-items: baseline; gap: .6rem; padding-bottom: .4rem; border-bottom: 1px dashed rgb(29 27 23 / .3); }
+.of-day__date { font: 700 1.35rem/1 var(--f-mono); letter-spacing: .02em; }
+.of-day__sub { color: rgb(29 27 23 / .6); }
+.of-day__x { margin-left: auto; font-size: 1.15rem; line-height: 1; padding: 0 .2rem; color: rgb(29 27 23 / .6); }
+.of-day__x:hover, .of-day__x:focus-visible { color: #b3271c; }
+.of-day ul { list-style: none; margin: .55rem 0 0; padding: 0; }
+.of-day li { padding: .3rem 0; }
+.of-day li a { color: #1d1b17; text-decoration: none; font-family: var(--f-serif); font-size: .9rem; line-height: 1.35; }
+.of-day li a b { margin-right: .45rem; font: 600 .78rem var(--f-mono); color: #b3271c; }
+.of-day li a:hover span, .of-day li a:focus-visible span { text-decoration: underline; text-decoration-color: #b3271c; text-underline-offset: .2em; }
+.of-day li i { display: block; margin: .1rem 0 0 0; font-style: normal; color: rgb(29 27 23 / .55); }
+.of-day__none { margin: .7rem 0 .2rem; font-family: var(--f-note); font-style: italic; font-size: .95rem; color: #9c2a1e; }
+.of-day__paper { margin: .8rem 0 0; padding-top: .5rem; border-top: 1px solid rgb(29 27 23 / .18); font-family: var(--f-serif); font-size: .82rem; line-height: 1.5; color: rgb(29 27 23 / .75); }
+@media (max-width: 760px) {
+  .of-day { left: .8rem; right: .8rem; top: auto; bottom: .8rem; translate: none; width: auto; max-height: 46vh; rotate: none; }
 }

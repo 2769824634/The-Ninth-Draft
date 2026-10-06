@@ -11,8 +11,9 @@ import { flat } from '../flat';
 import { audio } from '../audio';
 import { isZh, onLang } from '../i18n';
 import { canvasFontsReady } from '../scene/textures';
-import { isFiled } from '../island';
-import { prefs } from '../prefs';
+import { isFiled, islandNow } from '../island';
+import { prefs, reducedMotion } from '../prefs';
+import { esc } from '../ui/text';
 import { Archivist } from '../ui/archivist';
 import { DISTRICTS } from '../visitor/districts';
 import { BackupScreen, ClockScreen, ConsoleScreen, LogScreen, YearScreen } from './programs';
@@ -23,9 +24,14 @@ import { INK, clearanceKey } from '../clearance';
 import { SlideShow } from './show';
 import { buildTrays, caption, preload, type SlideFile, type Tray } from './slides';
 import { OfficeScene, ZONES, type Zone } from './scene';
+import { hitSheet, lunar, type MonthMarks } from './calendar';
+import type { CalItem } from '../../lib/calendar';
 import lines from '../../data/archivist.json';
 
 type L = { en: string; zh: string };
+const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+/** Every Chinese character the calendar sheets print, loaded before they are drawn. */
+const CAL_GLYPHS = '正二三四五六七八九十冬腊月初廿日一春节元宵端午中秋重阳清明至己卯戊寅年霏微记录署印免费赠阅';
 type Program = 'log' | 'year' | 'clocks' | 'backup' | 'console';
 const PROGRAMS: { id: Program; key: string; en: string; zh: string }[] = [
   { id: 'console', key: 'F1', en: 'TERMINAL', zh: '终端' },
@@ -49,7 +55,7 @@ const SHELVES: { kind: TapeData['kind'][]; en: string; zh: string }[] = [
 
 export function office() {
   const $ = (id: string) => document.getElementById(id)!;
-  const data = JSON.parse($('of-data').textContent || '{}') as MachineData & { base: string; notices: { file: string; slug: string; title: L; date?: string; stamp: string; category: string }[]; tapes: TapeData[]; slides: SlideFile[]; filedOn: Record<string, string | undefined> };
+  const data = JSON.parse($('of-data').textContent || '{}') as MachineData & { base: string; notices: { file: string; slug: string; title: L; date?: string; stamp: string; category: string }[]; tapes: TapeData[]; slides: SlideFile[]; filedOn: Record<string, string | undefined>; calendar: CalItem[] };
   // Records dated to a day still to come are not on file yet: no notice, no log line, no tape, no slide
   const on = (file: string) => isFiled(data.filedOn[file]);
   data.notices = data.notices.filter((n) => on(n.file)).slice(-5);
@@ -138,12 +144,14 @@ export function office() {
     else if (zone === 'deck') drawDeck(item);
     else if (zone === 'sofa') drawShow(item);
     else if (zone === 'wall') {
+      if (calOpen) return drawCalendar(item);
       for (const n of data.notices) item(n.file, T(n.title), () => openFile(n.slug));
       item('⌚', isZh() ? '墙上的钟：换一个区' : 'The clock: another district', cycleClock);
-      item('▦', isZh() ? '挂历：翻开 1999 年' : 'The calendar: open 1999', () => location.assign(`${base}calendar/`));
+      item('▦', isZh() ? `挂历：1999 年 ${calMonth + 1} 月` : `The calendar: ${MONTHS[calMonth]} 1999`, () => openCalendar());
     }
   };
   const setZone = (z: Zone) => {
+    if (z !== 'wall' && calOpen) closeCalendar(false);
     if (z !== 'deck' && held) putBack();
     if (z !== 'sofa' && heldTray) putBackTray();
     zone = z;
@@ -517,6 +525,136 @@ export function office() {
     drawList();
   }
 
+  /* ---------------- the wall calendar ---------------- */
+  // only what is on file by the island's today, and only from the day it happened
+  const calItems = data.calendar.filter((i) => isFiled(i.filed) && isFiled(i.day));
+  const today = islandNow();
+  const iso = (m: number, d: number) => `1999-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+  const onDay = (m: number, d: number) => calItems.filter((i) => i.day === iso(m, d));
+  /** A day's things, one line a file: what of it is dated that day (the record, a draft, an attachment). */
+  const filesOn = (m: number, d: number) => {
+    const by = new Map<string, { item: CalItem; what: L[] }>();
+    for (const i of onDay(m, d)) {
+      const f = by.get(i.file) ?? { item: i, what: [] };
+      if (!f.what.some((w) => w.en === i.what.en)) f.what.push(i.what);
+      by.set(i.file, f);
+    }
+    // the things that happened first
+    return [...by.values()].sort((a, b) => Number(b.item.category === 'events') - Number(a.item.category === 'events'));
+  };
+  const marksOf = (m: number): MonthMarks => {
+    const ring = new Set<number>(), tick = new Set<number>();
+    for (const i of calItems) {
+      if (!i.day.startsWith(iso(m, 1).slice(0, 8))) continue;
+      const d = Number(i.day.slice(8));
+      (i.category === 'events' ? ring : tick).add(d);
+    }
+    return { ring: [...ring], tick: [...tick] };
+  };
+  let calOpen = false;
+  let calMonth = today.month;
+  let calDay: number | null = null;
+  const slip = $('of-day');
+
+  function openCalendar(month = calMonth, day: number | null = null) {
+    if (zone !== 'wall') scene?.goZone('wall');
+    if (!scene) setZone('wall');
+    calOpen = true;
+    if (scene) scene.calView = true;
+    root.dataset.cal = 'on';
+    turnTo(month, false);
+    if (day) pinDay(day, false);
+    else voice.say('office.calendar');
+    drawList();
+  }
+  function closeCalendar(redraw = true) {
+    calOpen = false;
+    if (scene) scene.calView = false;
+    delete root.dataset.cal;
+    unpin();
+    history.replaceState(null, '', location.pathname);
+    if (redraw) drawList();
+  }
+  /** Lift the sheet (or bring last month's down). */
+  function turnTo(m: number, sound = true) {
+    m = Math.max(0, Math.min(11, m));
+    if (m !== calMonth) {
+      unpin();
+      if (sound) audio.paper();
+    }
+    calMonth = m;
+    scene?.room.calendar.show(m);
+    history.replaceState(null, '', `#calendar-${iso(m, 1).slice(0, 7)}`);
+    drawList();
+  }
+  function unpin() {
+    calDay = null;
+    slip.hidden = true;
+    delete root.dataset.day;
+    scene?.room.calendar.pin(null);
+  }
+  function pinDay(d: number, say = true) {
+    calDay = d;
+    scene?.room.calendar.pin(d, filesOn(calMonth, d).map((f) => f.item.file));
+    drawSlip();
+    slip.hidden = false;
+    root.dataset.day = 'on';
+    audio.paper();
+    if (!reducedMotion()) slip.animate([{ opacity: 0, transform: 'translateY(-14px) rotate(-2deg)' }, { opacity: 1, transform: 'none' }], { duration: 320, easing: 'cubic-bezier(.16,1,.3,1)' });
+    history.replaceState(null, '', `#calendar-${iso(calMonth, d)}`);
+    if (say) voice.say('office.calendar-pin', {}, false);
+  }
+  function drawSlip() {
+    if (calDay === null) return;
+    const zh = isZh(), m = calMonth, d = calDay;
+    const day = iso(m, d);
+    const wd = new Date(Date.UTC(1999, m, d)).getUTCDay();
+    const sub = zh ? `星期${'日一二三四五六'[wd]} · ${lunar(m, d).long}` : `${['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][wd]}, ${d} ${MONTHS[m]}`;
+    const items = filesOn(m, d);
+    const future = day > iso(today.month, today.day);
+    const list = items.length
+      ? `<ul>${items.map(({ item: i, what }) => `<li><a href="${base}records/${i.slug}/"><b>${esc(i.file)}</b><span>${esc(T(i.title))}</span></a><i class="micro">${esc(what.map(T).join(' · '))}</i></li>`).join('')}</ul>`
+      : `<p class="of-day__none">${future ? (zh ? '这一天还没到。' : 'This day has not come round yet.') : d === 9 ? (zh ? '9 号不是空白，只是尚未归档。' : 'The 9th is not blank, only unfiled.') : zh ? '这一天没有归档。' : 'Nothing filed on this day.'}</p>`;
+    // the paper for the day is in the library: say where, do not fetch it
+    const paper = future
+      ? ''
+      : `<p class="of-day__paper">${zh ? `这天的《霏微日报》在资料室 · 报刊架 · ${m + 1} 月那根报杆。` : `The Gerimis Daily for this day is in the library, on the ${MONTHS[m]} stick of the newspaper rack.`}</p>`;
+    slip.innerHTML = `
+      <div class="of-day__head"><span class="of-day__date">${d}.${m + 1}.99</span><span class="of-day__sub micro">${esc(sub)}</span>
+        <button type="button" class="of-day__x" data-day-close aria-label="${zh ? '取下纸条' : 'Take the slip down'}">×</button></div>
+      ${list}${paper}`;
+  }
+  slip.addEventListener('click', (e) => {
+    if ((e.target as HTMLElement).closest('[data-day-close]')) unpin();
+  });
+  function drawCalendar(item: (mark: string, label: string, on: () => void) => void) {
+    const zh = isZh();
+    if (calMonth > 0) item('←', zh ? `上个月 · ${calMonth} 月` : `Back to ${MONTHS[calMonth - 1]}`, () => turnTo(calMonth - 1));
+    if (calMonth < 11) item('→', zh ? `下个月 · ${calMonth + 2} 月` : `On to ${MONTHS[calMonth + 1]}`, () => turnTo(calMonth + 1));
+    const days = [...new Set(calItems.filter((i) => i.day.startsWith(iso(calMonth, 1).slice(0, 8))).map((i) => Number(i.day.slice(8))))].sort((a, b) => a - b);
+    for (const d of days) {
+      const here = filesOn(calMonth, d);
+      const lead = here[0].item;
+      item(zh ? `${d} 日` : `${d}`, `${lead.file} · ${T(lead.title)}${here.length > 1 ? (zh ? ` 等 ${here.length} 份` : ` and ${here.length - 1} more`) : ''}`, () => pinDay(d));
+    }
+    if (!days.length) item('—', zh ? '这个月还没有圈。' : 'Nothing ringed this month.', () => {});
+    item('×', zh ? '把挂历留在墙上' : 'Leave the calendar on the wall', () => closeCalendar());
+  }
+  /** Redraw the sheets in the page's language, again once its Chinese glyphs are in. */
+  function redrawCalendar() {
+    const cal = scene?.room.calendar;
+    if (!cal) return;
+    cal.redraw(isZh());
+    if (isZh()) void canvasFontsReady(CAL_GLYPHS).then(() => cal.redraw(isZh()));
+  }
+  /** A click on the calendar itself: a day pins a slip, the picture turns the page. */
+  function clickCalendar(u: number, v: number) {
+    if (!calOpen) return openCalendar();
+    const h = hitSheet(calMonth, u, v);
+    if (h.day) pinDay(h.day);
+    else if (h.picture) turnTo(calMonth < 11 ? calMonth + 1 : 0);
+  }
+
   /* ---------------- the clock on the wall ---------------- */
   let clockAt = 0;
   function cycleClock() {
@@ -551,6 +689,8 @@ export function office() {
     if (e.target instanceof HTMLSelectElement || e.metaKey || e.ctrlKey || e.altKey) return;
     if (e.key === 'Escape') {
       (document.activeElement as HTMLElement | null)?.blur?.();
+      if (calDay !== null) return unpin();
+      if (calOpen) return closeCalendar();
       if (held) return putBack();
       if (heldTray) return putBackTray();
       return scene?.goZone('overview');
@@ -559,6 +699,7 @@ export function office() {
     if (e.key === 'Enter' && heldTray && !(e.target instanceof HTMLButtonElement)) return loadTray();
     if (e.target instanceof HTMLInputElement) return;
     if (/^[0-4]$/.test(e.key)) scene?.goZone(ZONES[Number(e.key)]);
+    else if (calOpen && (e.key === 'ArrowRight' || e.key === 'ArrowLeft')) turnTo(calMonth + (e.key === 'ArrowRight' ? 1 : -1));
     else if (zone === 'sofa' && (e.key === 'ArrowRight' || e.key === 'ArrowLeft' || (e.key === ' ' && !(e.target instanceof HTMLButtonElement)))) {
       e.preventDefault();
       audio.unlock();
@@ -609,10 +750,12 @@ export function office() {
               })()
             : k === 'deck-play'
             ? isZh() ? '磁带机 · 点一下放 / 停' : 'Cassette deck · click to play or stop'
+            : k === 'calendar' ? (isZh() ? (calOpen ? '挂历 · 点日子钉一张纸条，点图片翻下一个月' : '挂历 · 点一下凑近看') : calOpen ? 'Calendar · click a day to pin a slip, the picture to turn the month' : 'Calendar · click to look closer')
             : k === 'clock' ? (isZh() ? '挂钟 · 点一下换一个区' : 'Wall clock · click for another district') : T(ZONE_NAME[k as Zone] ?? { en: k, zh: k });
         call.classList.add('is-on');
       },
       notice: (slug) => openFile(slug),
+      calendar: clickCalendar,
       clock: cycleClock,
       deck: () => press(),
       projector: () => {
@@ -643,6 +786,8 @@ export function office() {
       scene.room.projector.setDrop(0, true);
     }
     scene.deckView = deckView;
+    scene.room.calendar.marks = marksOf;
+    redrawCalendar();
     scene.setTheme(prefs.get('theme'));
     requestAnimationFrame(() => root.classList.add('is-lit'));
   } catch (err) {
@@ -659,8 +804,13 @@ export function office() {
     scene?.room.shelf.relabel((id) => T(tapeOf(id)?.title ?? { en: '', zh: '' }));
     slideshow.redraw();
     scene?.room.crate.relabel((id) => T(trayOf(id)?.title ?? { en: '', zh: '' }), isZh());
+    drawSlip();
+    redrawCalendar();
   });
   root.dataset.zone = zone;
   drawList();
-  window.setTimeout(() => voice.say('office.enter'), 900);
+  // the old calendar page, and links to a month or a day of it, come to the wall
+  const want = location.hash.match(/^#calendar(?:-1999-(\d{2})(?:-(\d{2}))?)?$/);
+  if (want) window.setTimeout(() => openCalendar(want[1] ? Number(want[1]) - 1 : today.month, want[2] ? Number(want[2]) : null), 300);
+  else window.setTimeout(() => voice.say('office.enter'), 900);
 }

@@ -1,10 +1,9 @@
 /**
  * Office textures, all drawn on canvas: lino, two-tone government paint,
  * the street seen at pavement level through the basement window, sofa
- * corduroy, the cassette deck's face, the wall calendar, the island map,
+ * corduroy, the cassette deck's face, the island map,
  * the clock face and the cards on the notice board.
  */
-import { islandDate } from '../island';
 import * as THREE from 'three';
 import { DISTRICTS } from '../visitor/districts';
 
@@ -386,66 +385,6 @@ export function counterTexture() {
   };
   draw(0);
   return { tex: t, draw };
-}
-
-/** Wall calendar for the current month of 1999, today circled. */
-export function calendarTexture(now = islandDate()) {
-  const W = 512, H = 700;
-  const [c, g] = canvas(W, H);
-  g.fillStyle = '#efe9da';
-  g.fillRect(0, 0, W, H);
-  grain(g, W, H, 31, 0.04);
-  // the picture half: a halftone of rain over the strait
-  g.fillStyle = '#3b4d5a';
-  g.fillRect(24, 24, W - 48, 290);
-  g.fillStyle = 'rgba(240,235,220,.35)';
-  for (let y = 30; y < 310; y += 7) for (let x = 30; x < W - 30; x += 7) {
-    const r = 1.6 * (1 - y / 360) + 0.5;
-    g.beginPath();
-    g.arc(x, y, r, 0, Math.PI * 2);
-    g.fill();
-  }
-  const MONTHS = ['JANUARY', 'FEBRUARY', 'MARCH', 'APRIL', 'MAY', 'JUNE', 'JULY', 'AUGUST', 'SEPTEMBER', 'OCTOBER', 'NOVEMBER', 'DECEMBER'];
-  const ZH = ['一', '二', '三', '四', '五', '六', '七', '八', '九', '十', '十一', '十二'];
-  const m = now.getMonth(), d = now.getDate();
-  g.fillStyle = '#1d1b17';
-  g.font = `800 40px ${COND}`;
-  g.fillText(`${MONTHS[m]} 1999`, 32, 368);
-  g.font = `500 22px ${SANS}`;
-  g.fillStyle = '#b8281d';
-  g.fillText(`${ZH[m]}月`, W - 110, 366);
-  g.font = `500 13px ${MONO}`;
-  g.fillStyle = 'rgba(29,27,23,.6)';
-  g.fillText('RECORDS OFFICE · GERIMIS', 32, 392);
-  const first = new Date(1999, m, 1).getDay();
-  const days = new Date(1999, m + 1, 0).getDate();
-  const cw = (W - 64) / 7, ch = 44;
-  'SMTWTFS'.split('').forEach((l, i) => {
-    g.fillStyle = i === 0 ? '#b8281d' : 'rgba(29,27,23,.7)';
-    g.font = `600 14px ${MONO}`;
-    g.fillText(l, 32 + i * cw + cw / 2 - 5, 426);
-  });
-  for (let day = 1; day <= days; day++) {
-    const k = first + day - 1;
-    const x = 32 + (k % 7) * cw, y = 460 + Math.floor(k / 7) * ch;
-    g.fillStyle = k % 7 === 0 ? '#b8281d' : '#1d1b17';
-    g.font = `500 22px ${MONO}`;
-    g.fillText(String(day), x + cw / 2 - (day > 9 ? 13 : 7), y);
-    if (day === 9) {
-      g.fillStyle = 'rgba(184,40,29,.8)';
-      g.beginPath();
-      g.arc(x + cw - 10, y - 18, 3, 0, Math.PI * 2);
-      g.fill();
-    }
-    if (day === Math.min(d, days)) {
-      g.strokeStyle = 'rgba(184,40,29,.85)';
-      g.lineWidth = 3;
-      g.beginPath();
-      g.ellipse(x + cw / 2, y - 8, 22, 18, -0.1, 0, Math.PI * 2);
-      g.stroke();
-    }
-  }
-  return tex(c);
 }
 
 /** Framed island map: a coast, the districts, both names. */
