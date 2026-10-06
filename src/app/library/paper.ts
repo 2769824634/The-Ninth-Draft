@@ -281,7 +281,7 @@ export class Paper {
         <button type="button" data-np="yesterday"${prevOk ? '' : ' disabled'}>← ${zh ? '前一天' : 'Day before'}</button>
         <button type="button" data-np="days" aria-expanded="false">${zh ? '本月往期' : 'Other days'}</button>
         <button type="button" data-np="tomorrow"${nextOk ? '' : ' disabled'}>${zh ? '后一天' : 'Day after'} →</button>
-        <button type="button" class="np-bar__close" data-np="close">${zh ? '挂回报架' : 'Back on the rack'} <span class="kbd">Esc</span></button>
+        <button type="button" class="np-bar__close" data-np="close">${zh ? '折起来' : 'Fold it up'} <span class="kbd">Esc</span></button>
       </div>`;
     const foot = this.el.querySelector<HTMLElement>('#np-turn')!;
     foot.innerHTML = `
