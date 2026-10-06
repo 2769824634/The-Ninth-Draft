@@ -48,6 +48,10 @@ export interface LibBook {
   h: number;
   thick: number;
   pages: LibPage[];
+  /** Foot of the cover and title page; the Office's own imprint when not given. */
+  imprint?: L;
+  /** Where the full text is fetched from when the book is taken down (shelved books only carry their headings). */
+  src?: string;
 }
 
 export interface LibBay {
@@ -115,7 +119,7 @@ export interface Library {
 const PER_DRAWER = 6;
 export const CAT_DRAWERS = 20;
 
-export function buildLibrary(records: ClientRecord[], base: string): Library {
+export function buildLibrary(records: ClientRecord[], base: string, books: LibBook[] = []): Library {
   const zhOf = (r: ClientRecord) => r.zh;
   const title = (r: ClientRecord): L => ({ en: r.title, zh: zhOf(r)?.title ?? r.title });
   // a line about a record waits for the record's own day as well as its own
@@ -290,6 +294,8 @@ export function buildLibrary(records: ClientRecord[], base: string): Library {
   const bays: LibBay[] = [
     { id: 'daily', zone: 'rack', code: 'LIB-1', title: { en: 'The Gerimis Daily', zh: '霏微日报' }, books: daily.map(bind) },
     { id: 'gazetteer', zone: 'stacks', code: 'LIB-2', title: { en: 'District gazetteer', zh: '各区区志' }, books: gazetteer.map(bind) },
+    // public-domain books, already bound (src/lib/books.ts)
+    ...(books.length ? [{ id: 'books', zone: 'stacks' as const, code: 'LIB-4', title: { en: 'Books', zh: '藏书' }, books }] : []),
     { id: 'counter', zone: 'desk', code: 'LIB-3', title: { en: 'Counter copies', zh: '柜台取阅' }, books: counter.map(bind) },
   ];
 

@@ -251,7 +251,7 @@ export function coverTexture(b: LibBook, zh: boolean) {
   fit(g, zh ? b.sub.zh : b.sub.en, (px) => `500 ${px}px ${COND}`, 26, W - 160);
   g.fillText(zh ? b.sub.zh : b.sub.en, W / 2, H * 0.36 + 56);
   g.font = `500 18px ${MONO}`;
-  g.fillText('RECORDS OFFICE · GERIMIS', W / 2, H * 0.84);
+  g.fillText(b.imprint ? (zh ? b.imprint.zh : b.imprint.en) : 'RECORDS OFFICE · GERIMIS', W / 2, H * 0.84);
   return tex(c);
 }
 
@@ -285,7 +285,7 @@ export function pageTexture(b: LibBook, n: number, head: L | null, zh: boolean, 
     g.fillRect(W / 2 - 40, H * 0.5, 80, 3);
     g.fillStyle = 'rgba(29,27,23,.7)';
     g.font = `500 15px ${MONO}`;
-    g.fillText(zh ? '记录署 · 霏微 · 1999' : 'RECORDS OFFICE · GERIMIS · 1999', W / 2, H * 0.86);
+    g.fillText(b.imprint ? (zh ? b.imprint.zh : b.imprint.en) : zh ? '记录署 · 霏微 · 1999' : 'RECORDS OFFICE · GERIMIS · 1999', W / 2, H * 0.86);
     return tex(c);
   }
   const m = 56;

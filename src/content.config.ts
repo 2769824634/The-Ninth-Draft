@@ -117,4 +117,30 @@ const recordsZh = defineCollection({
   }),
 });
 
-export const collections = { records, recordsZh };
+/**
+ * Books on the reading-room shelves: one Markdown file = one book, in the
+ * language it was written in. `## ` headings are chapters; long chapters
+ * are cut into pages at build time. Public-domain texts only.
+ */
+const books = defineCollection({
+  loader: glob({ pattern: '**/*.md', base: './src/content/books' }),
+  schema: z.object({
+    /** Title as printed, in the book's own language. */
+    title: z.string(),
+    /** The title in the other language, for the spine and the card. */
+    titleAlt: z.string().optional(),
+    author: z.string(),
+    authorAlt: z.string().optional(),
+    /** Year of first publication, e.g. "1887" or "1928". */
+    year: z.string(),
+    lang: z.enum(['zh', 'en']),
+    /** Where the text was taken from (edition, site), shown on the title page. */
+    source: z.string(),
+    /** Cloth colour of the binding (optional). */
+    color: z.string().optional(),
+    /** Lower numbers stand first on the shelf. */
+    order: z.number().default(100),
+  }),
+});
+
+export const collections = { records, recordsZh, books };
