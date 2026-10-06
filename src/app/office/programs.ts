@@ -1,5 +1,5 @@
 /**
- * The machine room's screens. Each is live DOM on the front of a CRT:
+ * The programs on the Data Section computer. Each is live DOM in an amber CRT:
  * amber phosphor, scanlines, a little bloom. Everything they say is in the
  * SYSTEM voice: system actions only, no jokes.
  */
@@ -351,7 +351,7 @@ export class ConsoleScreen {
         const c = args[0]?.[0];
         const list = this.data.files.filter((f) => !c || f.file.startsWith(c));
         if (!list.length) p('NO FILES.', '无档案。');
-        for (const f of list) this.print(`${f.file}  ${esc(f.stamp.padEnd(13, ' ').replace(/ /g, '&nbsp;'))} ${esc(zh ? f.title.zh : f.title.en.toUpperCase())}`);
+        for (const f of list) this.print(`${f.file}  ${esc(f.stamp.padEnd(13, ' '))} ${esc(zh ? f.title.zh : f.title.en.toUpperCase())}`);
         p(`${list.length} FILES.`, `共 ${list.length} 份。`, 'dim');
         break;
       }

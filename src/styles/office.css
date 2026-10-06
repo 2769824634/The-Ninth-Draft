@@ -1,0 +1,61 @@
+/* ==========================================================================
+   Room 04: the Data Section office. Same page frame as the library (its
+   head column, callout, footer are reused); the computer's screen is a live
+   page laid onto the 3D monitor by CSS3D.
+   ========================================================================== */
+:root:has(.flat[data-page='office']) body { overflow: hidden; }
+.flat[data-page='office'] { height: 100vh; height: 100dvh; grid-template-rows: auto 1fr; }
+.flat[data-page='office'] .fhead { position: relative; z-index: 4; background: transparent; border-bottom-color: transparent; }
+.flat[data-page='office'] .ffoot { display: none; }
+.flat[data-page='office'] .fmain { position: static; padding: 0; min-height: 0; }
+
+.of { position: fixed; inset: 0; z-index: 1; }
+.of__canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; opacity: 0; transition: opacity 1200ms var(--ease); }
+.of.is-lit .of__canvas { opacity: 1; }
+.of__css { position: absolute !important; inset: 0; pointer-events: none; }
+.of .lib__head, .of .lib__foot, .of .lib__callout { z-index: 2; }
+/* close in on a corner, the page fades back behind the head column (as in the library) */
+.of::before {
+  content: '';
+  position: absolute;
+  z-index: 1;
+  inset: 0 auto 0 0;
+  width: 34rem;
+  background: linear-gradient(90deg, var(--bg) 0 40%, transparent);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 900ms var(--ease);
+}
+.of:not([data-zone='overview'])::before { opacity: .88; }
+.of[data-zone='overview'] .lib__here, .of[data-zone='overview'] .lib__list { display: none; }
+
+/* ---------- the computer's screen (480 × 360 px, scaled onto the glass) ---------- */
+.pc {
+  position: relative;
+  width: 480px;
+  height: 360px;
+  overflow: hidden;
+  border-radius: 22px / 26px;
+  background: radial-gradient(ellipse at 50% 45%, #1f1408, #150d05 75%);
+  box-shadow: inset 0 0 50px rgb(0 0 0 / .85);
+  transition: opacity 500ms var(--ease);
+}
+.pc__keys { position: absolute; z-index: 2; left: 0; right: 0; bottom: 0; display: flex; gap: 2px; padding: 4px 14px 8px; background: linear-gradient(transparent, #150d05 40%); }
+.pc__keys button { flex: 1; padding: 2px 0; border: 1px solid rgb(255 181 71 / .35); background: none; color: #ffb547; font: 400 11px/1.3 var(--f-system); letter-spacing: .06em; text-shadow: 0 0 5px rgb(255 170 60 / .6); cursor: pointer; }
+.pc__keys button b { font-weight: 400; opacity: .6; }
+.pc__keys button:hover { background: rgb(255 181 71 / .15); }
+.pc__keys button.is-on { background: #ffb547; color: #150d05; text-shadow: none; }
+.pc__keys button.is-on b { opacity: 1; }
+.pc__stack { position: absolute; inset: 0 0 30px; }
+.pc .crt--inner { position: absolute; inset: 0; width: auto; height: auto; border-radius: 0; background: none; box-shadow: none; cursor: auto; }
+.pc .crt--inner .crt__scan { display: none; }
+.pc .crt--inner[hidden] { display: none; }
+.pc > .crt__scan { position: absolute; inset: 0; z-index: 3; pointer-events: none; }
+.pc .crt__in { padding: 14px 20px 6px; font-size: 14px; }
+
+@media (max-width: 900px) {
+  .of::before { display: none; }
+  .of .lib__head > :not(.lib__zones) { transition: opacity 500ms var(--ease); }
+  .of:not([data-zone='overview']) .lib__head > :not(.lib__zones) { opacity: 0; pointer-events: none; }
+  .of:not([data-zone='overview']) .lib__zones { position: fixed; left: 1rem; right: 1rem; top: 7.4rem; padding: .3rem .5rem; background: var(--bg); }
+}
