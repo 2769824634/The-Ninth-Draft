@@ -43,6 +43,8 @@ export interface OfficeEvents {
   screen(): void;
   /** A slide-tray box in the crate clicked. */
   trayBox(id: string): void;
+  /** The wall calendar clicked, at texture point (u, v). */
+  calendar(u: number, v: number): void;
 }
 
 interface View {
@@ -107,6 +109,8 @@ export class OfficeScene {
   /** A slide box held up to be read, or a tray going onto (or off) the projector: the camera follows. */
   trayView: 'hold' | 'load' | null = null;
   lightsDown = false;
+  /** At the wall, the calendar taken in close. */
+  calView = false;
   private lamp = 0;
   private dim = new Spring(0, 1.6);
 
@@ -191,6 +195,8 @@ export class OfficeScene {
         if (this.holding) return { at: this.room.holdPoint(), dir: DECK_DIR.clone(), w: 0.3, h: 0.17 };
         return { at: new THREE.Vector3(-1.84, 0.93, -2.12), dir: DECK_DIR.clone(), w: 1.25, h: 0.5 };
       case 'wall':
+        // close in on the calendar, with room under it for the slip
+        if (this.calView) return { at: new THREE.Vector3(R.x0, 1.5, -0.34), dir: new THREE.Vector3(1, 0.08, 0.04).normalize(), w: 0.75, h: 0.8 };
         return { at: new THREE.Vector3(R.x0, 1.55, -1.05), dir: new THREE.Vector3(1, 0.16, 0.1).normalize(), w: 2.4, h: 1.35 };
       default:
         return { at: new THREE.Vector3(0, 0.9, 0.1), dir: new THREE.Vector3(7.2, 8.6, 12).normalize(), w: 9.6, h: 6.2 };
@@ -272,6 +278,7 @@ export class OfficeScene {
     const dv = this.deckView;
     r.deckTick(dt, dv.spin, dv.level, dv.counter);
     r.setClock(islandDate(), this.clockOffset);
+    r.calendar.tick(dt);
 
     // camera
     const target = this.viewOf(this.zoneNow);
@@ -310,12 +317,12 @@ export class OfficeScene {
   }
 
   /* ---------------- input ---------------- */
-  private pick(x: number, y: number): { zone?: Zone; notice?: string; clock?: boolean; deck?: boolean; tape?: string; projector?: boolean; screen?: boolean; trayBox?: string } | null {
+  private pick(x: number, y: number): { zone?: Zone; notice?: string; clock?: boolean; deck?: boolean; tape?: string; projector?: boolean; screen?: boolean; trayBox?: string; calendar?: THREE.Vector2 } | null {
     const rect = this.canvas.getBoundingClientRect();
     this.raycaster.setFromCamera(new THREE.Vector2(((x - rect.left) / rect.width) * 2 - 1, -((y - rect.top) / rect.height) * 2 + 1), this.camera);
     const targets: THREE.Object3D[] = [];
     const hits = this.room.hits;
-    if (this.zoneNow === 'wall') targets.push(...this.room.notices.map((n) => n.mesh));
+    if (this.zoneNow === 'wall') targets.push(...this.room.notices.map((n) => n.mesh), hits.calendar);
     targets.push(hits.clock);
     // at the deck: the tapes, and the deck itself (play / stop)
     if (this.zoneNow === 'deck') targets.push(...this.room.shelf.meshes, hits.deckBody);
@@ -327,6 +334,7 @@ export class OfficeScene {
     if (u.notice) return { notice: u.notice as string };
     if (u.tape) return { tape: u.tape as string };
     if (u.trayBox) return { trayBox: u.trayBox as string };
+    if (u.zone === 'calendar' && hit.uv) return { calendar: hit.uv.clone() };
     if (u.zone === 'deckBody') return { deck: true };
     if (u.zone === 'projector') return { projector: true };
     if (u.zone === 'screen') return { screen: true };
@@ -343,7 +351,7 @@ export class OfficeScene {
       this.pointer.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
       if ((e.target as HTMLElement).closest('.pc')) return;
       const p = this.pick(e.clientX, e.clientY);
-      const key = p ? p.notice ?? (p.tape ? `tape:${p.tape}` : p.trayBox ? `tray:${p.trayBox}` : p.deck ? 'deck-play' : p.projector ? 'projector' : p.screen ? 'screen' : p.zone) ?? 'clock' : '';
+      const key = p ? p.notice ?? (p.tape ? `tape:${p.tape}` : p.trayBox ? `tray:${p.trayBox}` : p.deck ? 'deck-play' : p.calendar ? 'calendar' : p.projector ? 'projector' : p.screen ? 'screen' : p.zone) ?? 'clock' : '';
       if (key === this.hoverKey) return;
       this.hoverKey = key;
       this.room.shelf.setHover(p?.tape ?? null);
@@ -361,6 +369,7 @@ export class OfficeScene {
       else if (p.deck) this.on.deck();
       else if (p.tape) this.on.tape(p.tape);
       else if (p.trayBox) this.on.trayBox(p.trayBox);
+      else if (p.calendar) this.on.calendar(p.calendar.x, p.calendar.y);
       else if (p.projector) this.on.projector();
       else if (p.screen) this.on.screen();
       else if (p.zone) this.goZone(p.zone);

@@ -319,6 +319,14 @@
       "Set to {district} now. It'll be wrong somewhere else.",
       "{district}. The clock doesn't mind which."
     ],
+    "calendar": [
+      "The Office prints its own calendar. The red rings are Heuss's pen; he does them the morning after.",
+      "Lift the page from the bottom. The staple at the top has been bent back twice already."
+    ],
+    "calendar-pin": [
+      "Pinned up. That pin is off the notice board, put it back after.",
+      "There. If it isn't on the slip, nobody filed it."
+    ],
     "logout": [
       "Screen off. The machine stays on; it always does."
     ],
