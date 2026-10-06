@@ -16,6 +16,7 @@ import { Archivist } from '../ui/archivist';
 import { loadVisitor } from '../visitor/store';
 import { hash } from '../scene/textures';
 import { LibraryScene, ZONES, type Zone } from './scene';
+import { monthOf, Paper } from './paper';
 import lines from '../../data/archivist.json';
 
 const MON = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
@@ -50,6 +51,10 @@ export function library() {
     }
   }
   for (const d of catalogue) d.cards = d.cards.filter((c) => isFiled(c.date));
+  // the rack only carries the months that have come round on the island
+  const thisMonth = islandIso().slice(0, 7);
+  const stickMonth = (id: string) => (id === 'daily-early' ? 'early' : `1999-${id.slice(6)}`);
+  for (const b of bays) b.books = b.books.filter((book) => book.kind !== 'news' || stickMonth(book.id) <= thisMonth);
   const all = bays.flatMap((b) => b.books.map((book) => ({ book, bay: b })));
   const root = $('lib');
   const voice = new Archivist(lines as unknown as ArchivistLines, 'library.idle');
@@ -60,6 +65,8 @@ export function library() {
   let open: { book: LibBook; pages: LibPage[]; page: number } | null = null;
   let drawer = -1;
   let scene: LibraryScene | null = null;
+  /** The day of the paper on the table, when it is a newspaper that came down. */
+  let newsDay = '';
 
   /* ---------------- what the visitor leaves behind ---------------- */
   const load = (): Store => {
@@ -137,7 +144,7 @@ export function library() {
         b.addEventListener('focus', () => scene?.peek(book.id));
       }
       // today's paper, laid out whole (the bound months above are kept for the front pages)
-      if (zone === 'rack') item('◆', isZh() ? '今天的报纸' : "Today's paper", () => location.assign(`${base}daily/`));
+      if (zone === 'rack') item('◆', isZh() ? '今天的报纸' : "Today's paper", () => takeDay(islandIso()));
     }
   };
 
@@ -189,6 +196,25 @@ export function library() {
     panel(null);
   };
 
+  /* ---------------- the newspaper on the table ---------------- */
+  const paper = new Paper(root, base, {
+    close: () => close(),
+    other: (date) => takeDay(date),
+    day: (date) => {
+      if (!open) return;
+      newsDay = date;
+      const i = open.pages.findIndex((p) => p.date === date);
+      if (i >= 0) {
+        open.page = i;
+        scene?.turn(i);
+        const s = load();
+        s.marks[open.book.id] = i;
+        save(s);
+      }
+      history.replaceState(null, '', `#daily-${date}`);
+    },
+  });
+
   /* ---------------- reader ---------------- */
   const show = (page: number, dir = 0) => {
     if (!open) return;
@@ -235,9 +261,27 @@ export function library() {
 
   // a shelved book carries only its headings; the text is fetched as it comes down
   const fetching = new Set<string>();
-  function take(id: string) {
+  /** The stick a day hangs on, taken down and opened on that day. */
+  function takeDay(date: string) {
+    const id = monthOf(date) === 'early' ? 'daily-early' : `daily-${date.slice(5, 7)}`;
+    take(id, date);
+  }
+
+  /** Which day a stick opens on: today on this month's, otherwise where you left it, or the last day. */
+  const dayFor = (book: LibBook) => {
+    const days = book.pages.map((p) => p.date).filter((d): d is string => !!d && d <= islandIso());
+    if (days.includes(islandIso())) return islandIso();
+    const marked = book.pages[load().marks[book.id] ?? -1]?.date;
+    return marked && days.includes(marked) ? marked : days[days.length - 1] ?? islandIso();
+  };
+
+  function take(id: string, date?: string) {
     const hit = all.find((x) => x.book.id === id);
-    if (!hit || open?.book.id === id) return;
+    if (!hit) return;
+    if (open?.book.id === id) {
+      if (date && paper.on) paper.go(date);
+      return;
+    }
     const { book } = hit;
     if (book.src) {
       if (fetching.has(id)) return;
@@ -257,12 +301,19 @@ export function library() {
       return;
     }
     closePanels();
+    paper.hide();
+    const news = book.kind === 'news';
+    if (news) {
+      newsDay = date ?? dayFor(book);
+      paper.prefetch(newsDay);
+    }
     const s = load();
     s.loans[id] = (s.loans[id] ?? 0) + 1;
     save(s);
-    const pages = [...book.pages, dueSlip(book, s.loans[id])];
-    // open where the ribbon was left
-    const page = Math.min(s.marks[id] ?? 0, pages.length - 2);
+    // a newspaper has no date-due slip; it goes back on its stick
+    const pages = news ? book.pages : [...book.pages, dueSlip(book, s.loans[id])];
+    // open where the ribbon was left (a paper: on its day)
+    const page = news ? Math.max(0, pages.findIndex((p) => p.date === newsDay)) : Math.min(s.marks[id] ?? 0, pages.length - 2);
     open = { book, pages, page };
     if (hit.bay.zone !== zone && scene) scene.goZone(hit.bay.zone);
     else if (!scene) setZone(hit.bay.zone);
@@ -270,8 +321,9 @@ export function library() {
     root.dataset.state = 'open';
     show(page);
     callout(null);
-    history.replaceState(null, '', `#${id}`);
+    history.replaceState(null, '', news ? `#daily-${newsDay}` : `#${id}`);
     if (scene) scene.take(id, pages, page);
+    else if (news) void paper.show(newsDay);
     else panel(reader);
     const high = hit.bay.id === 'gazetteer';
     if (high) voice.say('library.ladder');
@@ -284,6 +336,7 @@ export function library() {
   const close = () => {
     if (!open) return;
     open = null;
+    paper.hide();
     audio.close();
     panel(null);
     root.dataset.state = 'room';
@@ -358,6 +411,7 @@ export function library() {
 
   window.addEventListener('keydown', (e) => {
     if (e.target instanceof HTMLInputElement || e.metaKey || e.ctrlKey || e.altKey) return;
+    if (paper.key(e)) return;
     if (open) {
       if (e.key === 'Escape' || e.key === 'Backspace') {
         e.preventDefault();
@@ -408,7 +462,11 @@ export function library() {
       },
       zone: setZone,
       open: () => {},
-      ready: () => open && panel(reader),
+      ready: () => {
+        if (!open) return;
+        if (open.book.kind === 'news') void paper.show(newsDay);
+        else panel(reader);
+      },
       closed: () => {},
       gap,
       drawer: openDrawer,
@@ -439,6 +497,7 @@ export function library() {
 
   flat(() => {
     drawList();
+    paper.relabel();
     if (open) show(open.page);
     void scene?.relabel(isZh());
   });
@@ -447,8 +506,10 @@ export function library() {
   drawList();
 
   const want = location.hash.slice(1);
+  const wantDay = want === 'daily-today' ? islandIso() : want.match(/^daily-(\d{4}-\d{2}-\d{2})$/)?.[1];
   window.setTimeout(() => {
-    if (want && all.some((x) => x.book.id === want)) take(want);
+    if (wantDay) takeDay(wantDay > islandIso() ? islandIso() : wantDay);
+    else if (want && all.some((x) => x.book.id === want)) take(want);
     else voice.say('library.enter');
   }, 600);
 }
