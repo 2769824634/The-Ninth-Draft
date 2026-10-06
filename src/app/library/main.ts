@@ -101,6 +101,7 @@ export function library() {
 
   /* ---------------- head column ---------------- */
   const listEl = $('lib-list');
+  const base = document.querySelector<HTMLAnchorElement>('.fhead__brand')?.getAttribute('href') ?? '/';
   const drawList = () => {
     document.querySelectorAll<HTMLButtonElement>('#lib-zones button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.zone === zone)));
     $('lib-zone-name').textContent = T(ZONE_NAME[zone]);
@@ -135,10 +136,8 @@ export function library() {
         });
         b.addEventListener('focus', () => scene?.peek(book.id));
       }
-      if (zone === 'desk') {
-        const b = item('DS/Y2K/09', isZh() ? '（空位）' : '(empty slot)', gap, { dim: true });
-        b.classList.add('is-gap');
-      }
+      // today's paper, laid out whole (the bound months above are kept for the front pages)
+      if (zone === 'rack') item('◆', isZh() ? '今天的报纸' : "Today's paper", () => location.assign(`${base}daily/`));
     }
   };
 
@@ -290,7 +289,7 @@ export function library() {
     const ul = $('cat-cards');
     ul.innerHTML = d.cards.length
       ? d.cards
-          .map((c, k) => `<li data-k="${k}"><a href="${(document.querySelector<HTMLAnchorElement>('.fhead__brand')?.getAttribute('href') ?? '/')}records/${c.slug}/"><b>${c.file}</b><span>${esc(T(c.title))}</span><i>${esc(T(c.line))}</i><em class="lib-stamp">${c.stamp}</em></a></li>`)
+          .map((c, k) => `<li data-k="${k}"><a href="${base}records/${c.slug}/"><b>${c.file}</b><span>${esc(T(c.title))}</span><i>${esc(T(c.line))}</i><em class="lib-stamp">${c.stamp}</em></a></li>`)
           .join('')
       : `<li class="is-empty">${isZh() ? '这个抽屉还空着。' : 'This drawer is still empty.'}</li>`;
     panel(catPanel);

@@ -2,7 +2,7 @@
  * Shared behaviour of the flat pages: lighting, language, the nav entry that
  * turns from "Register" into "My file", and sound on the first gesture.
  */
-import { carryFrom } from './ui/recordlink';
+import { fileSlips } from './ui/fileslip';
 import { audio } from './audio';
 import { isZh, markDocument, onLang, setLang, t, translateDom } from './i18n';
 import { prefs, reducedMotion } from './prefs';
@@ -64,7 +64,7 @@ export function flat(relang?: () => void) {
   tick();
   window.setInterval(tick, 15000);
   hideFuture();
-  carryFrom();
+  fileSlips(base);
   onLang(tick);
 
   const title = document.title;

@@ -4,9 +4,11 @@
  *
  *   Bay 1  The Gerimis Daily, one volume a month (from daily.ts)
  *   Bay 2  District gazetteer, one volume a district
- *   Bay 3  Bound records, one volume a category (twelve files a volume)
- *   Bay 4  Office publications: the revision log, the visitor's guide, and
- *          the year-field remediation proposals, filed in order.
+ *   Bay 3  Counter copies: what the Office prints for the public.
+ *
+ * Only public publications. The Office's own files stay in the archive and
+ * its working papers (revision log, Heuss's proposals) in the office; the
+ * card catalogue lists files by number and says where they are kept.
  *
  * Each book is a list of pages, each page a heading and some HTML, in both
  * languages. The reader shows one page at a time.
@@ -121,10 +123,6 @@ export function buildLibrary(records: ClientRecord[], base: string): Library {
     const d = [date, islandDay(r.date) ?? ''].sort().pop();
     return d ? ` data-island-date="${d}"` : ' data-island-date=""';
   };
-  const recLine = (r: ClientRecord): L => ({
-    en: `<li${when(r)}><a href="${base}records/${r.slug}/"><b>${r.file}</b> ${esc(r.title)}</a></li>`,
-    zh: `<li${when(r)}><a href="${base}records/${r.slug}/"><b>${r.file}</b> ${esc(title(r).zh)}</a></li>`,
-  });
   const list = (items: L[]): L => ({ en: `<ul class="lib-list">${items.map((i) => i.en).join('')}</ul>`, zh: `<ul class="lib-list">${items.map((i) => i.zh).join('')}</ul>` });
 
   /* ---------------- Bay 1: the Daily, bound by month ---------------- */
@@ -218,11 +216,10 @@ export function buildLibrary(records: ClientRecord[], base: string): Library {
     const recs = records.filter((r) => r.district === d.id);
     const text = DISTRICT_TEXT[d.id];
     const off = d.tz === 0 ? null : d.tz > 0 ? `+${d.tz}` : `${d.tz}`;
+    // a public book: what happened in the district, never the Office's file numbers or drafts
     const dated = recs
-      .flatMap((r) => [
-        ...(isoDate(r.date) ? [{ date: isoDate(r.date)!, r, what: null as null | { n: number } }] : []),
-        ...r.drafts.filter((dr) => isoDate(dr.date)).map((dr) => ({ date: isoDate(dr.date)!, r, what: { n: dr.n } })),
-      ])
+      .filter((r) => r.category === 'events' && isoDate(r.date))
+      .map((r) => ({ date: isoDate(r.date)!, r }))
       .sort((a, b) => a.date.localeCompare(b.date));
     const pages: LibPage[] = [
       {
@@ -236,25 +233,20 @@ export function buildLibrary(records: ClientRecord[], base: string): Library {
           link(`${base}district/${d.id}/`, 'District file', '本区档案页'),
         ),
       },
-      {
-        head: { en: 'Files on record', zh: '在册档案' },
-        html: recs.length
-          ? join(list(recs.map(recLine)), {
-              en: `<p data-island-empty="#rd-body .lib-list > li[data-island-date]">Nothing filed from this district yet. The page was ruled for it all the same.</p>`,
-              zh: `<p data-island-empty="#rd-body .lib-list > li[data-island-date]">本区还没有档案归进来。格子照样画好了。</p>`,
-            })
-          : p('Nothing filed from this district yet. The page was ruled for it all the same.', '本区还没有档案归进来。格子照样画好了。'),
-      },
     ];
     if (dated.length) {
       pages.push({
         head: { en: 'Chronology, 1999', zh: '大事记 · 1999' },
-        html: list(dated.map(({ date, r, what }) => {
-          const ld = longDate(date);
-          return what
-            ? { en: `<li${when(r, date)}><b>${date.slice(8)} ${MON[Number(date.slice(5, 7)) - 1]}</b> ${r.file}, draft ${String(what.n).padStart(2, '0')} issued</li>`, zh: `<li${when(r, date)}><b>${ld.zh.split(' · ')[0].replace('1999 年 ', '')}</b> ${r.file} 第 ${String(what.n).padStart(2, '0')} 稿发布</li>` }
-            : { en: `<li${when(r, date)}><b>${date.slice(8)} ${MON[Number(date.slice(5, 7)) - 1]}</b> ${esc(r.title)}</li>`, zh: `<li${when(r, date)}><b>${ld.zh.split(' · ')[0].replace('1999 年 ', '')}</b> ${esc(title(r).zh)}</li>` };
-        })),
+        html: join(
+          list(dated.map(({ date, r }) => {
+            const ld = longDate(date);
+            return { en: `<li${when(r, date)}><b>${date.slice(8)} ${MON[Number(date.slice(5, 7)) - 1]}</b> ${esc(r.title)}</li>`, zh: `<li${when(r, date)}><b>${ld.zh.split(' · ')[0].replace('1999 年 ', '')}</b> ${esc(title(r).zh)}</li>` };
+          })),
+          {
+            en: `<p data-island-empty="#rd-body .lib-list > li[data-island-date]">Nothing entered for this year yet.</p>`,
+            zh: `<p data-island-empty="#rd-body .lib-list > li[data-island-date]">今年还没有记下什么。</p>`,
+          },
+        ),
       });
     }
     return {
@@ -265,128 +257,13 @@ export function buildLibrary(records: ClientRecord[], base: string): Library {
       sub: { en: 'Gazetteer', zh: '区志' },
       mark: `GZ/${String(i + 1).padStart(2, '0')}`,
       h: 0.86,
-      thick: 0.2 + Math.min(0.1, recs.length * 0.03),
+      thick: 0.2 + Math.min(0.1, dated.length * 0.03),
       pages,
     };
   });
 
-  /* ---------------- Bay 3: bound records ---------------- */
-  const CATS = [
-    { id: 'personnel', code: 'P', en: 'Personnel', zh: '人员' },
-    { id: 'events', code: 'E', en: 'Events', zh: '事件' },
-    { id: 'programs', code: 'R', en: 'Programs', zh: '计划' },
-  ] as const;
-  const bound: LibBook[] = [];
-  for (const c of CATS) {
-    const recs = records.filter((r) => r.category === c.id).sort((a, b) => a.file.localeCompare(b.file));
-    for (let v = 0; v * 12 < Math.max(1, recs.length); v++) {
-      const vol = recs.slice(v * 12, v * 12 + 12);
-      const range = vol.length ? `${vol[0].file}–${vol[vol.length - 1].file}` : `${c.code}-0000`;
-      const top = vol.find((r) => CLOTH[r.stamp]) ?? null;
-      bound.push({
-        id: `rec-${c.id}-${v + 1}`,
-        kind: 'cloth',
-        color: top ? CLOTH[top.stamp] : '#3a3936',
-        spine: { en: c.en.toUpperCase(), zh: c.zh },
-        sub: both(`VOL. ${v + 1}`),
-        mark: range,
-        h: 0.95,
-        thick: 0.22 + Math.min(0.16, vol.length * 0.035),
-        pages: [
-          {
-            head: { en: `${c.en} · Volume ${v + 1}`, zh: `${c.zh} · 第 ${v + 1} 卷` },
-            html: join(
-              p(`Bound copies of the ninth drafts, ${range}. Margin notes were not carried over.`, `第九稿装订本，${range}。页边批注没有抄进来。`),
-              list(vol.map(recLine)),
-            ),
-          },
-          ...vol.map((r) => {
-            const z = zhOf(r);
-            const date = isoDate(r.date);
-            const where = r.district ? DISTRICTS.find((d) => d.id === r.district) : null;
-            const meta: L = {
-              en: [r.stamp, date ? longDate(date).en : r.date, where?.en].filter(Boolean).join(' · '),
-              zh: [r.stamp, date ? longDate(date).zh : z?.date ?? r.date, where?.zh].filter(Boolean).join(' · '),
-            };
-            return {
-              date: islandDay(r.date),
-              drop: true,
-              head: { en: `${r.file} · ${r.title}`, zh: `${r.file} · ${title(r).zh}` },
-              html: join(
-                { en: `<p class="lib-small">${esc(meta.en)}</p>`, zh: `<p class="lib-small">${esc(meta.zh)}</p>` },
-                { en: `<h4>${esc(r.title)}</h4>`, zh: `<h4>${esc(title(r).zh)}</h4>` },
-                { en: `<p>${esc(strip(r.summary))}</p>`, zh: `<p>${esc(strip(z?.summary ?? r.summary))}</p>` },
-                link(`${base}records/${r.slug}/`, 'Open the file', '调出这份档案'),
-              ),
-            };
-          }),
-        ],
-      });
-    }
-  }
-
-  /* ---------------- Bay 4: Office publications ---------------- */
-  const log = records
-    .flatMap((r) => r.drafts.filter((d) => isoDate(d.date)).map((d) => ({ date: isoDate(d.date)!, r, d })))
-    .sort((a, b) => a.date.localeCompare(b.date));
-  const logPages: LibPage[] = [];
-  for (let i = 0; i < Math.max(1, log.length); i += 10) {
-    const chunk = log.slice(i, i + 10);
-    logPages.push({
-      head: { en: `Revision log · ${i + 1}–${i + Math.max(1, chunk.length)}`, zh: `修订登记簿 · 第 ${i + 1}–${i + Math.max(1, chunk.length)} 条` },
-      html: chunk.length
-        ? list(chunk.map(({ date, r, d }) => ({
-            en: `<li${when(r, date)}><a href="${base}records/${r.slug}/"><b>${date}</b> ${r.file} · draft ${String(d.n).padStart(2, '0')}${d.label ? ` · ${esc(d.label)}` : ''}</a></li>`,
-            zh: `<li${when(r, date)}><a href="${base}records/${r.slug}/"><b>${date}</b> ${r.file} · 第 ${String(d.n).padStart(2, '0')} 稿${d.label ? ` · ${esc(zhOf(r)?.drafts?.find((x) => x.n === d.n)?.label ?? d.label)}` : ''}</a></li>`,
-          })))
-        : p('No dated revisions entered yet.', '还没有登记过带日期的修订。'),
-    });
-  }
-
-  const RETURNED: L[] = [
-    { en: 'Returned. Please use the form in force.', zh: '退回。请使用现行表格。' },
-    { en: 'Returned. Cost estimate in the wrong currency.', zh: '退回。预算用错了币种。' },
-    { en: 'Returned. Please do not attach diagrams to the cover sheet.', zh: '退回。图表请勿贴在封面页上。' },
-    { en: 'Returned. The committee does not meet in December.', zh: '退回。委员会十二月不开会。' },
-    { en: 'Returned. Appendix C refers to an Appendix D.', zh: '退回。附录 C 提到了附录 D。' },
-    { en: 'Returned. Too long. Please reduce to one page.', zh: '退回。太长，请压缩到一页。' },
-    { en: 'Returned. One page is not enough for a matter of this size.', zh: '退回。这么大的事，一页纸不够。' },
-    { en: 'Returned. See comments.', zh: '退回。见意见栏。' },
-  ];
-  const DATES = ['09.02.99', '09.03.99', '09.05.99', '09.06.99', '09.08.99', '09.09.99', '09.10.99', '09.11.99'];
-  const proposals: LibBook[] = RETURNED.map((ret, i) => ({
-    id: `y2k-${i + 1}`,
-    kind: 'binder',
-    color: '#8c8a83',
-    spine: both(`PROPOSAL 0${i + 1}`),
-    sub: { en: 'Year field', zh: '年份字段' },
-    mark: `DS/Y2K/0${i + 1}`,
-    h: 0.78,
-    thick: 0.1 + (i % 3) * 0.02,
-    pages: [
-      {
-        head: { en: `Year-field remediation · Proposal 0${i + 1}`, zh: `年份字段整改 · 第 0${i + 1} 版方案` },
-        html: join(
-          p(`Submitted by Heuss, Data Section, ${DATES[i]}.`, `提交人：Heuss，数据组，${DATES[i]}。`),
-          p('Only the cover sheet is kept here. The proposal itself went back to its author with the slip below.', '这里只留了封面页。方案本身连同下面这张退文单，一起退给了提交人。'),
-          { en: `<p class="lib-slip">${ret.en}</p>`, zh: `<p class="lib-slip">${ret.zh}</p>` },
-        ),
-      },
-    ],
-  }));
-
-  const office: LibBook[] = [
-    {
-      id: 'log',
-      kind: 'ledger',
-      color: '#4a2a22',
-      spine: { en: 'REVISION LOG', zh: '修订登记簿' },
-      sub: both('1999'),
-      mark: 'RO/LOG/99',
-      h: 1.02,
-      thick: 0.34,
-      pages: logPages,
-    },
+  /* ---------------- Bay 3: counter copies ---------------- */
+  const counter: LibBook[] = [
     {
       id: 'guide',
       kind: 'cloth',
@@ -408,24 +285,21 @@ export function buildLibrary(records: ClientRecord[], base: string): Library {
         },
       ],
     },
-    ...proposals,
   ];
-
-  // the register is printed blank and filled in as drafts are issued
-  logPages.push({
-    head: { en: 'Blank pages follow', zh: '以下空白' },
-    html: p('The rest of the register is ruled and blank, waiting for the next draft.', '登记簿余下的页都画好了格子，空着，等下一稿。'),
-  });
 
   const bays: LibBay[] = [
     { id: 'daily', zone: 'rack', code: 'LIB-1', title: { en: 'The Gerimis Daily', zh: '霏微日报' }, books: daily.map(bind) },
     { id: 'gazetteer', zone: 'stacks', code: 'LIB-2', title: { en: 'District gazetteer', zh: '各区区志' }, books: gazetteer.map(bind) },
-    { id: 'records', zone: 'stacks', code: 'LIB-3', title: { en: 'Bound records', zh: '档案合订本' }, books: bound.map(bind) },
-    // the ninth proposal's slot stays empty
-    { id: 'office', zone: 'desk', code: 'LIB-4', title: { en: 'Office publications', zh: '署内出版物' }, books: office.map(bind), gapAt: office.length },
+    { id: 'counter', zone: 'desk', code: 'LIB-3', title: { en: 'Counter copies', zh: '柜台取阅' }, books: counter.map(bind) },
   ];
 
   /* ---------------- the card catalogue ---------------- */
+  // the finding aid for the archive: a card says what a file is and where it is kept
+  const CATS = [
+    { id: 'personnel', code: 'P', en: 'Personnel', zh: '人员' },
+    { id: 'events', code: 'E', en: 'Events', zh: '事件' },
+    { id: 'programs', code: 'R', en: 'Programs', zh: '计划' },
+  ] as const;
   const catalogue: CatDrawer[] = [];
   for (const c of CATS) {
     const recs = records.filter((r) => r.category === c.id).sort((a, b) => a.file.localeCompare(b.file));
