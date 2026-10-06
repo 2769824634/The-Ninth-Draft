@@ -344,6 +344,17 @@
     ],
     "tape-file": [
       "{tape}. Somebody brought this one in. The label's in pencil."
+    ],
+    "projector-on": [
+      "The bulb takes a second. It's the original; nobody has found a spare since 1994.",
+      "Lights down. The switch for the big ones is by the door, I've done it."
+    ],
+    "projector-off": [
+      "Leave it to cool before you touch the tray.",
+      "The fan keeps going for a bit. It always has."
+    ],
+    "projector-end": [
+      "That's the tray. Somebody always asks to see the map again."
     ]
   }
 }

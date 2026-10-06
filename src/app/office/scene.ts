@@ -36,6 +36,9 @@ export interface OfficeEvents {
   deck(): void;
   /** A tape in the rack (or in a well) clicked. */
   tape(id: string): void;
+  /** At the sofa: the projector, or the screen, clicked. */
+  projector(): void;
+  screen(): void;
 }
 
 interface View {
@@ -95,8 +98,13 @@ export class OfficeScene {
   deckView: DeckView = { spin: { A: 0, B: 0 }, level: 0, counter: 0 };
   /** A tape held up to be read: the camera closes in on it. */
   holding = false;
+  /** The projector's lamp (on/off) and whether the room lights are down for it. */
+  lampOn = false;
+  lightsDown = false;
+  private lamp = 0;
+  private dim = new Spring(0, 1.6);
 
-  constructor(private host: HTMLElement, private canvas: HTMLCanvasElement, screenEl: HTMLElement, records: ConstructorParameters<typeof Room>[0], private on: OfficeEvents, tapes: ShelfTape[] = []) {
+  constructor(private host: HTMLElement, private canvas: HTMLCanvasElement, screenEl: HTMLElement, records: ConstructorParameters<typeof Room>[0], private on: OfficeEvents, tapes: ShelfTape[] = [], slides = 0) {
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true, powerPreference: 'high-performance' });
     this.renderer.setClearColor(0x000000, 0);
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -107,7 +115,7 @@ export class OfficeScene {
     this.scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
     pmrem.dispose();
 
-    this.room = new Room(records, tapes, reducedMotion());
+    this.room = new Room(records, tapes, reducedMotion(), slides);
     this.scene.add(this.room.group);
 
     // a soft contact shadow where the model sits on the paper
@@ -169,7 +177,8 @@ export class OfficeScene {
       case 'desk':
         return { at: this.screenCentre(), dir: new THREE.Vector3(0.05, 0.08, 1).normalize(), w: SCREEN.w * 1.7, h: SCREEN.h * 1.6 };
       case 'sofa':
-        return { at: new THREE.Vector3(R.x0, 1.6, 0.72), dir: new THREE.Vector3(1, 0.24, -0.04).normalize(), w: 2.5, h: 1.8 };
+        // sitting down: the sofa's back at the bottom of the frame, the screen ahead
+        return { at: new THREE.Vector3(R.x0 + 1.1, 1.45, 0.74), dir: new THREE.Vector3(1, 0.26, -0.38).normalize(), w: 3.3, h: 1.95 };
       case 'deck':
         if (this.holding) return { at: this.room.holdPoint(), dir: DECK_DIR.clone(), w: 0.3, h: 0.17 };
         return { at: new THREE.Vector3(-1.84, 0.93, -2.12), dir: DECK_DIR.clone(), w: 1.25, h: 0.5 };
@@ -230,21 +239,26 @@ export class OfficeScene {
     const L = this.look, T = this.lookTarget;
     for (const key of Object.keys(L) as (keyof Look)[]) L[key] += (T[key] - L[key]) * k;
     const on = this.screenOn.update(dt);
-    this.hemi.intensity = L.hemi;
-    this.sun.intensity = L.sun;
-    this.sun.visible = L.sun > 0.05;
-    this.scene.environmentIntensity = L.env;
+    // a slide show wants the room dark: lamps down, the blind's light too
+    this.dim.target = this.lampOn && this.lightsDown ? 1 : 0;
+    const dim = this.dim.update(dt);
+    this.lamp += ((this.lampOn ? 1 : 0) - this.lamp) * Math.min(1, dt * (this.lampOn ? 3.2 : 5));
+    this.hemi.intensity = L.hemi * (1 - dim * 0.82);
+    this.sun.intensity = L.sun * (1 - dim * 0.8);
+    this.sun.visible = this.sun.intensity > 0.05;
+    this.scene.environmentIntensity = L.env * (1 - dim * 0.8);
     this.shadowMat.opacity = 0.3 + L.night * 0.35;
     const r = this.room;
-    r.deskLamp.intensity = L.desk;
-    r.floorLamp.intensity = L.floor;
-    r.floorLamp.visible = L.floor > 0.05;
+    r.deskLamp.intensity = L.desk * (1 - dim * 0.75);
+    r.floorLamp.intensity = L.floor * (1 - dim);
+    r.floorLamp.visible = r.floorLamp.intensity > 0.05;
     r.crtGlow.intensity = L.crt * on;
     r.street.intensity = L.street;
     r.street.visible = L.street > 0.1;
     r.nightView.opacity = L.night;
     r.lampShades[0].emissiveIntensity = 0.2 + L.night * 1.2;
-    r.lampShades[1].emissiveIntensity = L.night * 1.1;
+    r.lampShades[1].emissiveIntensity = L.night * 1.1 * (1 - dim);
+    r.projector.tick(dt, t, this.lamp, Math.max(dim, L.night * 0.6));
     r.screenMat.emissiveIntensity = 0.15 + on * (0.5 + L.night * 0.8);
     r.tick(t, dt);
     const dv = this.deckView;
@@ -288,7 +302,7 @@ export class OfficeScene {
   }
 
   /* ---------------- input ---------------- */
-  private pick(x: number, y: number): { zone?: Zone; notice?: string; clock?: boolean; deck?: boolean; tape?: string } | null {
+  private pick(x: number, y: number): { zone?: Zone; notice?: string; clock?: boolean; deck?: boolean; tape?: string; projector?: boolean; screen?: boolean } | null {
     const rect = this.canvas.getBoundingClientRect();
     this.raycaster.setFromCamera(new THREE.Vector2(((x - rect.left) / rect.width) * 2 - 1, -((y - rect.top) / rect.height) * 2 + 1), this.camera);
     const targets: THREE.Object3D[] = [];
@@ -297,6 +311,7 @@ export class OfficeScene {
     targets.push(hits.clock);
     // at the deck: the tapes, and the deck itself (play / stop)
     if (this.zoneNow === 'deck') targets.push(...this.room.shelf.meshes, hits.deckBody);
+    if (this.zoneNow === 'sofa') targets.push(hits.projector, hits.screen);
     for (const z of ['desk', 'sofa', 'wall', 'deck'] as const) if (z !== this.zoneNow) targets.push(hits[z]);
     const hit = this.raycaster.intersectObjects(targets, false)[0];
     if (!hit) return null;
@@ -304,6 +319,8 @@ export class OfficeScene {
     if (u.notice) return { notice: u.notice as string };
     if (u.tape) return { tape: u.tape as string };
     if (u.zone === 'deckBody') return { deck: true };
+    if (u.zone === 'projector') return { projector: true };
+    if (u.zone === 'screen') return { screen: true };
     if (u.zone === 'clock') return { clock: true };
     if (u.zone) return { zone: u.zone as Zone };
     return null;
@@ -317,7 +334,7 @@ export class OfficeScene {
       this.pointer.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
       if ((e.target as HTMLElement).closest('.pc')) return;
       const p = this.pick(e.clientX, e.clientY);
-      const key = p ? p.notice ?? (p.tape ? `tape:${p.tape}` : p.deck ? 'deck-play' : p.zone) ?? 'clock' : '';
+      const key = p ? p.notice ?? (p.tape ? `tape:${p.tape}` : p.deck ? 'deck-play' : p.projector ? 'projector' : p.screen ? 'screen' : p.zone) ?? 'clock' : '';
       if (key === this.hoverKey) return;
       this.hoverKey = key;
       this.room.shelf.setHover(p?.tape ?? null);
@@ -333,6 +350,8 @@ export class OfficeScene {
       else if (p.clock) this.on.clock();
       else if (p.deck) this.on.deck();
       else if (p.tape) this.on.tape(p.tape);
+      else if (p.projector) this.on.projector();
+      else if (p.screen) this.on.screen();
       else if (p.zone) this.goZone(p.zone);
     });
     window.addEventListener('resize', () => this.resize());

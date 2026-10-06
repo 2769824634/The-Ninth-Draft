@@ -12,8 +12,9 @@ import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 import { rainTexture, woodTexture } from '../library/textures';
 import { TapeShelf, type ShelfTape, type Well } from './cassettes';
+import { Projector } from './projector';
 import {
-  calendarTexture, caseTexture, counterTexture, corkTexture, clockFaceTexture, corduroyTexture, deckTexture, keyboardTexture, linoTexture, mapTexture, noticeTexture, passerbyTexture, plasticTexture, rugTexture, streetTexture, wallTexture,
+  calendarTexture, caseTexture, counterTexture, corkTexture, clockFaceTexture, corduroyTexture, deckTexture, screenTexture, slideBoxTexture, keyboardTexture, linoTexture, mapTexture, noticeTexture, passerbyTexture, plasticTexture, rugTexture, streetTexture, wallTexture,
 } from './textures';
 
 export const R = { x0: -3.5, x1: 3.5, z0: -2.5, z1: 2.5, h: 3.0, wall: 0.2, slab: 0.22 };
@@ -21,6 +22,8 @@ export const WIN = { x0: -0.7, x1: 2.6, y0: 2.12, y1: 2.72 };
 export const SCREEN = { w: 0.32, h: 0.24 };
 /** Which way the camera looks at the cassette deck. */
 export const DECK_DIR = new THREE.Vector3(0.1, 0.34, 1).normalize();
+/** The picture on the pull-down screen: its centre, and how wide it is. */
+export const PICTURE = { at: new THREE.Vector3(R.x0 + 0.075, 1.82, 0.72), w: 1.3 };
 /** The sideboard's place in the room. */
 const SIDEBOARD = new THREE.Vector3(-1.6, 0, R.z0 + 0.26);
 
@@ -55,6 +58,7 @@ export class Room {
     vu: 0,
   };
   shelf!: TapeShelf;
+  projector!: Projector;
   readonly drips: THREE.Points;
 
   private wood = new THREE.MeshStandardMaterial({ map: woodTexture(21, '#6b4a2e'), roughness: 0.5 });
@@ -65,7 +69,7 @@ export class Room {
   private black = new THREE.MeshStandardMaterial({ color: '#1d1c1a', roughness: 0.6 });
   private poche = new THREE.MeshStandardMaterial({ color: '#2b2723', roughness: 0.9 });
 
-  constructor(records: { file: string; slug: string; title: string; date?: string; stamp: string; category: string }[], private tapes: ShelfTape[] = [], private reduce = false) {
+  constructor(records: { file: string; slug: string; title: string; date?: string; stamp: string; category: string }[], private tapes: ShelfTape[] = [], private reduce = false, private slides = 0) {
     this.shell();
     this.window();
     this.desk();
@@ -362,29 +366,68 @@ export class Room {
     cup.position.set(-0.15, 0.468, 0.42);
     cup.castShadow = true;
     t.add(cup);
-    // carousel slide projector, lens toward the left wall
-    const p = new THREE.Group();
-    p.position.set(-0.05, 0.437, -0.05);
-    t.add(p);
-    const pBody = new THREE.MeshStandardMaterial({ color: '#7a756a', roughness: 0.5, metalness: 0.2 });
-    this.round(0.3, 0.12, 0.28, 0.02, pBody, 0, 0.06, 0, p);
-    const tray = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.13, 0.06, 32), this.black);
-    tray.position.set(0.02, 0.15, 0);
-    tray.castShadow = true;
-    const lens = new THREE.Mesh(new THREE.CylinderGeometry(0.032, 0.036, 0.12, 20), this.black);
-    lens.rotation.z = Math.PI / 2;
-    lens.position.set(-0.2, 0.07, 0);
-    p.add(tray, lens);
+    // a box of slides waiting to go in, a few loose ones, a loupe
+    const sbox = new THREE.MeshStandardMaterial({ map: slideBoxTexture(), roughness: 0.7 });
+    const yellow = new THREE.MeshStandardMaterial({ color: '#d9a62e', roughness: 0.7 });
+    this.box(0.13, 0.05, 0.09, [yellow, yellow, sbox, yellow, yellow, yellow], -0.12, 0.462, -0.12, t).rotation.y = 0.25;
+    const mountMat = new THREE.MeshStandardMaterial({ color: '#ece6d6', roughness: 0.8 });
+    for (let i = 0; i < 4; i++) {
+      const m = this.box(0.05, 0.0018, 0.05, mountMat, -0.02 + i * 0.03, 0.4385 + i * 0.0018, 0.05 + (i % 2) * 0.02, t);
+      m.rotation.y = 0.3 + i * 0.45;
+    }
+    const loupe = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.022, 0.045, 24), new THREE.MeshStandardMaterial({ color: '#2a2826', roughness: 0.4 }));
+    loupe.position.set(0.14, 0.46, -0.02);
+    loupe.castShadow = true;
+    t.add(loupe);
 
-    // the screen pulled down on the left wall
+    // the screen pulled down on the left wall: roller case, end caps, the cloth, the bar
     const x = R.x0 + 0.04;
-    this.box(0.08, 0.08, 1.65, this.steel, x + 0.02, 2.45, 0.72);
-    const screen = new THREE.Mesh(new THREE.PlaneGeometry(1.5, 1.1), new THREE.MeshStandardMaterial({ color: '#f1efe8', roughness: 0.95 }));
+    const sw = 1.5, sh = 1.12, top = 2.42, cz = PICTURE.at.z;
+    const caseGeo = new THREE.CylinderGeometry(0.045, 0.045, sw + 0.12, 24);
+    const roller = new THREE.Mesh(caseGeo, this.steel);
+    roller.rotation.x = Math.PI / 2;
+    roller.position.set(x + 0.05, top + 0.04, cz);
+    roller.castShadow = true;
+    this.group.add(roller);
+    for (const k of [-1, 1]) {
+      const cap = new THREE.Mesh(new THREE.CylinderGeometry(0.052, 0.052, 0.02, 24), this.black);
+      cap.rotation.x = Math.PI / 2;
+      cap.position.set(x + 0.05, top + 0.04, cz + k * (sw / 2 + 0.07));
+      cap.castShadow = true;
+      this.group.add(cap);
+      this.box(0.05, 0.02, 0.02, this.black, x + 0.025, top + 0.04, cz + k * (sw / 2 + 0.07));
+    }
+    // the cloth hangs with a slight belly
+    const cloth = new THREE.PlaneGeometry(sw, sh, 24, 16);
+    const cp = cloth.attributes.position as THREE.BufferAttribute;
+    for (let i = 0; i < cp.count; i++) {
+      const u = cp.getX(i) / (sw / 2), v = (cp.getY(i) + sh / 2) / sh;
+      cp.setZ(i, (1 - u * u) * 0.008 * Math.sin(v * Math.PI));
+    }
+    cloth.computeVertexNormals();
+    const screen = new THREE.Mesh(cloth, new THREE.MeshStandardMaterial({ map: screenTexture(), roughness: 0.96 }));
     screen.rotation.y = Math.PI / 2;
-    screen.position.set(x + 0.03, 1.85, 0.72);
+    screen.position.set(x + 0.035, top - sh / 2, cz);
     screen.receiveShadow = true;
+    screen.userData.zone = 'screen';
     this.group.add(screen);
-    this.box(0.02, 0.025, 1.56, this.black, x + 0.04, 1.29, 0.72);
+    this.hits.screen = screen;
+    // weighted bar and its pull tab
+    const bar = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, sw + 0.02, 16), this.black);
+    bar.rotation.x = Math.PI / 2;
+    bar.position.set(x + 0.04, top - sh - 0.006, cz);
+    bar.castShadow = true;
+    this.group.add(bar);
+    this.box(0.006, 0.05, 0.03, this.black, x + 0.045, top - sh - 0.035, cz);
+    const ring = new THREE.Mesh(new THREE.TorusGeometry(0.014, 0.003, 8, 20), this.chrome);
+    ring.rotation.y = Math.PI / 2;
+    ring.position.set(x + 0.045, top - sh - 0.07, cz);
+    this.group.add(ring);
+
+    // the projector on its trolley, behind the sofa, throwing over it
+    this.projector = new Projector({ at: new THREE.Vector3(1.38, 0, 0.72), aim: PICTURE.at, width: PICTURE.w, slides: this.slides });
+    this.group.add(this.projector.group, ...this.projector.lightParts);
+    this.hits.projector = this.projector.hit;
 
     // standard lamp by the sofa
     const fl = new THREE.Group();
@@ -408,7 +451,6 @@ export class Room {
     fl.add(this.floorLamp);
 
     this.hit('sofa', 2.4, 1.0, 2.2, -0.1, 0.5, 0.72);
-    this.hit('projector', 0.5, 0.4, 0.5, -0.9, 0.6, 0.67);
   }
 
   /* ---------------- sideboard and the cassette deck ---------------- */

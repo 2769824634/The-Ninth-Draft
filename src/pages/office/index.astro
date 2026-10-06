@@ -16,17 +16,30 @@ const notices = records
   .slice(-5)
   .map((r) => ({ file: r.file, slug: r.slug, title: { en: r.title, zh: r.zh?.title ?? r.title }, date: r.date, stamp: r.stamp, category: r.category }));
 const tapes = buildTapes(records, base);
-const payload = JSON.stringify({ ...data, base, notices, tapes }).replace(/</g, '\\u003c');
+// what the projector's slides are made from
+const slides = records.map((r) => ({
+  file: r.file,
+  slug: r.slug,
+  stamp: r.stamp,
+  category: r.category,
+  district: r.district,
+  date: r.date,
+  title: { en: r.title, zh: r.zh?.title ?? r.title },
+  subtitle: r.subtitle ? { en: r.subtitle, zh: r.zh?.subtitle ?? r.subtitle } : undefined,
+  place: r.place ? { en: r.place, zh: r.zh?.place ?? r.place } : undefined,
+  image: r.image,
+}));
+const payload = JSON.stringify({ ...data, base, notices, tapes, slides }).replace(/</g, '\\u003c');
 const zones = [
   { id: 'overview', en: 'The whole room', zh: '整间办公室' },
   { id: 'desk', en: 'Desk and computer', zh: '办公桌和电脑' },
-  { id: 'sofa', en: 'Sofa', zh: '沙发' },
+  { id: 'sofa', en: 'Sofa and projector', zh: '沙发和放映机' },
   { id: 'wall', en: 'Notice board', zh: '告示板' },
   { id: 'deck', en: 'Cassette deck', zh: '磁带机' },
 ];
 ---
 
-<Flat title="Office — The Ninth Draft" description="The Data Section office in the basement: the desk and its computer, the sofa, the notice board, the cassette deck." page="office">
+<Flat title="Office — The Ninth Draft" description="The Data Section office in the basement: the desk and its computer, the sofa, the notice board, the cassette deck, the slide projector." page="office">
   <div class="of" id="of" data-zone="overview">
     <canvas class="of__canvas" id="of-canvas" aria-hidden="true"></canvas>
 
@@ -48,8 +61,8 @@ const zones = [
     <div class="lib__foot">
       <p class="voice" id="voice" aria-live="polite"><span class="voice__who"><i></i>Archivist</span><span class="voice__line" id="voice-line"></span></p>
       <p class="lib__hints micro">
-        <span data-l="en">0–4 corners · F1–F5 programs · Space play / stop · Esc back</span>
-        <span data-l="zh">0–4 切换区域 · F1–F5 切换程序 · 空格 放 / 停 · Esc 返回</span>
+        <span data-l="en">0–4 corners · F1–F5 programs · Space play / next slide · Esc back</span>
+        <span data-l="zh">0–4 切换区域 · F1–F5 切换程序 · 空格 放音 / 下一张 · Esc 返回</span>
       </p>
     </div>
   </div>
