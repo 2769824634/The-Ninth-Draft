@@ -18,7 +18,7 @@
   "welcomeBack": [
     "You again. Your chair is where you left it.",
     "Back already. Heuss changed three files while you were out. Don't ask him which.",
-    "Welcome back. A road in Pons Ruber has a new name since yesterday. Same road.",
+    "Welcome back. A road in Ang Mo Kio has a new name since yesterday. Same road.",
     "Oh, it's you. I kept your place."
   ],
   "night": [
@@ -242,7 +242,7 @@
     "open": [
       "{title}. The spine cracks a bit. Nobody's opened it since it was bound.",
       "{title}. Turn the pages from the corner, not the middle.",
-      "{title}. The binder in Palus Magna sewed that one. He was always generous with the glue."
+      "{title}. The binder in Toa Payoh sewed that one. He was always generous with the glue."
     ],
     "daily": [
       "Spread it on the table, four pages. Mind the fold, it tears there first.",

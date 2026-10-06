@@ -1,6 +1,7 @@
 ---
 import Flat from '../../layouts/Flat.astro';
 import IslandMap from '../../components/IslandMap.astro';
+import { REGIONS, RESIDENTIAL } from '../../app/visitor/districts';
 
 const base = import.meta.env.BASE_URL;
 const arrow = '<svg viewBox="0 0 24 12" aria-hidden="true"><path d="M0 6h22M17 1l5 5-5 5" /></svg>';
@@ -39,8 +40,16 @@ const arrow = '<svg viewBox="0 0 24 12" aria-hidden="true"><path d="M0 6h22M17 1
           <div class="form__top micro"><span class="form__no">RO-9 / 1999</span><span id="step-label"></span></div>
           <div class="wiz__panel" id="panel"></div>
           <div class="wiz__map" id="map-wrap" hidden>
-            <div class="map__frame"><IslandMap id="reg-map" /></div>
+            <div class="map__frame"><IslandMap id="reg-map" only="residential" /></div>
             <p class="wiz__blurb" id="blurb"></p>
+            <div class="wiz__picks" id="picks">
+              {REGIONS.map((g) => (
+                <div class="wiz__region">
+                  <p class="micro"><span data-l="en">{g.en}</span><span data-l="zh">{g.zh}</span></p>
+                  <div>{RESIDENTIAL.filter((d) => d.region === g.id).map((d) => <button type="button" class="wiz__pick" data-d={d.id}><span data-l="en">{d.en}</span><span data-l="zh">{d.zh}</span></button>)}</div>
+                </div>
+              ))}
+            </div>
           </div>
           <p class="f-err" id="err" hidden></p>
           <div class="wiz__nav">
@@ -100,7 +109,7 @@ const arrow = '<svg viewBox="0 0 24 12" aria-hidden="true"><path d="M0 6h22M17 1
   import { halftone } from '../../app/scene/halftone';
   import { toPhrase, fromPhrase } from '../../app/visitor/phrase';
   import { fileNo, loadVisitor, saveVisitor, type Visitor } from '../../app/visitor/store';
-  import { DISTRICTS, districtName, type DistrictId } from '../../app/visitor/districts';
+  import { districtName, type DistrictId } from '../../app/visitor/districts';
   import { QUESTIONS, type L } from '../../app/visitor/questions';
   import { COUNTER, DISTRICT_TEXT, FILING } from '../../app/visitor/counter';
 
@@ -208,10 +217,12 @@ const arrow = '<svg viewBox="0 0 24 12" aria-hidden="true"><path d="M0 6h22M17 1
   const mapWrap = $('map-wrap');
   const err = $('err');
   const nodes = [...mapWrap.querySelectorAll<SVGGElement>('.map__d')];
+  const picks = [...mapWrap.querySelectorAll<HTMLButtonElement>('.wiz__pick')];
 
   const setDistrict = (id: DistrictId, sound = true) => {
     st.district = id;
     nodes.forEach((n) => n.classList.toggle('is-home', n.dataset.d === id));
+    picks.forEach((b) => b.classList.toggle('is-on', b.dataset.d === id));
     $('blurb').innerHTML = `<b>${esc(districtName(id, isZh()))}</b> ${esc(tx(DISTRICT_TEXT[id].blurb))}`;
     if (sound) {
       audio.click();
@@ -250,8 +261,9 @@ const arrow = '<svg viewBox="0 0 24 12" aria-hidden="true"><path d="M0 6h22M17 1
       });
       if (!matchMedia('(pointer: coarse)').matches) input.focus();
     } else if (s === 1) {
-      panel.innerHTML = `<p class="f-qlabel">${isZh() ? '你住哪一带？在地图上点一个区。' : 'Where do you live? Tap a district on the map.'}</p>`;
+      panel.innerHTML = `<p class="f-qlabel">${isZh() ? '你住哪一带？在地图上点一个区，或者在下面的单子里挑。' : 'Where do you live? Tap a district on the map, or pick one from the list under it.'}</p>`;
       nodes.forEach((n) => n.classList.toggle('is-home', n.dataset.d === st.district));
+      picks.forEach((b) => b.classList.toggle('is-on', b.dataset.d === st.district));
       if (st.district) setDistrict(st.district, false);
       else $('blurb').textContent = isZh() ? '还没选。' : 'Nothing chosen yet.';
     } else if (s <= 4) {
@@ -358,7 +370,8 @@ const arrow = '<svg viewBox="0 0 24 12" aria-hidden="true"><path d="M0 6h22M17 1
     if (st.step >= 2 && st.step <= 4 && ['1', '2', '3'].includes(e.key)) choose(st.step - 2, Number(e.key) - 1);
   });
 
-  // Clicking the island
+  // Clicking the island, or the list under it
+  picks.forEach((b) => b.addEventListener('click', () => setDistrict(b.dataset.d as DistrictId)));
   nodes.forEach((n) => {
     const pick = () => setDistrict(n.dataset.d as DistrictId);
     n.addEventListener('click', pick);

@@ -6,7 +6,8 @@
  */
 import { islandDate } from '../island';
 import * as THREE from 'three';
-import { DISTRICTS } from '../visitor/districts';
+import { DISTRICTS, labelSide } from '../visitor/districts';
+import { SHEET } from '../../data/gerimis/districts';
 
 const SANS = '"Archivo Variable", "Archivo", "N9 KuHei", Arial, sans-serif';
 const COND = '"Archivo Variable", "Archivo", "N9 DIN", "N9 KuHei", Arial, sans-serif';
@@ -463,41 +464,45 @@ export function mapTexture() {
     g.lineTo(W, y);
     g.stroke();
   }
-  // the island: a blob through the district points
+  // the island, traced from the survey sheet
   const sx = W / 1000, sy = H / 560;
-  const pts = DISTRICTS.map((d) => [d.x * sx, d.y * sy] as const);
-  const cx = pts.reduce((a, p) => a + p[0], 0) / pts.length, cy = pts.reduce((a, p) => a + p[1], 0) / pts.length;
+  const outline = (pts: [number, number][]) => {
+    g.beginPath();
+    pts.forEach(([x, y], i) => (i ? g.lineTo(x * sx, y * sy) : g.moveTo(x * sx, y * sy)));
+    g.closePath();
+    g.fill();
+    g.stroke();
+  };
   g.fillStyle = '#d9cfae';
   g.strokeStyle = '#4b4232';
   g.lineWidth = 2.5;
-  g.beginPath();
-  const r = rng(2);
-  for (let i = 0; i <= 48; i++) {
-    const a = (i / 48) * Math.PI * 2;
-    const rad = (Math.abs(Math.cos(a)) * 300 + Math.abs(Math.sin(a)) * 190) * sx * (0.92 + r() * 0.12);
-    const x = cx + Math.cos(a) * rad, y = cy + Math.sin(a) * rad * 0.9;
-    if (i === 0) g.moveTo(x, y);
-    else g.lineTo(x, y);
-  }
-  g.closePath();
-  g.fill();
-  g.stroke();
+  g.lineJoin = 'round';
+  outline(SHEET.coastPoints);
+  g.lineWidth = 1.6;
+  SHEET.islandPoints.forEach(outline);
+  // every district a dot; the large towns named
   for (const d of DISTRICTS) {
     const x = d.x * sx, y = d.y * sy;
-    g.fillStyle = d.id === 'axis' ? '#b8281d' : '#1d1b17';
+    const big = d.id === 'axis' || d.major;
+    g.fillStyle = d.id === 'axis' ? '#b8281d' : d.kind === 'unsurveyed' ? 'rgba(29,27,23,.35)' : '#1d1b17';
     g.beginPath();
-    g.arc(x, y, d.id === 'axis' ? 7 : 5, 0, Math.PI * 2);
+    g.arc(x, y, d.id === 'axis' ? 5 : big ? 3.6 : 2, 0, Math.PI * 2);
     g.fill();
-    g.font = `600 15px ${COND}`;
-    g.textAlign = d.left ? 'right' : 'left';
-    g.fillText(`${d.en.toUpperCase()} ${d.zh}`, x + (d.left ? -10 : 10), y + 5);
+    if (!big) continue;
+    const side = labelSide(d);
+    g.font = `600 12px ${COND}`;
+    g.textAlign = side === 'l' ? 'right' : side === 'r' ? 'left' : 'center';
+    const name = d.id === 'axis' ? `${d.en.toUpperCase()} ${d.zh}` : d.en.toUpperCase();
+    g.fillText(name, x + (side === 'l' ? -7 : side === 'r' ? 7 : 0), y + (side === 't' ? -8 : side === 'b' ? 16 : 4));
   }
-  g.textAlign = 'left';
+  // the title block sits in the sea, bottom right
+  g.textAlign = 'right';
   g.font = `800 22px ${COND}`;
   g.fillStyle = '#1d1b17';
-  g.fillText('GERIMIS 霏微', 24, 40);
+  g.fillText('GERIMIS 霏微', W - 24, H - 40);
   g.font = `500 12px ${MONO}`;
-  g.fillText('SURVEY SECTION · 1999 EDITION', 24, 58);
+  g.fillText('SURVEY SECTION · 1999 EDITION', W - 24, H - 22);
+  g.textAlign = 'left';
   return tex(c);
 }
 

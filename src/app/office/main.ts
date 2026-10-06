@@ -14,7 +14,7 @@ import { canvasFontsReady } from '../scene/textures';
 import { isFiled } from '../island';
 import { prefs } from '../prefs';
 import { Archivist } from '../ui/archivist';
-import { DISTRICTS } from '../visitor/districts';
+import { CLOCKS } from '../visitor/districts';
 import { BackupScreen, ClockScreen, ConsoleScreen, LogScreen, YearScreen } from './programs';
 import { Deck } from './deck';
 import type { Well } from './cassettes';
@@ -520,8 +520,8 @@ export function office() {
   /* ---------------- the clock on the wall ---------------- */
   let clockAt = 0;
   function cycleClock() {
-    clockAt = (clockAt + 1) % DISTRICTS.length;
-    const d = DISTRICTS[clockAt];
+    clockAt = (clockAt + 1) % CLOCKS.length;
+    const d = CLOCKS[clockAt];
     scene?.setClock(d.tz, d.en.toUpperCase());
     audio.tick();
     voice.say('office.clock', { district: isZh() ? d.zh : d.en }, false);

@@ -2,7 +2,8 @@
  * The visitor's registration. It lives only in this browser (localStorage);
  * the recovery phrase (phrase.ts) carries it to another device.
  */
-import { DISTRICTS, type DistrictId } from './districts';
+import { currentDistrict } from '../../data/gerimis/legacy';
+import type { DistrictId } from './districts';
 
 export interface Visitor {
   /** File number, 1–4095, shown as V-0417. */
@@ -25,7 +26,9 @@ export const fileNo = (v: Pick<Visitor, 'no'>) => `V-${String(v.no).padStart(4, 
 export function loadVisitor(): Visitor | null {
   try {
     const v = JSON.parse(localStorage.getItem(KEY) || 'null');
-    if (!v || typeof v.code !== 'string' || !DISTRICTS.some((d) => d.id === v.district)) return null;
+    if (!v || typeof v.code !== 'string' || typeof v.district !== 'string') return null;
+    // registered before the 2026-10 survey: the district has a new name now
+    v.district = currentDistrict(v.district);
     return v as Visitor;
   } catch {
     return null;

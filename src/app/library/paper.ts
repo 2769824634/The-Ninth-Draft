@@ -385,7 +385,7 @@ function island(x: Issue, base: string) {
         <section class="np-box">
           <h4 class="np-boxh">${zh ? '天气' : 'Weather'}</h4>
           <p>${W(x.weather)}</p>
-          <p class="np-small">${zh ? '林地比中枢早一小时下雨，后港晚一小时。' : 'Silva gets the rain an hour before the Axis, Portus Posterior an hour after.'}</p>
+          <p class="np-small">${zh ? '兀兰比中枢早一小时下雨，后港晚一小时。' : 'Woodlands gets the rain an hour before the Axis, Hougang an hour after.'}</p>
         </section>
       </aside>
     </div>`;
@@ -446,7 +446,7 @@ function classified(x: Issue) {
         <section class="np-box">
           <h4 class="np-boxh">${zh ? '潮汐与钟点' : 'Tides & clocks'}</h4>
           <p>${W(x.tide)}</p>
-          <p>${zh ? '中枢 12:00 · 林地 13:00 · 后港 11:00。时间科已知悉。' : 'Axis 12:00 · Silva 13:00 · Portus Posterior 11:00. The Time office is aware.'}</p>
+          <p>${zh ? '中枢 12:00 · 兀兰 13:00 · 后港 11:00。时间科已知悉。' : 'Axis 12:00 · Woodlands 13:00 · Hougang 11:00. The Time office is aware.'}</p>
         </section>
         <section class="np-box">
           <h4 class="np-boxh">${zh ? '今晚电视' : 'Tonight on television'}</h4>

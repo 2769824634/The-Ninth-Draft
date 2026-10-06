@@ -27,8 +27,10 @@ export interface ArchiveRecord {
   stamp: string;
   date?: string;
   place?: string;
-  /** District key (axis, pons-ruber, …); see content.config.ts. */
+  /** District key (axis, ang-mo-kio, …); see src/data/gerimis/districts.ts. */
   district?: string;
+  /** Neighbourhood inside the district, as the gazetteer names it. */
+  block?: string;
   image?: string;
   imageCaption?: string;
   fields: { label: string; value: string }[];

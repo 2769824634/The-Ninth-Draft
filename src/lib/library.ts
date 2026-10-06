@@ -3,7 +3,7 @@
  * time from what the archive already holds, so nobody writes a book.
  *
  *   Bay 1  The Gerimis Daily, one volume a month (from daily.ts)
- *   Bay 2  District gazetteer, one volume a district
+ *   Bay 2  District gazetteer, one volume a region, a chapter a district
  *   Bay 3  Counter copies: what the Office prints for the public.
  *
  * Only public publications. The Office's own files stay in the archive and
@@ -17,8 +17,7 @@ import type { ClientRecord } from './records';
 import { islandDay } from '../app/island';
 import { contents } from './toc';
 import { buildIssues, isoDate, longDate, MONTHS_EN } from './daily';
-import { DISTRICTS } from '../app/visitor/districts';
-import { DISTRICT_TEXT } from '../app/visitor/counter';
+import { DISTRICTS, REGIONS } from '../app/visitor/districts';
 
 type L = { en: string; zh: string };
 
@@ -215,54 +214,60 @@ export function buildLibrary(records: ClientRecord[], base: string, books: LibBo
   }
 
   /* ---------------- Bay 2: district gazetteer ---------------- */
-  const CLOTHS = ['#3d4a3a', '#5a2b24', '#2c3a4f', '#5b4a2c', '#40363f', '#2f4744', '#4c4c46'];
-  const gazetteer: LibBook[] = DISTRICTS.map((d, i) => {
-    const recs = records.filter((r) => r.district === d.id);
-    const text = DISTRICT_TEXT[d.id];
-    const off = d.tz === 0 ? null : d.tz > 0 ? `+${d.tz}` : `${d.tz}`;
-    // a public book: what happened in the district, never the Office's file numbers or drafts
-    const dated = recs
-      .filter((r) => r.category === 'events' && isoDate(r.date))
-      .map((r) => ({ date: isoDate(r.date)!, r }))
-      .sort((a, b) => a.date.localeCompare(b.date));
-    const pages: LibPage[] = [
-      {
-        head: { en: `${d.en} · District gazetteer`, zh: `${d.zh} · 区志` },
+  // one volume a region, as the survey publishes it: a chapter for each district
+  const CLOTHS = ['#3d4a3a', '#5a2b24', '#2c3a4f', '#5b4a2c', '#40363f'];
+  const KIND: Record<string, L> = { open: { en: 'No homes.', zh: '无住户。' }, unsurveyed: { en: 'Not surveyed.', zh: '未测绘。' } };
+  const gazetteer: LibBook[] = REGIONS.map((g, i) => {
+    const ds = DISTRICTS.filter((d) => d.region === g.id);
+    const pages: LibPage[] = ds.map((d) => {
+      const recs = records.filter((r) => r.district === d.id);
+      const off = d.tz === 0 ? null : d.tz > 0 ? `+${d.tz}` : `${d.tz}`;
+      // a public book: what happened in the district, never the Office's file numbers or drafts
+      const dated = recs
+        .filter((r) => r.category === 'events' && isoDate(r.date))
+        .map((r) => ({ date: isoDate(r.date)!, r }))
+        .sort((a, b) => a.date.localeCompare(b.date));
+      const kind = KIND[d.kind];
+      return {
+        head: { en: d.en, zh: d.zh },
         html: join(
           { en: `<h4>${d.en}</h4>`, zh: `<h4>${d.zh}<small> ${d.en}</small></h4>` },
-          { en: `<p>${text.blurb.en}</p>`, zh: `<p>${text.blurb.zh}</p>` },
+          p(`${kind ? `${kind.en} ` : ''}${d.blurb.en}`, `${kind ? kind.zh : ''}${d.blurb.zh}`),
+          d.blocks.length
+            ? list(d.blocks.map((b) => ({
+                en: `<li><b>${b.en}</b>${b.note ? ` ${b.note.en}` : ''}</li>`,
+                zh: `<li><b>${b.zh}</b>${b.note ? ` ${b.note.zh}` : ''}</li>`,
+              })))
+            : { en: '', zh: '' },
+          p(d.transit.en, d.transit.zh),
+          d.lost ? p(`<i>Formerly:</i> ${d.lost.en}`, `<i>以前：</i>${d.lost.zh}`) : { en: '', zh: '' },
           off
             ? p(`Local clocks run Axis ${off} h. The Office has written to them about it.`, `本区时钟比中枢${d.tz > 0 ? '快' : '慢'} ${Math.abs(d.tz)} 小时。署里为此去过函。`)
-            : p('Local clocks agree with the Axis, as far as anyone has checked.', '本区时钟与中枢一致，至少没人查出不一致。'),
+            : { en: '', zh: '' },
+          dated.length
+            ? join(
+                { en: '<h4>1999</h4>', zh: '<h4>1999 年大事</h4>' },
+                list(dated.map(({ date, r }) => {
+                  const ld = longDate(date);
+                  return { en: `<li${when(r, date)}><b>${date.slice(8)} ${MON[Number(date.slice(5, 7)) - 1]}</b> ${esc(r.title)}</li>`, zh: `<li${when(r, date)}><b>${ld.zh.split(' · ')[0].replace('1999 年 ', '')}</b> ${esc(title(r).zh)}</li>` };
+                })),
+              )
+            : { en: '', zh: '' },
           link(`${base}district/${d.id}/`, 'District file', '本区档案页'),
         ),
-      },
-    ];
-    if (dated.length) {
-      pages.push({
-        head: { en: 'Chronology, 1999', zh: '大事记 · 1999' },
-        html: join(
-          list(dated.map(({ date, r }) => {
-            const ld = longDate(date);
-            return { en: `<li${when(r, date)}><b>${date.slice(8)} ${MON[Number(date.slice(5, 7)) - 1]}</b> ${esc(r.title)}</li>`, zh: `<li${when(r, date)}><b>${ld.zh.split(' · ')[0].replace('1999 年 ', '')}</b> ${esc(title(r).zh)}</li>` };
-          })),
-          {
-            en: `<p data-island-empty="#rd-body .lib-list > li[data-island-date]">Nothing entered for this year yet.</p>`,
-            zh: `<p data-island-empty="#rd-body .lib-list > li[data-island-date]">今年还没有记下什么。</p>`,
-          },
-        ),
-      });
-    }
+      };
+    });
     return {
-      id: `gaz-${d.id}`,
+      id: `gaz-${g.id}`,
       kind: 'cloth',
       color: CLOTHS[i % CLOTHS.length],
-      spine: { en: d.en.toUpperCase(), zh: d.zh },
-      sub: { en: 'Gazetteer', zh: '区志' },
+      spine: { en: g.en.toUpperCase(), zh: g.zh },
+      sub: { en: `Gazetteer · ${ds.length} districts`, zh: `区志 · ${ds.length} 个区` },
       mark: `GZ/${String(i + 1).padStart(2, '0')}`,
       h: 0.86,
-      thick: 0.2 + Math.min(0.1, dated.length * 0.03),
+      thick: 0.2,
       pages,
+      imprint: { en: 'SURVEY SECTION · 1999 EDITION', zh: '测绘科 · 1999 年版' },
     };
   });
 

@@ -1,37 +1,95 @@
 ---
 import Flat from '../../../layouts/Flat.astro';
+import DistrictSheet from '../../../components/DistrictSheet.astro';
 import { loadRecords } from '../../../lib/records';
 import { islandDay } from '../../../app/island';
-import { DISTRICTS } from '../../../app/visitor/districts';
-import { DISTRICT_TEXT } from '../../../app/visitor/counter';
+import { DISTRICTS, REGIONS, gridRef, nearest, type District } from '../../../app/visitor/districts';
+import { LEGACY_DISTRICTS } from '../../../data/gerimis/legacy';
 
 export function getStaticPaths() {
-  return DISTRICTS.map((d) => ({ params: { id: d.id } }));
+  return [
+    ...DISTRICTS.map((d) => ({ params: { id: d.id }, props: { to: null } })),
+    // the seven old keys open the district they became
+    ...Object.entries(LEGACY_DISTRICTS).map(([id, to]) => ({ params: { id }, props: { to } })),
+  ];
 }
 
 const base = import.meta.env.BASE_URL;
 const { id } = Astro.params;
-const d = DISTRICTS.find((x) => x.id === id)!;
-const text = DISTRICT_TEXT[d.id];
+const { to } = Astro.props as { to: string | null };
+const d = DISTRICTS.find((x) => x.id === (to ?? id)) as District;
+const href = `${base}district/${d.id}/`;
 const records = (await loadRecords(base)).filter((r) => r.district === d.id);
 const offset = d.tz === 0 ? '' : d.tz > 0 ? `+${d.tz}` : `${d.tz}`;
-const grid = `${'ABCDEFGHIJ'[Math.floor(d.x / 100)]}-${String(Math.floor(d.y / 100) + 1).padStart(2, '0')}`;
-const others = DISTRICTS.filter((x) => x.id !== d.id);
+const grid = gridRef(d);
+const postal = String(d.postal).padStart(2, '0');
+const region = REGIONS.find((r) => r.id === d.region)!;
+const KIND = {
+  residential: { en: 'Residential', zh: '居民区' },
+  open: { en: 'No homes', zh: '无住户' },
+  unsurveyed: { en: 'Not surveyed', zh: '未测绘' },
+}[d.kind];
+const near = nearest(d, 8);
+// a record filed under one of the district's neighbourhoods says so
+const blockOf = (name?: string) => (name ? d.blocks.find((b) => [b.en, b.zh].some((x) => x.toLowerCase() === name.trim().toLowerCase())) : undefined);
+let n = 0;
+const sec = () => String(++n).padStart(2, '0');
 ---
 
-<Flat title={`${d.en} — The Ninth Draft`} description={text.blurb.en} page="district">
-  <p class="f-kicker micro"><b>District file</b><span><span data-l="en">Records Office · Survey Section · Grid {grid}</span><span data-l="zh">记录署 · 测绘科 · 方格 {grid}</span></span></p>
+{to ? (
+  <html lang="en">
+    <head>
+      <meta charset="utf-8" />
+      <meta http-equiv="refresh" content={`0; url=${href}`} />
+      <link rel="canonical" href={href} />
+      <title>The Ninth Draft</title>
+      <script is:inline define:vars={{ href }}>location.replace(href);</script>
+    </head>
+    <body><a href={href}>{d.en}</a></body>
+  </html>
+) : (
+<Flat title={`${d.en} — The Ninth Draft`} description={d.blurb.en} page="district">
+  <p class="f-kicker micro"><b>District file</b><span><span data-l="en">Records Office · Survey Section · Grid {grid} · Postal district {postal}</span><span data-l="zh">记录署 · 测绘科 · 方格 {grid} · 第 {postal} 邮区</span></span></p>
   <h1 class="f-title"><span data-l="en">{d.en}</span><span data-l="zh">{d.zh}</span></h1>
-  <p class="f-lede"><span data-l="en">{text.blurb.en}</span><span data-l="zh">{text.blurb.zh}</span></p>
+  <p class="dist-page__sub micro"><span data-l="en">{region.en} · {KIND.en}</span><span data-l="zh">{region.zh} · {KIND.zh}</span><span data-l="zh" class="dist-page__alt">{d.en}</span></p>
+  <p class="f-lede"><span data-l="en">{d.blurb.en}</span><span data-l="zh">{d.blurb.zh}</span></p>
 
   <div class="dist-page">
+    <figure class={`dist-page__sheet${d.kind === 'unsurveyed' ? ' is-blank' : ''}`}>
+      <DistrictSheet d={d} />
+      {d.kind === 'unsurveyed' && <span class="dist-page__blank micro" aria-hidden="true">NOT SURVEYED · 未测绘</span>}
+      <figcaption class="micro"><span data-l="en">Sheet 1 · Grid {grid}</span><span data-l="zh">第 1 页 · 方格 {grid}</span></figcaption>
+    </figure>
+
+    {d.blocks.length > 0 && (
+      <section class="f-sec">
+        <h2 class="f-sec__h"><i>{sec()}</i><span>Neighbourhoods</span></h2>
+        <ul class="dist-page__blocks">
+          {d.blocks.map((b) => (
+            <li>
+              <b><span data-l="en">{b.en}</span><span data-l="zh">{b.zh}</span></b>
+              {b.note && <span><span data-l="en">{b.note.en}</span><span data-l="zh">{b.note.zh}</span></span>}
+            </li>
+          ))}
+        </ul>
+      </section>
+    )}
+
     <section class="f-sec">
-      <h2 class="f-sec__h"><i>01</i><span>Records filed here</span></h2>
+      <h2 class="f-sec__h"><i>{sec()}</i><span>Getting about</span></h2>
+      <p class="dist-page__p"><span data-l="en">{d.transit.en}</span><span data-l="zh">{d.transit.zh}</span></p>
+    </section>
+
+    <section class="f-sec">
+      <h2 class="f-sec__h"><i>{sec()}</i><span>Records filed here</span></h2>
       {records.length ? (
         <ul class="dist-page__recs">
-          {records.map((r) => (
-            <li data-island-date={islandDay(r.date) ?? ''}><a href={`${base}records/${r.slug}/`}><b>{r.file}</b><span data-l="en">{r.title}</span><span data-l="zh">{r.zh?.title ?? r.title}</span></a></li>
-          ))}
+          {records.map((r) => {
+            const b = blockOf(r.block);
+            return (
+              <li data-island-date={islandDay(r.date) ?? ''}><a href={`${base}records/${r.slug}/`}><b>{r.file}</b><span data-l="en">{r.title}</span><span data-l="zh">{r.zh?.title ?? r.title}</span>{b && <small class="micro"><span data-l="en">{b.en}</span><span data-l="zh">{b.zh}</span></small>}</a></li>
+            );
+          })}
         </ul>
       ) : null}
       {(
@@ -40,11 +98,11 @@ const others = DISTRICTS.filter((x) => x.id !== d.id);
     </section>
 
     <section class="f-sec">
-      <h2 class="f-sec__h"><i>02</i><span>Conditions</span></h2>
+      <h2 class="f-sec__h"><i>{sec()}</i><span>Conditions</span></h2>
       <dl class="dist-page__facts">
         <div>
           <dt class="micro">Local clock</dt>
-          <dd><b class="dist-clock" id="dclock" data-tz={d.tz}>23:59:50</b> <span class="micro">{offset ? <><span data-l="en">{`Axis ${offset} h`}</span><span data-l="zh">{`中枢 ${offset} 小时`}</span></> : 'Axis time'}</span></dd>
+          <dd><b class="dist-clock" id="dclock" data-tz={d.tz}>--:--:--</b> <span class="micro">{offset ? <><span data-l="en">{`Axis ${offset} h`}</span><span data-l="zh">{`中枢 ${offset} 小时`}</span></> : 'Axis time'}</span></dd>
         </div>
         <div>
           <dt class="micro">Weather</dt>
@@ -52,7 +110,9 @@ const others = DISTRICTS.filter((x) => x.id !== d.id);
         </div>
         <div>
           <dt class="micro">Neighbours</dt>
-          <dd id="neigh"><span data-l="en">Register to find out who lives next door.</span><span data-l="zh">登记以后，才知道隔壁住着谁。</span></dd>
+          {d.kind === 'residential'
+            ? <dd id="neigh"><span data-l="en">Register to find out who lives next door.</span><span data-l="zh">登记以后，才知道隔壁住着谁。</span></dd>
+            : <dd><span data-l="en">Nobody lives here. Nobody the Office has on file.</span><span data-l="zh">这里没人住。至少署里没有登记。</span></dd>}
         </div>
       </dl>
       {d.tz !== 0 && (
@@ -60,10 +120,30 @@ const others = DISTRICTS.filter((x) => x.id !== d.id);
       )}
     </section>
 
+    {(d.lost || d.kept) && (
+      <section class="f-sec">
+        <h2 class="f-sec__h"><i>{sec()}</i><span>On older maps</span></h2>
+        <dl class="dist-page__facts">
+          {d.lost && (
+            <div class="is-lost">
+              <dt class="micro">Formerly</dt>
+              <dd><span data-l="en">{d.lost.en}</span><span data-l="zh">{d.lost.zh}</span></dd>
+            </div>
+          )}
+          {d.kept && (
+            <div>
+              <dt class="micro">Still here</dt>
+              <dd><span data-l="en">{d.kept.en}</span><span data-l="zh">{d.kept.zh}</span></dd>
+            </div>
+          )}
+        </dl>
+      </section>
+    )}
+
     <section class="f-sec">
-      <h2 class="f-sec__h"><i>03</i><span>Other districts</span></h2>
+      <h2 class="f-sec__h"><i>{sec()}</i><span>Nearby</span></h2>
       <ul class="dist-page__others">
-        {others.map((o) => <li><a href={`${base}district/${o.id}/`}><span data-l="en">{o.en}</span><span data-l="zh">{o.zh}</span></a></li>)}
+        {near.map((o) => <li><a href={`${base}district/${o.id}/`}><span data-l="en">{o.en}</span><span data-l="zh">{o.zh}</span></a></li>)}
       </ul>
     </section>
 
@@ -73,6 +153,7 @@ const others = DISTRICTS.filter((x) => x.id !== d.id);
     </div>
   </div>
 </Flat>
+)}
 
 <script define:vars={{ id: d.id }}>
   window.__district = id;
@@ -82,34 +163,37 @@ const others = DISTRICTS.filter((x) => x.id !== d.id);
   import { flat } from '../../../app/flat';
   import { loadVisitor } from '../../../app/visitor/store';
   import { isZh } from '../../../app/i18n';
+  import { islandDate, hms } from '../../../app/island';
 
-  const clock = document.getElementById('dclock')!;
-  const tz = Number(clock.dataset.tz);
-  const id = (window as unknown as { __district: string }).__district;
-  const neigh = document.getElementById('neigh')!;
-  const original = neigh.innerHTML;
+  const clock = document.getElementById('dclock');
+  const neigh = document.getElementById('neigh');
+  if (clock) {
+    const id = (window as unknown as { __district: string }).__district;
+    const tz = Number(clock.dataset.tz);
+    const original = neigh?.innerHTML ?? '';
 
-  const live = () => {
-    const v = loadVisitor();
-    if (!v) {
-      neigh.innerHTML = original;
-      return;
-    }
-    // Only the district the visitor lives in has "their" neighbours, for now
-    const mine = v.district === id;
-    neigh.textContent = mine
-      ? isZh() ? `你住这里。你的邻居们对你一无所知，暂时。` : `You live here. Your neighbours know nothing about you. For now.`
-      : isZh() ? `你不住这里。署里已记下你来过。` : `You do not live here. The Office has noted your visit.`;
-  };
-  flat(live);
-  live();
+    const live = () => {
+      if (!neigh) return;
+      const v = loadVisitor();
+      if (!v) {
+        neigh.innerHTML = original;
+        return;
+      }
+      // Only the district the visitor lives in has "their" neighbours, for now
+      const mine = v.district === id;
+      neigh.textContent = mine
+        ? isZh() ? `你住这里。你的邻居们对你一无所知，暂时。` : `You live here. Your neighbours know nothing about you. For now.`
+        : isZh() ? `你不住这里。署里已记下你来过。` : `You do not live here. The Office has noted your visit.`;
+    };
+    flat(live);
+    live();
 
-  // 23:59:50 → 23:59:59, back to 50: the island never reaches midnight. District clocks are offset whole hours.
-  let s = 50;
-  const tick = () => {
-    clock.textContent = `${23 + tz}:59:${String(s).padStart(2, '0')}`;
-    s = s >= 59 ? 50 : s + 1;
-  };
-  tick();
-  window.setInterval(tick, 1000);
+    // island time, with the district's own offset
+    const tick = () => {
+      const now = islandDate();
+      clock.textContent = hms((now.getHours() + tz + 24) % 24, now.getMinutes(), now.getSeconds());
+      window.setTimeout(tick, 1000 - (Date.now() % 1000));
+    };
+    tick();
+  }
 </script>
