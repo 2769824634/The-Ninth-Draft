@@ -620,6 +620,21 @@ export class Room {
       this.box(0.12, 0.02, 0.03, this.chrome, 0, 0.26 + k * 0.32, 0.315, fc);
       this.box(0.1, 0.04, 0.005, new THREE.MeshStandardMaterial({ color: '#efe9d8' }), 0, 0.3 + k * 0.32, 0.31, fc);
     }
+    // Heuss's year-field proposals in grey binders on top, 01 to 08,
+    // and a binder's width left empty before the bookend
+    const binder = new THREE.MeshStandardMaterial({ color: '#8c8a83', roughness: 0.55 });
+    const label = new THREE.MeshStandardMaterial({ color: '#efe9d8', roughness: 0.9 });
+    const T = 0.044, x0 = -0.215;
+    for (let k = 0; k < 8; k++) {
+      const h = 0.3 - (k % 3) * 0.004;
+      const x = x0 + T / 2 + k * (T + 0.002);
+      this.box(T, h, 0.27, binder, x, 1.32 + h / 2, 0.02, fc);
+      this.box(T * 0.6, 0.07, 0.004, label, x, 1.32 + h * 0.62, 0.157, fc, false);
+      this.box(T * 0.3, T * 0.3, 0.004, this.black, x, 1.32 + 0.05, 0.157, fc, false);
+    }
+    const end = x0 + 9 * (T + 0.002) + 0.003;
+    this.box(0.004, 0.18, 0.16, this.steel, end, 1.32 + 0.09, 0.02, fc);
+    this.box(0.05, 0.004, 0.16, this.steel, end + 0.025, 1.322, 0.02, fc);
     // the last of the old machines: a backup cabinet with two reels
     const mc = new THREE.Group();
     mc.position.set(3.05, 0, R.z0 + 0.3);
