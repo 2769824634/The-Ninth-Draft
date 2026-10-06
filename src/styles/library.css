@@ -262,3 +262,9 @@
 @media (prefers-reduced-motion: reduce) {
   .lib-panel, .lib-panel.is-on { transform: none; }
 }
+
+/* A shelved book's title page */
+.lib-title { padding: 2.2rem 0 1rem; text-align: center; }
+.lib-title h4 { margin: 0 0 .9rem; font-size: 1.6rem; }
+.lib-title p { margin: .35rem 0; }
+.lib-title .lib-small { margin-top: 1.2rem; }

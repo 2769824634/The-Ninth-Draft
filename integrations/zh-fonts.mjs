@@ -91,9 +91,13 @@ export default function zhFonts() {
       'astro:build:done': async ({ dir, logger }) => {
         const out = fileURLToPath(dir);
         const count = new Map();
+        const books = `${path.sep}library${path.sep}books${path.sep}`;
         for (const f of walk(out)) {
+          // the books' long texts would otherwise decide the order; a character the
+          // rooms and pages use counts for more, so the first slices stay the site's own
+          const w = f.includes(books) ? 1 : 50;
           // JSON payloads escape nothing above U+007F, so a plain scan is enough
-          for (const c of fs.readFileSync(f, 'utf8').match(CJK) ?? []) count.set(c, (count.get(c) ?? 0) + 1);
+          for (const c of fs.readFileSync(f, 'utf8').match(CJK) ?? []) count.set(c, (count.get(c) ?? 0) + w);
         }
         // commonest first; ties in code point order so the cut is stable between builds
         const always = [...ALWAYS];
