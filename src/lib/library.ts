@@ -151,7 +151,7 @@ export function buildLibrary(records: ClientRecord[], base: string, books: LibBo
             )
           : { en: '', zh: '' },
         { en: `<p class="lib-small">${x.weather.en}</p>`, zh: `<p class="lib-small">${x.weather.zh}</p>` },
-        p('The whole paper is on the table: four pages.', '整份报纸摊在桌上，共四版。'),
+        { en: `<p class="lib-go"><a href="#daily-${x.date}">Open this issue out · four pages →</a></p>`, zh: `<p class="lib-go"><a href="#daily-${x.date}">展开这一期 · 共四版 →</a></p>` },
       ),
     };
   };
@@ -169,7 +169,7 @@ export function buildLibrary(records: ClientRecord[], base: string, books: LibBo
         head,
         html: set.length
           ? join(
-              p(`Bound volume. ${set.length} ${set.length === 1 ? 'issue' : 'issues'} kept by the Records Office.`, `合订本。记录署留存 ${set.length} 期。`),
+              p(`Bound volume. ${set.length} ${set.length === 1 ? 'issue' : 'issues'} kept by the Records Office. Pick a day and the paper is opened out on the table.`, `合订本。记录署留存 ${set.length} 期。挑一天，报纸就在桌上摊开。`),
               list(set.map((x) => {
                 const dl = dayLabel(x);
                 return {
@@ -355,7 +355,8 @@ function bind(b: LibBook): LibBook {
   const n = b.pages.length;
   let kind = b.kind;
   if (kind === 'cloth' && n <= 3) kind = 'pamphlet';
-  const pages = n >= 4 && kind !== 'binder'
+  // a month of the paper opens on its own list of days
+  const pages = n >= 4 && kind !== 'binder' && kind !== 'news'
     ? [
         { head: { en: 'Contents', zh: '目录' }, html: contents(b.pages), toc: true },
         ...b.pages,

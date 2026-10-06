@@ -305,6 +305,7 @@ export class LibraryScene {
   private add(b: Book) {
     this.books.push(b);
     this.scene.add(b.group);
+    if (b.news) this.scene.add(b.stick);
   }
 
   private gap(run: ShelfRun, r: number, x: number) {
@@ -672,8 +673,13 @@ export class LibraryScene {
         const v = b.flankLean.update(dt);
         for (const f of b.flank) this.room.leanFiller(f, v);
       }
-      if (b === this.active) continue;
       b.rest(tmpP, tmpQ);
+      // the stick stays in its slot; the paper slides off it
+      if (b.news) {
+        b.stick.position.copy(tmpP);
+        b.stick.quaternion.copy(tmpQ);
+      }
+      if (b === this.active) continue;
       b.group.position.copy(tmpP);
       b.group.quaternion.copy(tmpQ);
     }

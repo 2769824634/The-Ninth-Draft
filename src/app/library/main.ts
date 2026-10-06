@@ -65,7 +65,7 @@ export function library() {
   let open: { book: LibBook; pages: LibPage[]; page: number } | null = null;
   let drawer = -1;
   let scene: LibraryScene | null = null;
-  /** The day of the paper on the table, when it is a newspaper that came down. */
+  /** The day to open out, when a newspaper came down for a given day ('' = pick one at the table). */
   let newsDay = '';
 
   /* ---------------- what the visitor leaves behind ---------------- */
@@ -198,7 +198,16 @@ export function library() {
 
   /* ---------------- the newspaper on the table ---------------- */
   const paper = new Paper(root, base, {
-    close: () => close(),
+    // folding the paper up leaves it on the table, at the list of days
+    close: () => {
+      paper.hide();
+      newsDay = '';
+      if (!open) return;
+      if (open.page) turn(0);
+      else show(0);
+      panel(reader);
+      history.replaceState(null, '', `#${open.book.id}`);
+    },
     other: (date) => takeDay(date),
     day: (date) => {
       if (!open) return;
@@ -251,9 +260,32 @@ export function library() {
     show(n, dir);
   };
 
-  // contents entries jump straight to their page
+  /** Open a day of the paper on the table out to its four pages. */
+  const spread = (date: string) => {
+    if (!open) return;
+    const i = open.pages.findIndex((p) => p.date === date);
+    if (i < 0) return;
+    newsDay = date;
+    if (i !== open.page) {
+      audio.paper();
+      scene?.turn(i);
+      show(i);
+    }
+    panel(null);
+    history.replaceState(null, '', `#daily-${date}`);
+    void paper.show(date);
+  };
+
+  // contents entries jump straight to their page; a day of the paper opens out
   $('rd-body').addEventListener('click', (e) => {
-    const a = (e.target as HTMLElement).closest<HTMLAnchorElement>('a[data-page]');
+    const t = e.target as HTMLElement;
+    const day = t.closest<HTMLAnchorElement>('a[href^="#daily-"]');
+    if (day && open?.book.kind === 'news') {
+      e.preventDefault();
+      spread(day.getAttribute('href')!.slice(7));
+      return;
+    }
+    const a = t.closest<HTMLAnchorElement>('a[data-page]');
     if (!a) return;
     e.preventDefault();
     turn(Number(a.dataset.page));
@@ -267,19 +299,12 @@ export function library() {
     take(id, date);
   }
 
-  /** Which day a stick opens on: today on this month's, otherwise where you left it, or the last day. */
-  const dayFor = (book: LibBook) => {
-    const days = book.pages.map((p) => p.date).filter((d): d is string => !!d && d <= islandIso());
-    if (days.includes(islandIso())) return islandIso();
-    const marked = book.pages[load().marks[book.id] ?? -1]?.date;
-    return marked && days.includes(marked) ? marked : days[days.length - 1] ?? islandIso();
-  };
-
   function take(id: string, date?: string) {
     const hit = all.find((x) => x.book.id === id);
     if (!hit) return;
     if (open?.book.id === id) {
       if (date && paper.on) paper.go(date);
+      else if (date) spread(date);
       return;
     }
     const { book } = hit;
@@ -303,17 +328,16 @@ export function library() {
     closePanels();
     paper.hide();
     const news = book.kind === 'news';
-    if (news) {
-      newsDay = date ?? dayFor(book);
-      paper.prefetch(newsDay);
-    }
+    // a stick comes down to its list of days, unless it was fetched for one day
+    newsDay = news ? date ?? '' : '';
+    if (news) paper.prefetch(date ?? book.pages.find((p) => p.date)?.date ?? islandIso());
     const s = load();
     s.loans[id] = (s.loans[id] ?? 0) + 1;
     save(s);
     // a newspaper has no date-due slip; it goes back on its stick
     const pages = news ? book.pages : [...book.pages, dueSlip(book, s.loans[id])];
-    // open where the ribbon was left (a paper: on its day)
-    const page = news ? Math.max(0, pages.findIndex((p) => p.date === newsDay)) : Math.min(s.marks[id] ?? 0, pages.length - 2);
+    // open where the ribbon was left (a paper: at the list of days, or on the day asked for)
+    const page = news ? Math.max(0, pages.findIndex((p) => newsDay && p.date === newsDay)) : Math.min(s.marks[id] ?? 0, pages.length - 2);
     open = { book, pages, page };
     if (hit.bay.zone !== zone && scene) scene.goZone(hit.bay.zone);
     else if (!scene) setZone(hit.bay.zone);
@@ -321,9 +345,9 @@ export function library() {
     root.dataset.state = 'open';
     show(page);
     callout(null);
-    history.replaceState(null, '', news ? `#daily-${newsDay}` : `#${id}`);
+    history.replaceState(null, '', newsDay ? `#daily-${newsDay}` : `#${id}`);
     if (scene) scene.take(id, pages, page);
-    else if (news) void paper.show(newsDay);
+    else if (newsDay) void paper.show(newsDay);
     else panel(reader);
     const high = hit.bay.id === 'gazetteer';
     if (high) voice.say('library.ladder');
@@ -464,7 +488,7 @@ export function library() {
       open: () => {},
       ready: () => {
         if (!open) return;
-        if (open.book.kind === 'news') void paper.show(newsDay);
+        if (open.book.kind === 'news' && newsDay) void paper.show(newsDay);
         else panel(reader);
       },
       closed: () => {},

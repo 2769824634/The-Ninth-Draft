@@ -33,6 +33,8 @@ let edgeTex: THREE.Texture | null = null;
 export class Book {
   readonly group = new THREE.Group();
   readonly pivot = new THREE.Group();
+  /** A newspaper's wooden stick: it stays in the rack when the paper is taken to the table. */
+  readonly stick = new THREE.Group();
   readonly hits: THREE.Object3D[] = [];
   readonly W: number;
   readonly H: number;
@@ -107,11 +109,10 @@ export class Book {
     if (this.news) {
       // the wooden stick clamps the fold, and sticks out past both ends
       const wood = new THREE.MeshStandardMaterial({ color: '#5a3a22', roughness: 0.5 });
-      const rod = mesh(new THREE.CylinderGeometry(0.009, 0.009, H + 0.14, 10), wood, -W / 2 - 0.004, 0, 0);
-      rod.castShadow = true;
+      mesh(new THREE.CylinderGeometry(0.009, 0.009, H + 0.14, 10), wood, -W / 2 - 0.004, 0, 0, this.stick);
       const knob = new THREE.SphereGeometry(0.014, 10, 8);
-      mesh(knob, wood, -W / 2 - 0.004, H / 2 + 0.07, 0);
-      mesh(knob, wood, -W / 2 - 0.004, -H / 2 - 0.07, 0);
+      mesh(knob, wood, -W / 2 - 0.004, H / 2 + 0.07, 0, this.stick);
+      mesh(knob, wood, -W / 2 - 0.004, -H / 2 - 0.07, 0, this.stick);
     }
     if (data.kind === 'binder') {
       // rings showing at the spine edge
@@ -171,6 +172,8 @@ export class Book {
 
   placeOnShelf() {
     this.rest(this.group.position, this.group.quaternion);
+    this.stick.position.copy(this.group.position);
+    this.stick.quaternion.copy(this.group.quaternion);
   }
 }
 
