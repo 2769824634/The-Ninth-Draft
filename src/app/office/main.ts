@@ -139,6 +139,7 @@ export function office() {
     else if (zone === 'wall') {
       for (const n of data.notices) item(n.file, T(n.title), () => openFile(n.slug));
       item('⌚', isZh() ? '墙上的钟：换一个区' : 'The clock: another district', cycleClock);
+      item('▦', isZh() ? '挂历：翻开 1999 年' : 'The calendar: open 1999', () => location.assign(`${base}calendar/`));
     }
   };
   const setZone = (z: Zone) => {
