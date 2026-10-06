@@ -14,6 +14,7 @@ import { Archivist } from '../ui/archivist';
 import { DISTRICTS } from '../visitor/districts';
 import { BackupScreen, ClockScreen, ConsoleScreen, LogScreen, YearScreen } from './programs';
 import { Deck } from './deck';
+import type { Well } from './cassettes';
 import type { TapeData } from '../../lib/tapes';
 import { INK, clearanceKey } from '../clearance';
 import { OfficeScene, ZONES, type Zone } from './scene';
@@ -129,6 +130,7 @@ export function office() {
     }
   };
   const setZone = (z: Zone) => {
+    if (z !== 'deck' && held) putBack();
     zone = z;
     root.dataset.zone = z;
     drawList();
@@ -142,33 +144,89 @@ export function office() {
   document.querySelectorAll<HTMLButtonElement>('#of-zones button').forEach((b) => b.addEventListener('click', () => scene?.goZone(b.dataset.zone as Zone)));
 
   /* ---------------- the cassette deck ---------------- */
-  const deck = new Deck();
+  // two wells, one rack. A tape is taken out and read before it goes in.
+  const decks: Record<Well, Deck> = { A: new Deck(), B: new Deck() };
+  const WELLS: Well[] = ['A', 'B'];
+  let active: Well = 'A';
+  let held: TapeData | null = null;
+  const tapeOf = (id: string) => data.tapes.find((t) => t.id === id);
   const inkOf = (t: TapeData) => (t.kind === 'music' ? INK.conf : t.kind === 'record' ? INK[clearanceKey(t.stamp ?? '')] : INK.draft);
+  const wellOf = (id: string) => WELLS.find((w) => decks[w].tape?.id === id);
+  const freeWell = () => WELLS.find((w) => !decks[w].tape) ?? active;
+  const KIND: Record<TapeData['kind'], L> = {
+    music: { en: 'Music', zh: '音乐' },
+    dictation: { en: 'Dictation', zh: '口述' },
+    file: { en: 'Recording', zh: '录音' },
+    record: { en: 'File, read aloud', zh: '档案朗读' },
+  };
+  const STATE: Record<string, L> = {
+    empty: { en: 'empty', zh: '空' },
+    stop: { en: 'stopped', zh: '停' },
+    play: { en: 'playing', zh: '在放' },
+    rew: { en: 'rewinding', zh: '倒带' },
+    end: { en: 'at the end', zh: '放完了' },
+  };
   const here = () => {
     if (zone !== 'deck') return;
-    const t = deck.tape;
-    const state = { empty: ['EMPTY', '空'], stop: ['STOP', '停'], play: ['PLAY', '放'], rew: ['REW', '倒带'], end: ['END', '完'] }[deck.mode];
-    $('of-here').textContent = t ? `${T(ZONE_NAME.deck)} · ${t.label} · ${isZh() ? state[1] : state[0]}` : `${T(ZONE_NAME.deck)} · ${isZh() ? '空着' : 'empty'}`;
+    $('of-here').textContent = held ? `${T(ZONE_NAME.deck)} · ${isZh() ? '手里' : 'in hand'} · ${held.label}` : `${T(ZONE_NAME.deck)} · ${active} · ${T(STATE[decks[active].mode])}`;
+  };
+  const btn = (mark: string, label: string, on: () => void, opts: { off?: boolean; cls?: string } = {}) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.disabled = !!opts.off;
+    if (opts.cls) b.className = opts.cls;
+    b.innerHTML = `<i>${mark}</i><span></span>`;
+    b.querySelector('span')!.textContent = label;
+    b.addEventListener('click', on);
+    return b;
   };
   function drawDeck(item: (mark: string, label: string, on: () => void) => void) {
-    // transport keys
-    const li = document.createElement('li');
-    li.className = 'of-deck';
-    const keys: [string, L, () => void, boolean][] = [
-      [deck.mode === 'play' ? 'Ⅱ' : '▶', deck.mode === 'play' ? { en: 'Pause', zh: '暂停' } : { en: 'Play', zh: '放' }, () => press(), !deck.tape],
-      ['◀◀', { en: 'Rewind', zh: '倒带' }, () => deck.rewind(), !deck.tape],
-      ['⏏', { en: 'Eject', zh: '退带' }, () => deck.eject(), !deck.tape],
-    ];
-    for (const [mark, label, on, off] of keys) {
-      const b = document.createElement('button');
-      b.type = 'button';
-      b.disabled = off;
-      b.innerHTML = `<i>${mark}</i><span></span>`;
-      b.querySelector('span')!.textContent = T(label);
-      b.addEventListener('click', on);
-      li.append(b);
+    // the tape in hand: is this the one?
+    if (held) {
+      const t = held;
+      const li = document.createElement('li');
+      li.className = 'of-hold';
+      li.style.setProperty('--cloth', inkOf(t));
+      li.innerHTML = `<p class="of-hold__q micro"></p><p class="of-hold__t"><b></b> <span></span></p><p class="of-hold__k micro"></p><div class="of-hold__do"></div>`;
+      li.querySelector('.of-hold__q')!.textContent = isZh() ? '是这盘吗？' : 'This one?';
+      li.querySelector('b')!.textContent = t.label;
+      li.querySelector('.of-hold__t span')!.textContent = T(t.title);
+      li.querySelector('.of-hold__k')!.textContent = T(KIND[t.kind]);
+      const row = li.querySelector('.of-hold__do')!;
+      const pick = freeWell();
+      for (const w of WELLS) {
+        const busy = decks[w].tape;
+        const label = isZh() ? `放进 ${w} 仓` : `Into deck ${w}`;
+        row.append(btn('↘', busy ? `${label} · ${isZh() ? '换下' : 'swap'} ${busy.label}` : label, () => confirm(w), { cls: w === pick ? 'is-pick' : '' }));
+      }
+      row.append(btn('↩', isZh() ? '放回去' : 'Put it back', () => putBack()));
+      listEl.append(li);
     }
-    listEl.append(li);
+    // transport, one row per well
+    for (const w of WELLS) {
+      const d = decks[w];
+      const li = document.createElement('li');
+      li.className = `of-deck${w === active ? ' is-active' : ''}`;
+      const name = document.createElement('button');
+      name.type = 'button';
+      name.className = 'of-deck__well';
+      name.innerHTML = `<b>${w}</b><span></span>`;
+      name.querySelector('span')!.textContent = d.tape ? d.tape.label : isZh() ? '空' : 'empty';
+      name.title = d.tape ? T(d.tape.title) : '';
+      name.addEventListener('click', () => {
+        active = w;
+        drawList();
+      });
+      const playing = d.mode === 'play';
+      li.append(
+        name,
+        btn(playing ? 'Ⅱ' : '▶', playing ? (isZh() ? '停' : 'Pause') : isZh() ? '放' : 'Play', () => press(w), { off: !d.tape }),
+        btn('◀◀', isZh() ? '倒带' : 'Rew', () => d.rewind(), { off: !d.tape }),
+        btn('⏏', isZh() ? '退带' : 'Eject', () => eject(w), { off: !d.tape }),
+      );
+      listEl.append(li);
+    }
+    // the rack
     for (const shelf of SHELVES) {
       const tapes = data.tapes.filter((t) => shelf.kind.includes(t.kind));
       if (!tapes.length) continue;
@@ -177,32 +235,99 @@ export function office() {
       h.textContent = T(shelf);
       listEl.append(h);
       for (const t of tapes) {
-        item(t.label, T(t.title), () => insert(t, true));
+        const w = wellOf(t.id);
+        item(t.label, T(t.title) + (w ? ` · ${w}` : held?.id === t.id ? (isZh() ? ' · 手里' : ' · in hand') : ''), () => take(t));
         const b = listEl.lastElementChild!.querySelector('button')!;
         b.style.setProperty('--cloth', inkOf(t));
-        b.classList.toggle('is-on', deck.tape?.id === t.id);
+        b.classList.toggle('is-on', !!w || held?.id === t.id);
       }
     }
     here();
   }
-  function insert(t: TapeData, autoplay: boolean): void {
-    if (deck.tape?.id === t.id) return press();
-    deck.load(t);
-    scene?.room.setCassette({ code: t.label, title: T(t.title), ink: inkOf(t) });
-    voice.say(`office.tape-${t.kind}`, { tape: T(t.title) }, false);
-    if (autoplay) window.setTimeout(() => press(true), 450);
-  }
-  function press(forcePlay = false): void {
+
+  /** Off the rack and into the hand (a tape already in a well just becomes the active one). */
+  function take(t: TapeData) {
     audio.unlock();
-    // pressing play is asking for sound
-    if (!prefs.get('sound') && (forcePlay || deck.mode !== 'play')) document.getElementById('btn-sound')?.click();
-    if (!deck.tape) return insert(data.tapes[0], true);
-    if (forcePlay) deck.play();
-    else deck.toggle();
+    const w = wellOf(t.id);
+    if (w) {
+      active = w;
+      return drawList();
+    }
+    if (held?.id === t.id) return;
+    if (held) putBack();
+    if (zone !== 'deck') scene?.goZone('deck');
+    held = t;
+    audio.flick();
+    scene?.room.shelf.take(t.id, () => audio.click());
+    if (scene) scene.holding = true;
+    voice.say(`office.tape-${t.kind}`, { tape: T(t.title) }, false);
+    drawList();
   }
-  deck.onChange = () => {
-    if (!deck.tape) scene?.room.setCassette(null);
-    if (zone === 'deck') drawList();
+
+  function putBack() {
+    if (!held) return;
+    const t = held;
+    held = null;
+    if (scene) scene.holding = false;
+    audio.paper();
+    scene?.room.shelf.putBack(t.id, () => audio.tick());
+    drawList();
+  }
+
+  /** From the hand into a well; whatever was in it goes home first. Then it plays. */
+  function confirm(w: Well) {
+    if (!held) return;
+    const t = held;
+    held = null;
+    if (scene) scene.holding = false;
+    const old = decks[w].tape;
+    if (old) eject(w);
+    active = w;
+    const go = () => {
+      decks[w].load(t);
+      press(w, true);
+    };
+    // the old tape has to be out of the door before the new one goes in
+    if (scene) window.setTimeout(() => scene?.room.shelf.load(t.id, w, go), old ? 450 : 0);
+    else go();
+    drawList();
+  }
+
+  function eject(w: Well) {
+    const t = decks[w].tape;
+    if (!t) return;
+    decks[w].eject();
+    scene?.room.shelf.eject(t.id, w, () => audio.tick());
+  }
+
+  /** Play / pause a well. Only one plays at a time: the other one pauses. */
+  function press(w: Well = active, forcePlay = false): void {
+    audio.unlock();
+    const d = decks[w];
+    if (!d.tape) {
+      // nothing in it: take the first tape off the rack
+      if (!held) take(data.tapes[0]);
+      return;
+    }
+    // pressing play is asking for sound
+    if (!prefs.get('sound') && (forcePlay || d.mode !== 'play')) document.getElementById('btn-sound')?.click();
+    active = w;
+    if (forcePlay || d.mode !== 'play') {
+      for (const o of WELLS) if (o !== w) decks[o].pause();
+      d.play();
+    } else d.pause();
+  }
+  for (const w of WELLS) decks[w].onChange = () => zone === 'deck' && drawList();
+  const deckView = {
+    get spin() {
+      return { A: decks.A.spin, B: decks.B.spin };
+    },
+    get level() {
+      return Math.max(decks.A.level, decks.B.level);
+    },
+    get counter() {
+      return decks[active].counter;
+    },
   };
 
   /* ---------------- the clock on the wall ---------------- */
@@ -239,8 +364,10 @@ export function office() {
     if (e.target instanceof HTMLSelectElement || e.metaKey || e.ctrlKey || e.altKey) return;
     if (e.key === 'Escape') {
       (document.activeElement as HTMLElement | null)?.blur?.();
+      if (held) return putBack();
       return scene?.goZone('overview');
     }
+    if (e.key === 'Enter' && held && !(e.target instanceof HTMLButtonElement)) return confirm(freeWell());
     if (e.target instanceof HTMLInputElement) return;
     if (/^[0-4]$/.test(e.key)) scene?.goZone(ZONES[Number(e.key)]);
     else if (e.key === ' ' && zone === 'deck' && !(e.target instanceof HTMLButtonElement)) {
@@ -263,7 +390,13 @@ export function office() {
         const n = data.notices.find((x) => x.slug === k);
         call.textContent = n
           ? `${n.file} · ${T(n.title)}`
-          : k === 'deck-play'
+          : k.startsWith('tape:')
+            ? (() => {
+                const t = tapeOf(k.slice(5));
+                const w = t && wellOf(t.id);
+                return t ? `${t.label} · ${T(t.title)}${w ? ` · ${w}` : ''}` : '';
+              })()
+            : k === 'deck-play'
             ? isZh() ? '磁带机 · 点一下放 / 停' : 'Cassette deck · click to play or stop'
             : k === 'clock' ? (isZh() ? '挂钟 · 点一下换一个区' : 'Wall clock · click for another district') : T(ZONE_NAME[k as Zone] ?? { en: k, zh: k });
         call.classList.add('is-on');
@@ -271,18 +404,16 @@ export function office() {
       notice: (slug) => (location.href = `${base}records/${slug}/`),
       clock: cycleClock,
       deck: () => press(),
-    });
-    scene.deckView = {
-      get spin() {
-        return deck.spin;
+      tape: (id) => {
+        const t = tapeOf(id);
+        if (!t) return;
+        const w = wellOf(id);
+        // a tape in a well: clicking it is play / stop on that well
+        if (w) press(w);
+        else take(t);
       },
-      get level() {
-        return deck.level;
-      },
-      get counter() {
-        return deck.counter;
-      },
-    };
+    }, data.tapes.map((t) => ({ id: t.id, code: t.label, title: T(t.title), ink: inkOf(t) })));
+    scene.deckView = deckView;
     scene.setTheme(prefs.get('theme'));
     requestAnimationFrame(() => root.classList.add('is-lit'));
   } catch (err) {
@@ -296,6 +427,7 @@ export function office() {
     show(program);
     labelKeys();
     drawList();
+    scene?.room.shelf.relabel((id) => T(tapeOf(id)?.title ?? { en: '', zh: '' }));
   });
   root.dataset.zone = zone;
   drawList();
