@@ -107,6 +107,22 @@ export class Room {
     this.box(0.02, 0.1, z1 - z0, this.woodDark, x0 + 0.01, 0.05, (z0 + z1) / 2);
     this.box(x1 - x0, 0.1, 0.02, this.woodDark, (x0 + x1) / 2, 0.05, z0 + 0.01);
 
+    // the door to the corridor, at the front end of the left wall, shut;
+    // the coat stand waits beside it
+    const dz = 2.0, dw = 0.82, dh = 2.02;
+    const doorMat = new THREE.MeshStandardMaterial({ color: '#6f7d70', roughness: 0.6 });
+    const frame = new THREE.MeshStandardMaterial({ color: '#4a4f47', roughness: 0.6 });
+    this.box(0.035, dh, dw, doorMat, x0 + 0.02, dh / 2, dz);
+    for (const s of [-1, 1]) this.box(0.05, dh + 0.06, 0.06, frame, x0 + 0.025, (dh + 0.06) / 2, dz + s * (dw / 2 + 0.03));
+    this.box(0.05, 0.06, dw + 0.12, frame, x0 + 0.025, dh + 0.03, dz);
+    // wired-glass vision panel, kick plate, lever handle
+    this.box(0.004, 0.42, 0.16, new THREE.MeshStandardMaterial({ color: '#2b3433', roughness: 0.1, metalness: 0.3 }), x0 + 0.039, 1.55, dz + 0.12, this.group, false);
+    this.box(0.004, 0.2, dw - 0.06, this.steel, x0 + 0.039, 0.12, dz, this.group, false);
+    this.box(0.03, 0.06, 0.06, this.chrome, x0 + 0.05, 1.02, dz - dw / 2 + 0.08);
+    this.box(0.02, 0.02, 0.13, this.chrome, x0 + 0.07, 1.02, dz - dw / 2 + 0.13);
+    // light switch beside it
+    this.box(0.012, 0.09, 0.09, this.beige, x0 + 0.006, 1.2, dz - dw / 2 - 0.16);
+
     // a ceiling that only casts shadow, so the sun comes in by the window alone
     const ceiling = new THREE.Mesh(new THREE.BoxGeometry(x1 - x0 + 2, 0.05, z1 - z0 + 4), new THREE.MeshBasicMaterial({ colorWrite: false, depthWrite: false }));
     ceiling.position.set((x0 + x1) / 2, h + 0.03, (z0 + z1) / 2 + 1);
@@ -196,7 +212,7 @@ export class Room {
   /* ---------------- the desk and the computer ---------------- */
   private desk() {
     const g = new THREE.Group();
-    g.position.set(1.45, 0, -1.05);
+    g.position.set(1.45, 0, -1.9);
     this.group.add(g);
     const W = 1.6, D = 0.8, H = 0.75;
     this.box(W, 0.04, D, this.wood, 0, H - 0.02, 0, g);
@@ -273,10 +289,11 @@ export class Room {
       g.add(o);
     }
 
-    // office chair, pushed back a little
+    // office chair on the user's side, pushed back and swung a little aside,
+    // as if someone just got up (it also keeps the screen clear for the camera)
     const chair = new THREE.Group();
-    chair.position.set(-0.05, 0, -0.75);
-    chair.rotation.y = 0.25;
+    chair.position.set(0.48, 0, 0.78);
+    chair.rotation.y = Math.PI + 0.55;
     g.add(chair);
     const seatMat = new THREE.MeshStandardMaterial({ map: corduroyTexture('#3d3a46'), roughness: 0.85 });
     this.round(0.48, 0.08, 0.46, 0.03, seatMat, 0, 0.48, 0, chair);
@@ -288,16 +305,16 @@ export class Room {
       leg.translateX(0.15);
     }
 
-    this.hit('desk', 1.8, 1.4, 1.2, 1.45, 0.7, -1.05);
+    this.hit('desk', 1.8, 1.4, 1.6, 1.45, 0.7, -1.55);
   }
 
   /* ---------------- sofa, coffee table, projector ---------------- */
   private sofaCorner() {
     const g = new THREE.Group();
-    g.position.set(0.55, 0, 1.05);
-    g.rotation.y = Math.PI / 2;
+    g.position.set(0.55, 0, 0.72);
+    g.rotation.y = -Math.PI / 2;
     this.group.add(g);
-    // facing -x: built facing +z, then turned
+    // built facing +z, then turned to face -x: across the coffee table at the screen
     const fabric = new THREE.MeshStandardMaterial({ map: corduroyTexture('#8a6a3a'), roughness: 0.9 });
     const L = 1.9;
     this.round(L, 0.24, 0.82, 0.06, fabric, 0, 0.22, 0, g);
@@ -316,11 +333,11 @@ export class Room {
     const rug = new THREE.Mesh(new THREE.PlaneGeometry(2.4, 1.7), new THREE.MeshStandardMaterial({ map: rugTexture(), roughness: 0.95 }));
     rug.rotation.x = -Math.PI / 2;
     rug.rotation.z = Math.PI / 2;
-    rug.position.set(-0.75, 0.003, 1.05);
+    rug.position.set(-0.75, 0.003, 0.72);
     rug.receiveShadow = true;
     this.group.add(rug);
     const t = new THREE.Group();
-    t.position.set(-0.85, 0, 1.05);
+    t.position.set(-0.85, 0, 0.72);
     this.group.add(t);
     this.box(0.62, 0.035, 1.05, this.wood, 0, 0.42, 0, t);
     this.box(0.56, 0.02, 0.98, this.woodDark, 0, 0.12, 0, t);
@@ -349,17 +366,17 @@ export class Room {
 
     // the screen pulled down on the left wall
     const x = R.x0 + 0.04;
-    this.box(0.08, 0.08, 1.95, this.steel, x + 0.02, 2.45, 1.05);
-    const screen = new THREE.Mesh(new THREE.PlaneGeometry(1.8, 1.25), new THREE.MeshStandardMaterial({ color: '#f1efe8', roughness: 0.95 }));
+    this.box(0.08, 0.08, 1.65, this.steel, x + 0.02, 2.45, 0.72);
+    const screen = new THREE.Mesh(new THREE.PlaneGeometry(1.5, 1.1), new THREE.MeshStandardMaterial({ color: '#f1efe8', roughness: 0.95 }));
     screen.rotation.y = Math.PI / 2;
-    screen.position.set(x + 0.03, 1.78, 1.05);
+    screen.position.set(x + 0.03, 1.85, 0.72);
     screen.receiveShadow = true;
     this.group.add(screen);
-    this.box(0.02, 0.025, 1.82, this.black, x + 0.04, 1.15, 1.05);
+    this.box(0.02, 0.025, 1.56, this.black, x + 0.04, 1.29, 0.72);
 
     // standard lamp by the sofa
     const fl = new THREE.Group();
-    fl.position.set(0.95, 0, 2.15);
+    fl.position.set(0.75, 0, 1.92);
     this.group.add(fl);
     const fBase = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.17, 0.03, 24), this.black);
     fBase.position.y = 0.015;
@@ -378,8 +395,8 @@ export class Room {
     this.floorLamp.shadow.mapSize.set(512, 512);
     fl.add(this.floorLamp);
 
-    this.hit('sofa', 2.4, 1.0, 2.2, -0.1, 0.5, 1.05);
-    this.hit('projector', 0.5, 0.4, 0.5, -0.9, 0.6, 1.0);
+    this.hit('sofa', 2.4, 1.0, 2.2, -0.1, 0.5, 0.72);
+    this.hit('projector', 0.5, 0.4, 0.5, -0.9, 0.6, 0.67);
   }
 
   /* ---------------- sideboard and the cassette deck ---------------- */
@@ -442,10 +459,10 @@ export class Room {
       this.group.add(card);
       this.notices.push({ mesh: card, file: r.file, slug: r.slug });
     });
-    // calendar, by the door end of the wall
+    // calendar, between the board and the screen
     const cal = new THREE.Mesh(new THREE.PlaneGeometry(0.36, 0.49), new THREE.MeshStandardMaterial({ map: calendarTexture(), roughness: 0.9 }));
     cal.rotation.y = Math.PI / 2;
-    cal.position.set(x + 0.012, 1.55, 2.1);
+    cal.position.set(x + 0.012, 1.55, -0.34);
     cal.castShadow = cal.receiveShadow = true;
     this.group.add(cal);
     this.hit('wall', 0.4, 1.4, 4.6, x + 0.2, 1.6, 0.2);
@@ -522,7 +539,7 @@ export class Room {
 
     // coat stand with a raincoat and a wet umbrella
     const cs = new THREE.Group();
-    cs.position.set(3.1, 0, 0.55);
+    cs.position.set(-2.62, 0, 2.28);
     this.group.add(cs);
     const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.025, 1.75, 10), this.woodDark);
     pole.position.y = 0.875;

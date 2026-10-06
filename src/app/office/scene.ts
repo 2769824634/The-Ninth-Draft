@@ -154,9 +154,9 @@ export class OfficeScene {
       case 'desk':
         return { at: this.screenCentre(), dir: new THREE.Vector3(0.05, 0.08, 1).normalize(), w: SCREEN.w * 1.7, h: SCREEN.h * 1.6 };
       case 'sofa':
-        return { at: new THREE.Vector3(R.x0, 1.6, 1.02), dir: new THREE.Vector3(1, 0.24, -0.04).normalize(), w: 2.5, h: 1.8 };
+        return { at: new THREE.Vector3(R.x0, 1.6, 0.72), dir: new THREE.Vector3(1, 0.24, -0.04).normalize(), w: 2.5, h: 1.8 };
       case 'wall':
-        return { at: new THREE.Vector3(R.x0, 1.55, -1.2), dir: new THREE.Vector3(1, 0.16, 0.1).normalize(), w: 2.3, h: 1.35 };
+        return { at: new THREE.Vector3(R.x0, 1.55, -1.05), dir: new THREE.Vector3(1, 0.16, 0.1).normalize(), w: 2.4, h: 1.35 };
       default:
         return { at: new THREE.Vector3(0, 0.9, 0.1), dir: new THREE.Vector3(7.2, 8.6, 12).normalize(), w: 9.6, h: 6.2 };
     }
