@@ -317,6 +317,28 @@ export function cassetteTexture(code: string, title: string, ink: string) {
   return tex(c);
 }
 
+/** A cassette's edge as it shows in the rack: an ink band, the code, the title. */
+export function spineTexture(code: string, title: string, ink: string) {
+  const W = 512, H = 72;
+  const [c, g] = canvas(W, H);
+  g.fillStyle = '#2a2826';
+  g.fillRect(0, 0, W, H);
+  g.fillStyle = '#ece4cf';
+  g.fillRect(14, 10, W - 28, H - 20);
+  g.fillStyle = ink;
+  g.fillRect(14, 10, 26, H - 20);
+  g.fillStyle = '#1d1b17';
+  g.textBaseline = 'middle';
+  g.font = `600 26px ${MONO}`;
+  g.fillText(code, 52, H / 2 + 1);
+  const x = 52 + g.measureText(code).width + 18;
+  g.font = `italic 400 26px ${SERIF}`;
+  let t = title;
+  while (g.measureText(t).width > W - 30 - x && t.length > 2) t = t.slice(0, -2) + '…';
+  g.fillText(t, x, H / 2 + 1);
+  return tex(c);
+}
+
 /** The white hub a reel turns on, with its six teeth. */
 export function hubTexture() {
   const S = 128;

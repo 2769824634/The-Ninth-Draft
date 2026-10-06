@@ -53,20 +53,44 @@
 .pc > .crt__scan { position: absolute; inset: 0; z-index: 3; pointer-events: none; }
 .pc .crt__in { padding: 14px 20px 6px; font-size: 14px; }
 
-/* ---------- the cassette deck: transport keys and the tape rack ---------- */
-.of .lib__list .of-deck { display: flex; gap: .3rem; margin: .1rem 0 .5rem; }
+/* ---------- the cassette deck: the tape in hand, two transports, the rack ---------- */
+.of .lib__list .of-deck { display: grid; grid-template-columns: 4.6rem repeat(3, 1fr); gap: .25rem; margin: 0 0 .3rem; }
 .of .lib__list .of-deck button {
-  display: flex; align-items: center; justify-content: center; gap: .35rem;
-  flex: 1; padding: .35rem .2rem; border: 1px solid var(--ink); border-left-width: 1px;
-  font: 500 .66rem/1 var(--f-mono); letter-spacing: .06em; text-transform: uppercase;
-  transition: background 200ms var(--ease), color 200ms var(--ease);
+  display: flex; align-items: center; justify-content: center; gap: .3rem;
+  padding: .32rem .2rem; border: 1px solid var(--line); border-left-width: 1px;
+  font: 500 .64rem/1 var(--f-mono); letter-spacing: .05em; text-transform: uppercase;
+  transition: background 200ms var(--ease), color 200ms var(--ease), border-color 200ms var(--ease);
 }
-.of .lib__list .of-deck button i { color: inherit; font-size: .7rem; }
+.of .lib__list .of-deck.is-active button { border-color: var(--ink); }
+.of .lib__list .of-deck button i { color: inherit; font-size: .68rem; }
 .of .lib__list .of-deck button:hover:not(:disabled) { padding-left: .2rem; background: var(--ink); color: var(--bg); }
 .of .lib__list .of-deck button:disabled { opacity: .35; cursor: default; }
+.of .lib__list .of-deck .of-deck__well { justify-content: flex-start; gap: .45rem; padding-left: .4rem; text-transform: none; }
+.of .lib__list .of-deck .of-deck__well b { font: 700 .8rem/1 var(--f-display, inherit); }
+.of .lib__list .of-deck.is-active .of-deck__well b { color: var(--accent); }
+.of .lib__list .of-deck.is-active .of-deck__well:hover b { color: inherit; }
+
+.of .lib__list .of-hold {
+  margin: 0 0 .7rem; padding: .6rem .7rem .7rem; border: 1px solid var(--ink); border-left: 4px solid var(--cloth);
+  background: var(--bg); animation: of-hold 420ms var(--ease) both;
+}
+@keyframes of-hold { from { opacity: 0; transform: translateY(-6px); } }
+@media (prefers-reduced-motion: reduce) { .of .lib__list .of-hold { animation: none; } }
+.of-hold__q { margin: 0 0 .25rem; color: var(--accent); letter-spacing: .12em; text-transform: uppercase; }
+.of-hold__t { margin: 0; font-size: 1rem; line-height: 1.3; }
+.of-hold__t b { font: 600 .74rem/1 var(--f-mono); letter-spacing: .04em; margin-right: .3rem; }
+.of-hold__k { margin: .2rem 0 .55rem; color: var(--ink-3); }
+.of-hold__do { display: grid; gap: .25rem; }
+.of .lib__list .of-hold__do button {
+  display: flex; gap: .5rem; align-items: center; padding: .38rem .55rem; border: 1px solid var(--line);
+  font: 500 .72rem/1.2 var(--f-mono); letter-spacing: .03em; text-align: left;
+}
+.of .lib__list .of-hold__do button i { color: inherit; }
+.of .lib__list .of-hold__do button.is-pick { border-color: var(--ink); background: var(--ink); color: var(--bg); }
+.of .lib__list .of-hold__do button:hover { padding-left: .55rem; border-color: var(--ink); }
+
 .of .lib__list .of-shelf { margin: .7rem 0 .2rem; color: var(--ink-3); letter-spacing: .12em; text-transform: uppercase; }
 .of .lib__list button.is-on { color: var(--ink); background: linear-gradient(90deg, color-mix(in srgb, var(--cloth) 14%, transparent), transparent); }
-.of .lib__list button.is-on span::after { content: ' ◂'; color: var(--accent); }
 
 @media (max-width: 900px) {
   .of::before { display: none; }
@@ -75,5 +99,5 @@
   .of:not([data-zone='overview']) .lib__zones { position: fixed; left: 1rem; right: 1rem; top: 7.4rem; padding: .3rem .5rem; background: var(--bg); }
   /* at the deck, the rack stays: it is the only way to pick a tape on a phone */
   .of[data-zone='deck'] .lib__head > .lib__list { opacity: 1; pointer-events: auto; }
-  .of[data-zone='deck'] .lib__list { display: block; position: fixed; left: 1rem; right: 1rem; bottom: 3.4rem; max-height: 34vh; padding: .5rem .7rem; background: var(--bg); border-top: 2px solid var(--ink); }
+  .of[data-zone='deck'] .lib__list { display: block; position: fixed; left: 1rem; right: 1rem; bottom: 3.4rem; max-height: 42vh; padding: .5rem .7rem; background: var(--bg); border-top: 2px solid var(--ink); }
 }

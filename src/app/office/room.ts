@@ -3,7 +3,7 @@
  * a cutaway: floor slab, back and left walls, a strip window at pavement
  * height with a venetian blind. The desk and its computer face the room;
  * a sofa and a coffee table face a pull-down screen on the left wall; the
- * cassette deck sits on a sideboard under the island map.
+ * cassette deck and its rack of tapes sit on a sideboard under the island map.
  *
  * An invisible ceiling casts shadow, so daylight only comes in through the
  * window, through the slats of the blind.
@@ -11,13 +11,18 @@
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 import { rainTexture, woodTexture } from '../library/textures';
+import { TapeShelf, type ShelfTape, type Well } from './cassettes';
 import {
-  calendarTexture, caseTexture, cassetteTexture, counterTexture, hubTexture, corkTexture, clockFaceTexture, corduroyTexture, deckTexture, keyboardTexture, linoTexture, mapTexture, noticeTexture, passerbyTexture, plasticTexture, rugTexture, streetTexture, wallTexture,
+  calendarTexture, caseTexture, counterTexture, corkTexture, clockFaceTexture, corduroyTexture, deckTexture, keyboardTexture, linoTexture, mapTexture, noticeTexture, passerbyTexture, plasticTexture, rugTexture, streetTexture, wallTexture,
 } from './textures';
 
 export const R = { x0: -3.5, x1: 3.5, z0: -2.5, z1: 2.5, h: 3.0, wall: 0.2, slab: 0.22 };
 export const WIN = { x0: -0.7, x1: 2.6, y0: 2.12, y1: 2.72 };
 export const SCREEN = { w: 0.32, h: 0.24 };
+/** Which way the camera looks at the cassette deck. */
+export const DECK_DIR = new THREE.Vector3(0.1, 0.34, 1).normalize();
+/** The sideboard's place in the room. */
+const SIDEBOARD = new THREE.Vector3(-1.6, 0, R.z0 + 0.26);
 
 export interface Notice {
   mesh: THREE.Mesh;
@@ -43,17 +48,13 @@ export class Room {
   readonly notices: Notice[] = [];
   readonly reels: THREE.Mesh[] = [];
   readonly hits: Record<string, THREE.Object3D> = {};
-  /** The cassette deck's moving parts. */
+  /** The cassette deck's moving parts, and the rack of tapes beside it. */
   readonly deck = {
-    cassette: new THREE.Group(),
-    label: new THREE.MeshStandardMaterial({ color: '#2a2826', roughness: 0.4 }),
-    hubs: [] as THREE.Mesh[],
     needles: [] as THREE.Mesh[],
     counter: counterTexture(),
-    insert: 0,
-    loaded: false,
     vu: 0,
   };
+  shelf!: TapeShelf;
   readonly drips: THREE.Points;
 
   private wood = new THREE.MeshStandardMaterial({ map: woodTexture(21, '#6b4a2e'), roughness: 0.5 });
@@ -64,7 +65,7 @@ export class Room {
   private black = new THREE.MeshStandardMaterial({ color: '#1d1c1a', roughness: 0.6 });
   private poche = new THREE.MeshStandardMaterial({ color: '#2b2723', roughness: 0.9 });
 
-  constructor(records: { file: string; slug: string; title: string; date?: string; stamp: string; category: string }[]) {
+  constructor(records: { file: string; slug: string; title: string; date?: string; stamp: string; category: string }[], private tapes: ShelfTape[] = [], private reduce = false) {
     this.shell();
     this.window();
     this.desk();
@@ -413,7 +414,7 @@ export class Room {
   /* ---------------- sideboard and the cassette deck ---------------- */
   private sideboard() {
     const g = new THREE.Group();
-    g.position.set(-1.6, 0, R.z0 + 0.26);
+    g.position.copy(SIDEBOARD);
     this.group.add(g);
     this.box(1.6, 0.72, 0.46, this.woodDark, 0, 0.4, 0, g);
     this.box(1.64, 0.03, 0.5, this.wood, 0, 0.775, 0, g);
@@ -427,43 +428,25 @@ export class Room {
     // speakers either side
     const grille = new THREE.MeshStandardMaterial({ color: '#2a2826', roughness: 0.95 });
     for (const x of [-0.74, -0.05]) this.box(0.16, 0.26, 0.2, [this.woodDark, this.woodDark, this.woodDark, this.woodDark, grille, this.woodDark], x, 0.92, 0.04, g);
-    // cassette rack
-    this.box(0.36, 0.2, 0.16, this.wood, 0.45, 0.89, 0.02, g);
-    const tapes = new THREE.InstancedMesh(new THREE.BoxGeometry(0.017, 0.07, 0.11), new THREE.MeshStandardMaterial({ roughness: 0.4 }), 16);
-    const mm = new THREE.Matrix4();
-    const cols = ['#2b2a28', '#d9d2c0', '#8b2f22', '#3b4f63', '#c6a34a'];
-    for (let i = 0; i < 16; i++) {
-      mm.makeTranslation(0.29 + i * 0.02, 0.96, 0.03);
-      tapes.setMatrixAt(i, mm);
-      tapes.setColorAt(i, new THREE.Color(cols[(i * 3) % cols.length]));
-    }
-    tapes.castShadow = true;
-    g.add(tapes);
     this.hit('deck', 1.7, 0.8, 0.7, -1.6, 0.75, R.z0 + 0.3);
+    // the deck alone, for a click that means play / stop
+    this.hit('deckBody', 0.52, 0.16, 0.32, SIDEBOARD.x - 0.4, 0.865, SIDEBOARD.z + 0.02);
   }
 
   /**
-   * On the deck's face (0.5 × 0.15 m, drawn 1024 × 300): a cassette that sits
-   * in well A and turns its hubs, two VU needles, and the tape counter.
+   * On the deck's face (0.5 × 0.15 m, drawn 1024 × 300): two wells a cassette
+   * can sit in, two VU needles, and the tape counter. The tapes themselves
+   * live in the rack beside it (cassettes.ts).
    */
   private deckParts(g: THREE.Group) {
     const px = (x: number, y: number): [number, number] => [-0.4 - 0.25 + (x / 1024) * 0.5, 0.865 + 0.075 - (y / 300) * 0.15];
     const front = 0.02 + 0.15;
     const d = this.deck;
-    const [wx, wy] = px(190, 120);
-    d.cassette.position.set(wx, wy, front);
-    d.cassette.visible = false;
-    g.add(d.cassette);
-    const shell = new THREE.MeshStandardMaterial({ color: '#2a2826', roughness: 0.4 });
-    const body = this.box(0.1, 0.064, 0.012, [shell, shell, shell, shell, d.label, shell], 0, 0, 0.006, d.cassette);
-    body.castShadow = false;
-    const hub = new THREE.MeshStandardMaterial({ map: hubTexture(), roughness: 0.5, transparent: true });
-    for (const x of [-0.021, 0.021]) {
-      const h = new THREE.Mesh(new THREE.CircleGeometry(0.0072, 24), hub);
-      h.position.set(x, -0.0008, 0.0125);
-      d.cassette.add(h);
-      d.hubs.push(h);
-    }
+    const well = (x: number) => {
+      const [wx, wy] = px(x, 120);
+      return new THREE.Vector3(wx, wy, front);
+    };
+    this.shelf = new TapeShelf(g, this.tapes, { A: well(190), B: well(520) }, DECK_DIR, this.reduce);
     const needleMat = new THREE.MeshStandardMaterial({ color: '#1d1c1a', roughness: 0.6 });
     for (const x of [775, 925]) {
       const geo = new THREE.BoxGeometry(0.0011, 0.033, 0.0008);
@@ -481,26 +464,15 @@ export class Room {
     g.add(counter);
   }
 
-  /** Put a cassette in well A (or take it out, with null). */
-  setCassette(tape: { code: string; title: string; ink: string } | null) {
-    const d = this.deck;
-    d.loaded = !!tape;
-    if (!tape) return;
-    d.label.map?.dispose();
-    d.label.map = cassetteTexture(tape.code, tape.title, tape.ink);
-    d.label.color.set('#ffffff');
-    d.label.needsUpdate = true;
-    d.insert = 0;
+  /** Where a held tape is read, in room coordinates. */
+  holdPoint() {
+    return this.shelf.hold.p.clone().add(SIDEBOARD);
   }
 
-  /** Per frame: hubs turn at `spin` rad/s, needles follow `level` (0..1). */
-  deckTick(dt: number, spin: number, level: number, counter: number) {
+  /** Per frame: hubs turn at each well's speed (rad/s), needles follow `level` (0..1). */
+  deckTick(dt: number, spin: Record<Well, number>, level: number, counter: number) {
     const d = this.deck;
-    d.insert += ((d.loaded ? 1 : 0) - d.insert) * Math.min(1, dt * (d.loaded ? 7 : 10));
-    d.cassette.visible = d.insert > 0.02;
-    d.cassette.position.z = 0.17 + (1 - d.insert) * 0.06;
-    d.cassette.rotation.x = -(1 - d.insert) * 0.6;
-    for (const h of d.hubs) h.rotation.z += spin * dt;
+    this.shelf.tick(dt, spin);
     // fast up, slow down, like a real meter
     d.vu += (level - d.vu) * Math.min(1, dt * (level > d.vu ? 18 : 4));
     d.needles.forEach((n, i) => (n.rotation.z = 0.62 - Math.min(1.25, d.vu * (i ? 1.18 : 1.24) * 1.25)));
