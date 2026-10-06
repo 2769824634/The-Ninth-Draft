@@ -2,8 +2,6 @@
  * Small things to find by poking around. None of them is locked and none of
  * them hides content: they only answer the visitor who clicks on things.
  *
- *   year      the footer year tries to roll over to 2000 and is refused; nine quick
- *             clicks and the whole page falls back to 1900 in a downpour, then is revised
  *   negative  holding a portrait shows its negative
  *   stamp     visitors can put their own stamp on a file (kept in their browser)
  *   poke      clicking the ARCHIVIST line gets a reaction; five clicks annoy it
@@ -15,17 +13,13 @@
 import type { Archivist } from './archivist';
 import type { System } from './system';
 import { audio } from '../audio';
-import { downpour } from './downpour';
 import { reducedMotion } from '../prefs';
 import { isZh, t, onLang } from '../i18n';
 
 const STAMPS = ['VERIFIED', 'TO BE CORRECTED', 'REJECTED'] as const;
 const STAMP_KEY = 'n9:stamps';
 
-const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
-
-export function quirks(root: HTMLElement, voice: Archivist, system: System) {
-  year(system);
+export function quirks(root: HTMLElement, voice: Archivist, _system: System) {
   negative(voice);
   stamp(voice);
   poke(voice);
@@ -33,47 +27,6 @@ export function quirks(root: HTMLElement, voice: Archivist, system: System) {
   away(voice);
   copyNote();
   consoleNote();
-}
-
-/* ---------- the year that will not turn ---------- */
-function year(system: System) {
-  const el = document.getElementById('year');
-  if (!el) return;
-  const num = el.querySelector('b')!;
-  let busy = false;
-  // Nine quick clicks bring the downpour
-  let streak = 0;
-  let lastClick = 0;
-  const roll = async () => {
-    const now = performance.now();
-    streak = now - lastClick < 3000 ? streak + 1 : 1;
-    lastClick = now;
-    if (streak >= 9) {
-      streak = 0;
-      await downpour();
-      system.say('backflow', true);
-      return;
-    }
-    if (busy) return;
-    busy = true;
-    el.classList.add('is-rolling');
-    audio.flick();
-    for (const y of ['2000', '1900', '19 00', '1999']) {
-      num.textContent = y;
-      await wait(reducedMotion() ? 120 : 260);
-    }
-    el.classList.remove('is-rolling');
-    system.say('rollover', true);
-    busy = false;
-  };
-  el.addEventListener('click', roll);
-  el.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter' || e.key === ' ') {
-      e.preventDefault();
-      e.stopPropagation();
-      void roll();
-    }
-  });
 }
 
 /* ---------- hold a portrait to see the negative ---------- */

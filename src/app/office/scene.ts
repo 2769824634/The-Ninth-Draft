@@ -9,6 +9,7 @@
  * the desk lamp, the standard lamp, the screen and the street lamp outside
  * light the room.
  */
+import { islandDate } from '../island';
 import * as THREE from 'three';
 import { CSS3DObject, CSS3DRenderer } from 'three/examples/jsm/renderers/CSS3DRenderer.js';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
@@ -263,7 +264,7 @@ export class OfficeScene {
     r.tick(t, dt);
     const dv = this.deckView;
     r.deckTick(dt, dv.spin, dv.level, dv.counter);
-    r.setClock(new Date(), this.clockOffset);
+    r.setClock(islandDate(), this.clockOffset);
 
     // camera
     const target = this.viewOf(this.zoneNow);

@@ -41,7 +41,10 @@ const zhFaces = [
       // Apply saved theme and language before first paint to avoid a flash.
       try {
         const p = JSON.parse(localStorage.getItem('n9:prefs') || '{}');
-        if (p.theme === 'night' || p.theme === 'day') document.documentElement.dataset.theme = p.theme;
+        // Lighting follows island time (Singapore, UTC+8; day 07:00–19:00) unless chosen this half-day.
+        const at = Date.now() + 8 * 36e5, h = new Date(at).getUTCHours();
+        const half = Math.floor((at - 7 * 36e5) / 432e5);
+        document.documentElement.dataset.theme = p.themeHalf === half && (p.theme === 'night' || p.theme === 'day') ? p.theme : h < 7 || h >= 19 ? 'night' : 'day';
         if (p.lang === 'zh') {
           document.documentElement.lang = 'zh-CN';
           document.documentElement.dataset.lang = 'zh';

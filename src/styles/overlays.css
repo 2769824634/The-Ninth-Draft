@@ -65,6 +65,20 @@
   text-transform: uppercase;
 }
 .boot__dot { width: 4px; height: 4px; background: var(--ink); }
+/* The work's own title: on the cover only, never inside the island's interface */
+.boot__work {
+  position: absolute;
+  top: 2.6rem;
+  left: 50%;
+  transform: translateX(-50%);
+  margin: 0;
+  white-space: nowrap;
+  letter-spacing: .32em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  opacity: 0;
+  animation: fade .9s var(--ease) .3s forwards;
+}
 
 .boot__enter {
   position: absolute;
@@ -179,6 +193,7 @@
 .noscript { position: fixed; inset: 0; display: grid; place-items: center; font-family: var(--f-mono); }
 
 @media (max-width: 900px), (max-aspect-ratio: 1/1) {
+  .boot__work { top: auto; bottom: 8.2rem; }
   .boot__center { flex-direction: column; gap: 2rem; transform: none; }
   .boot__id { min-width: 0; font-size: .85rem; }
   .seal { width: 9rem; height: 9rem; }

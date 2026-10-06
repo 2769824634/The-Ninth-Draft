@@ -6,6 +6,7 @@ import type { ArchiveData, ArchiveRecord } from './types';
 import { Stage } from './scene/stage';
 import { Wall } from './scene/wall';
 import { Iris } from './ui/iris';
+import { hms, islandDateLabel, islandNow, visitorClock } from './island';
 import { Chapter } from './ui/chapter';
 import { Retrieve } from './ui/retrieve';
 import { System } from './ui/system';
@@ -589,12 +590,16 @@ export function start() {
   }, { passive: true });
 
   /* ---------------- clock & coordinates ---------------- */
+  const yearEl = $('year');
   const tick = () => {
-    const d = new Date();
+    const d = islandNow();
     const p = (n: number) => String(n).padStart(2, '0');
-    clock.textContent = `${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
-    // Local sidereal-ish drift: right ascension advances with the clock.
-    const ra = (d.getHours() * 3600 + d.getMinutes() * 60 + d.getSeconds()) * 1.0027;
+    const zh = isZh();
+    const you = visitorClock();
+    yearEl.textContent = islandDateLabel(zh);
+    clock.textContent = `${zh ? '霏微' : 'Gerimis'} ${hms(d.hours, d.minutes, d.seconds)}${you ? ` · ${zh ? '你那边' : 'yours'} ${you}` : ''}`;
+    // Sidereal-ish drift: right ascension advances with the island clock.
+    const ra = (d.hours * 3600 + d.minutes * 60 + d.seconds) * 1.0027;
     if (boardCoords && roomTarget === 'wall') return;
     coords.textContent = `RA ${p(Math.floor(ra / 3600) % 24)}h ${p(Math.floor(ra / 60) % 60)}m ${p(Math.floor(ra) % 60)}s · Dec +61° 12′`;
   };

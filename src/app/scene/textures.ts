@@ -225,7 +225,7 @@ export function coverTexture(rec: ArchiveRecord | null, seed: number, stampText 
   g.fillStyle = 'rgba(40,30,15,.75)';
   g.lineWidth = 2;
   g.font = `600 22px ${SANS}`;
-  g.fillText('THE NINTH DRAFT  ·  ARCHIVE OF RECORDS', 64, 78);
+  g.fillText('RECORDS OFFICE  ·  PUBLIC ARCHIVE', 64, 78);
   g.font = `400 16px ${MONO}`;
   g.fillText('FORM 9-A / RECORD FOLDER', 64, 106);
   g.beginPath();

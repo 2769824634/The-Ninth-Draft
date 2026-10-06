@@ -205,7 +205,7 @@ export class Dossier {
     const cat = this.categories.find((c) => c.id === rec.category)!;
 
     swapText($('ds-file'), t('File {file}', { file: rec.file }));
-    $('ds-spine').textContent = `Archive terminal // N°9 // ${cat.code}-${rec.file.split('-')[1] ?? rec.file} // ${rec.stamp}`;
+    $('ds-spine').textContent = `Archive terminal // Gerimis // ${cat.code}-${rec.file.split('-')[1] ?? rec.file} // ${rec.stamp}`;
     $('ds-barcode').innerHTML = barcode(rec.file);
     $('ds-title').textContent = rec.title;
     $('ds-title').dataset.category = rec.category;

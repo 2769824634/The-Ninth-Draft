@@ -15,5 +15,9 @@ const issue = issues[0];
 
 <script>
   import { flat } from '../../app/flat';
+  import { islandIso } from '../../app/island';
+  // The paper on the stand is today's, island time
+  const base = document.querySelector<HTMLAnchorElement>('.fhead__brand')?.getAttribute('href') ?? '/';
+  location.replace(`${base}daily/${islandIso()}/`);
   flat();
 </script>

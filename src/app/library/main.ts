@@ -7,6 +7,7 @@
 import type { CatDrawer, LibBay, LibBook, LibPage } from '../../lib/library';
 import type { ArchivistLines } from '../types';
 import { flat } from '../flat';
+import { islandDate } from '../island';
 import { audio } from '../audio';
 import { isZh } from '../i18n';
 import { prefs, reducedMotion } from '../prefs';
@@ -66,7 +67,7 @@ export function library() {
     }
   };
   const today = () => {
-    const d = new Date();
+    const d = islandDate();
     return `${String(d.getDate()).padStart(2, '0')} ${MON[d.getMonth()]} 1999`;
   };
 

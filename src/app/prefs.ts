@@ -1,6 +1,11 @@
 /** User preferences in localStorage. Every access is guarded: storage can be unavailable. */
+import { islandHalfDay, islandIsNight } from './island';
+
 export interface Prefs {
+  /** Lighting follows island time; a choice the visitor makes holds until the next 07:00 or 19:00 on the island. */
   theme: 'day' | 'night';
+  /** The island half-day the lighting was last chosen in. */
+  themeHalf?: number;
   sound: boolean;
   lang: 'en' | 'zh';
 }
@@ -14,11 +19,13 @@ try {
 } catch {
   /* private mode */
 }
+if (state.themeHalf !== islandHalfDay()) state.theme = islandIsNight() ? 'night' : 'day';
 
 export const prefs = {
   get: <K extends keyof Prefs>(k: K): Prefs[K] => state[k],
   set<K extends keyof Prefs>(k: K, v: Prefs[K]) {
     state[k] = v;
+    if (k === 'theme') state.themeHalf = islandHalfDay();
     try {
       localStorage.setItem(KEY, JSON.stringify(state));
     } catch {

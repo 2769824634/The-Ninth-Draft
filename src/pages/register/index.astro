@@ -274,7 +274,7 @@ const arrow = '<svg viewBox="0 0 24 12" aria-hidden="true"><path d="M0 6h22M17 1
     } else {
       const row = (label: string, val: string, to: number) =>
         `<li><span class="micro">${esc(label)}</span><b>${esc(val)}</b><button type="button" data-go="${to}">${isZh() ? '改' : 'Edit'}</button></li>`;
-      panel.innerHTML = `<p class="f-qlabel">${isZh() ? '核对一遍，归档以后这就是第九稿。' : 'Read it back. Once filed, this is the ninth draft.'}</p>
+      panel.innerHTML = `<p class="f-qlabel">${isZh() ? '核对一遍，归档以后署里就认这一份。' : 'Read it back. Once filed, this is the version we keep.'}</p>
         <ul class="readback">${[
           row(t('Codename'), st.code.trim(), 0),
           row(t('District'), districtName(st.district!, isZh()), 1),

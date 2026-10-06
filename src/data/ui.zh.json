@@ -55,7 +55,6 @@
   "Chapter": "章",
   "programs": "计划",
   "{n} programs on file": "在册计划 {n} 项",
-  "Archive terminal // N°9": "档案终端 // N°9",
   "Retrieving": "调取中",
   "Retrieved": "已调取",
   "Archivist tip": "档案员提示",
@@ -272,5 +271,11 @@
   "Previous page": "上一页",
   "Next page": "下一页",
   "Office": "办公室",
-  "Office — The Ninth Draft": "办公室 — 第九稿"
+  "Office — The Ninth Draft": "办公室 — 第九稿",
+  "Archive terminal // Gerimis": "档案终端 // 霏微",
+  "Gerimis Records Office": "霏微记录署",
+  "Public Archive": "公共档案馆",
+  "Public Archive — overview": "公共档案馆 · 总览",
+  "Gerimis": "霏微",
+  "Records Office": "记录署"
 }
