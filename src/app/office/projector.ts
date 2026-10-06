@@ -14,7 +14,8 @@
  */
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
-import { SLIDE_PX, TRAY } from './slides';
+import { FH, FW, FX, FY, SLIDE_PX, TRAY } from './slides';
+import type { SlideTray } from './trays';
 
 const MONO = '"IBM Plex Mono", ui-monospace, monospace';
 
@@ -27,33 +28,6 @@ function canvasTex(w: number, h: number, draw: (g: CanvasRenderingContext2D) => 
   t.colorSpace = THREE.SRGBColorSpace;
   t.anisotropy = 8;
   return t;
-}
-
-/** Numbers round the tray lid, every fifth slot, laid out for RingGeometry's planar UVs. */
-function trayRingTexture(rIn: number, rOut: number) {
-  const S = 1024;
-  return canvasTex(S, S, (g) => {
-    g.fillStyle = '#2f2d2a';
-    g.fillRect(0, 0, S, S);
-    g.fillStyle = '#d8d3c4';
-    g.textAlign = 'center';
-    g.textBaseline = 'middle';
-    g.font = `600 30px ${MONO}`;
-    const rho = ((rIn + rOut) / 2 / rOut) * (S / 2);
-    for (let i = 0; i < TRAY; i++) {
-      const a = (i / TRAY) * Math.PI * 2;
-      const x = S / 2 + Math.cos(a) * rho, y = S / 2 + Math.sin(a) * rho;
-      if (i % 5 === 4 || i === 0) {
-        g.save();
-        g.translate(x, y);
-        g.rotate(a + Math.PI / 2);
-        g.fillText(String(i + 1), 0, 0);
-        g.restore();
-      } else {
-        g.fillRect(x - 1.5, y - 1.5, 3, 3);
-      }
-    }
-  });
 }
 
 /** The little chrome plate on the front. */
@@ -131,10 +105,7 @@ export interface ProjectorOpts {
   /** Centre of the picture on the screen, and how wide the picture is. */
   aim: THREE.Vector3;
   width: number;
-  slides: number;
 }
-
-const R_OUT = 0.122, R_IN = 0.056, R_MID = 0.09;
 
 export class Projector {
   readonly group = new THREE.Group();
@@ -146,9 +117,11 @@ export class Projector {
   /** What the lamp shines through: redrawn when a slide changes. */
   private gate: HTMLCanvasElement;
   private gateTex: THREE.CanvasTexture;
-  private tray = new THREE.Group();
-  private mounts: THREE.InstancedMesh;
-  private mountAt: number[] = [];
+  /** Where a tray sits on the projector, and the spot on the lower shelf where its box waits. */
+  readonly seat = new THREE.Group();
+  readonly shelfSpot = new THREE.Object3D();
+  /** The tray on the projector, if any. */
+  private mounted: SlideTray | null = null;
   private lensGlass: THREE.MeshStandardMaterial;
   private vents: THREE.MeshStandardMaterial;
   private pilot: THREE.MeshStandardMaterial;
@@ -196,15 +169,9 @@ export class Projector {
     this.box(W - 0.06, 0.004, D - 0.06, this.m.rubber, 0, TOP + 0.008, 0);
     this.box(W, 0.01, D, this.m.steel, 0, 0.26, 0);
     for (const x of [-W / 2, W / 2]) this.box(0.008, 0.02, D, this.m.steel, x, 0.27, 0);
-    // on the lower shelf: slide boxes and a spare tray
-    const boxCols = ['#d9a62e', '#d9a62e', '#7b7f83'];
-    boxCols.forEach((c, i) => {
-      const b = this.box(0.13, 0.05, 0.09, new THREE.MeshStandardMaterial({ color: c, roughness: 0.7 }), -0.14 + i * 0.005, 0.29 + i * 0.05, -0.08 + (i % 2) * 0.02);
-      b.rotation.y = (i - 1) * 0.08;
-    });
-    const spare = this.mesh(new THREE.CylinderGeometry(R_OUT, R_OUT, 0.055, 48), this.m.black, 0.1, 0.293, 0.05);
-    spare.castShadow = true;
-    this.mesh(new THREE.CylinderGeometry(0.035, 0.035, 0.058, 24), this.m.steel, 0.1, 0.294, 0.05);
+    // the lower shelf is where the box of the tray on the projector waits
+    this.shelfSpot.position.set(0, 0.265, 0);
+    this.group.add(this.shelfSpot);
 
     /* ---------- the projector ---------- */
     const p = new THREE.Group();
@@ -296,41 +263,9 @@ export class Projector {
     // a carrying handle folded flat along the right side
     this.box(0.16, 0.006, 0.008, this.m.black, 0.0, 0.1, 0.138, p);
 
-    /* ---------- the tray ---------- */
-    this.tray.position.set(0.01, 0.131, 0);
-    p.add(this.tray);
-    const wallOut = new THREE.Mesh(new THREE.CylinderGeometry(R_OUT, R_OUT, 0.056, 64, 1, true), new THREE.MeshStandardMaterial({ color: '#232120', roughness: 0.45, side: THREE.DoubleSide }));
-    wallOut.position.y = 0.028;
-    wallOut.castShadow = true;
-    const wallIn = new THREE.Mesh(new THREE.CylinderGeometry(R_IN, R_IN, 0.056, 40, 1, true), this.m.black);
-    wallIn.position.y = 0.028;
-    const floor = new THREE.Mesh(new THREE.RingGeometry(R_IN, R_OUT, 64), this.m.black);
-    floor.rotation.x = -Math.PI / 2;
-    floor.position.y = 0.002;
-    const lid = new THREE.Mesh(new THREE.RingGeometry(R_IN, R_OUT, 80), new THREE.MeshStandardMaterial({ map: trayRingTexture(R_IN, R_OUT), roughness: 0.3, transparent: true, opacity: 0.9 }));
-    lid.rotation.x = -Math.PI / 2;
-    lid.position.y = 0.057;
-    const hub = this.mesh(new THREE.CylinderGeometry(0.042, 0.046, 0.016, 32), this.m.chrome, 0, 0.062, 0, this.tray);
-    hub.castShadow = true;
-    this.mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.004, 24), this.m.black, 0, 0.071, 0, this.tray);
-    // two finger grips on the locking ring
-    for (const a of [0, Math.PI]) this.box(0.012, 0.006, 0.028, this.m.black, Math.cos(a) * 0.036, 0.072, Math.sin(a) * 0.036, this.tray).rotation.y = -a;
-    this.tray.add(wallOut, wallIn, floor, lid);
-    // the slot dividers
-    const div = new THREE.InstancedMesh(new THREE.BoxGeometry(R_OUT - R_IN - 0.004, 0.05, 0.0008), this.m.black, TRAY);
-    for (let i = 0; i < TRAY; i++) {
-      const a = ((i + 0.5) / TRAY) * Math.PI * 2;
-      mm.makeRotationY(-a).setPosition(Math.cos(a) * R_MID, 0.027, Math.sin(a) * R_MID);
-      div.setMatrixAt(i, mm);
-    }
-    this.tray.add(div);
-    // the slides themselves: card mounts standing in their slots
-    const n = Math.min(o.slides, TRAY);
-    this.mounts = new THREE.InstancedMesh(new THREE.BoxGeometry(0.05, 0.05, 0.0016), new THREE.MeshStandardMaterial({ color: '#ece6d6', roughness: 0.8 }), Math.max(n, 1));
-    this.mounts.count = n;
-    for (let i = 0; i < n; i++) this.mountAt.push(i);
-    this.placeMounts();
-    this.tray.add(this.mounts);
+    /* ---------- the tray seat ---------- */
+    this.seat.position.set(0.01, 0.131, 0);
+    p.add(this.seat);
 
     /* ---------- the cord, off the back and down a leg ---------- */
     p.updateMatrix();
@@ -430,16 +365,26 @@ export class Projector {
     return this.mesh(new RoundedBoxGeometry(w, h, d, 3, r), m, x, y, z, parent);
   }
 
-  /** Slot i sits at angle i/80 round the tray; the gate is toward the lens (−x). */
+  /** A tray put on (or `null`: lifted off). It starts where it stands. */
+  mount(t: SlideTray | null) {
+    this.mounted = t;
+    this.trayAngle = this.trayTarget = t ? t.rotor.rotation.y : 0;
+    this.dropped = -1;
+    this.drop = this.dropTarget = 0;
+    t?.place(-1, 0);
+  }
+
+  get tray() {
+    return this.mounted;
+  }
+
   private placeMounts() {
-    const mm = new THREE.Matrix4();
-    for (let i = 0; i < this.mounts.count; i++) {
-      const a = (i / TRAY) * Math.PI * 2;
-      const down = i === this.dropped ? this.drop * 0.052 : 0;
-      mm.makeRotationY(-a).setPosition(Math.cos(a) * R_MID, 0.029 - down, Math.sin(a) * R_MID);
-      this.mounts.setMatrixAt(i, mm);
-    }
-    this.mounts.instanceMatrix.needsUpdate = true;
+    this.mounted?.place(this.dropped, this.drop);
+  }
+
+  /** Back to the empty slot before the tray can come off. */
+  home() {
+    this.trayTarget = Math.PI - (1 / TRAY) * Math.PI * 2;
   }
 
   /** Turn the tray so slot `i` is over the gate. */
@@ -458,12 +403,18 @@ export class Projector {
   }
 
   /** What the lamp shines through. `blur` px softens it (the moment before focus settles). */
-  setGate(src: HTMLCanvasElement | null, blur = 0) {
+  setGate(src: HTMLCanvasElement | null | 'open', blur = 0) {
     const g = this.gate.getContext('2d')!;
     g.filter = 'none';
     g.fillStyle = '#000';
     g.fillRect(0, 0, SLIDE_PX, SLIDE_PX);
-    if (src) {
+    if (src === 'open') {
+      // nothing in the gate: the lamp itself, a white oblong with soft corners
+      g.fillStyle = '#fffaf0';
+      g.beginPath();
+      g.roundRect(FX, FY, FW, FH, 14);
+      g.fill();
+    } else if (src) {
       g.filter = blur ? `blur(${blur}px)` : 'none';
       g.drawImage(src, 0, 0);
       g.filter = 'none';
@@ -477,7 +428,7 @@ export class Projector {
     let d = this.trayTarget - this.trayAngle;
     d = Math.atan2(Math.sin(d), Math.cos(d));
     this.trayAngle += d * Math.min(1, dt * 9);
-    this.tray.rotation.y = this.trayAngle;
+    if (this.mounted) this.mounted.rotor.rotation.y = this.trayAngle;
     if (Math.abs(this.drop - this.dropTarget) > 0.001) {
       this.drop += (this.dropTarget - this.drop) * Math.min(1, dt * 14);
       this.placeMounts();

@@ -355,6 +355,13 @@
     ],
     "projector-end": [
       "That's the tray. Somebody always asks to see the map again."
+    ],
+    "tray": [
+      "Check the slides are the right way up. Somebody always loads one upside down before a district briefing.",
+      "The labels are Heuss's typing. He numbers the empty slots too."
+    ],
+    "tray-empty": [
+      "No tray on. What's on the screen is just the bulb."
     ]
   }
 }

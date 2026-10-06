@@ -1,9 +1,10 @@
 /**
- * The slides in the office projector's tray, drawn on canvas from the
- * archive: a title slide, then district by district a map slide, each
- * file's cover and, when the file has a photograph, the photograph, and an
- * end slide. Office slides of the period were diazo: white lines on deep
- * blue. Photographs are photographs.
+ * The slides for the office projector, drawn on canvas from the archive and
+ * packed into trays: one tray that goes round the island (a title slide and
+ * every district's map), then a tray per district (its map, each file's
+ * cover and, when the file has a photograph, the photograph), each ending
+ * with an end slide. Office slides of the period were diazo: white lines on
+ * deep blue. Photographs are photographs.
  *
  * Each slide is drawn into a square (what the lamp projects through); the
  * 3:2 frame sits in the middle and everything around it is black, so no
@@ -37,24 +38,67 @@ export type Slide =
 /** A carousel tray holds eighty. */
 export const TRAY = 80;
 
-export function buildSlides(files: SlideFile[]): Slide[] {
+/** One tray in its box: a code on the spine, a title on the lid, its slides in order. */
+export interface Tray {
+  id: string;
+  code: string;
+  title: L;
+  /** Spine stripe: the ink of the most secret file in it. */
+  ink: string;
+  slides: Slide[];
+}
+
+const RANK = ['top', 'secret', 'conf', 'restr', 'draft', 'declass'] as const;
+const inkOf = (files: SlideFile[]) => {
+  const keys = files.map((f) => clearanceKey(f.stamp));
+  const k = RANK.find((r) => keys.includes(r));
+  return k ? INK[k] : '#c08a1e';
+};
+
+/** Whatever fits in eighty slots; the last slot is always the end slide. */
+const full = (slides: Slide[]): Slide[] => [...slides.slice(0, TRAY - 1), { kind: 'end' }];
+
+/**
+ * The trays on the floor by the sofa: one that goes round the island (the
+ * title and every district's map), then one per district that has files
+ * (its map, then each file's cover and photograph), and one for files that
+ * belong to no district.
+ */
+export function buildTrays(files: SlideFile[]): Tray[] {
+  const trays: Tray[] = [];
   const groups: { district: string; files: SlideFile[] }[] = [];
   for (const d of DISTRICTS) {
     const fs = files.filter((f) => f.district === d.id);
     if (fs.length) groups.push({ district: d.id, files: fs });
   }
+  trays.push({
+    id: 'island',
+    code: 'T-00',
+    title: { en: 'Gerimis, by district', zh: '霏微，按区' },
+    ink: '#c08a1e',
+    slides: full([
+      { kind: 'title', files: files.length, districts: groups.length },
+      ...DISTRICTS.map((d) => ({ kind: 'district' as const, district: d.id, files: files.filter((f) => f.district === d.id).length })),
+    ]),
+  });
   const loose = files.filter((f) => !f.district || !DISTRICTS.some((d) => d.id === f.district));
   if (loose.length) groups.push({ district: '', files: loose });
-  const slides: Slide[] = [{ kind: 'title', files: files.length, districts: groups.filter((g) => g.district).length }];
   for (const g of groups) {
-    slides.push({ kind: 'district', district: g.district, files: g.files.length });
+    const d = DISTRICTS.find((x) => x.id === g.district);
+    const slides: Slide[] = [{ kind: 'district', district: g.district, files: g.files.length }];
     for (const f of g.files.slice().sort((a, b) => a.file.localeCompare(b.file))) {
       slides.push({ kind: 'cover', f });
       if (f.image) slides.push({ kind: 'photo', f });
     }
+    trays.push({
+      id: g.district || 'unfiled',
+      code: `T-${String(trays.length).padStart(2, '0')}`,
+      title: d ? { en: d.en, zh: d.zh } : { en: 'Unfiled', zh: '未分区' },
+      ink: inkOf(g.files),
+      slides: full(slides),
+    });
   }
-  // a full tray: the last slot is always the end slide
-  return [...slides.slice(0, TRAY - 1), { kind: 'end' }];
+  return trays;
 }
 
 /** The line under the screen and in the list. */
@@ -79,8 +123,8 @@ export function caption(s: Slide, zh: boolean): string {
 /* ---------------- drawing ---------------- */
 export const SLIDE_PX = 1024;
 /** The picture inside the square: 3:2, inside the lamp's circle. */
-const FW = 0.8 * SLIDE_PX, FH = FW / 1.5;
-const FX = (SLIDE_PX - FW) / 2, FY = (SLIDE_PX - FH) / 2;
+export const FW = 0.8 * SLIDE_PX, FH = FW / 1.5;
+export const FX = (SLIDE_PX - FW) / 2, FY = (SLIDE_PX - FH) / 2;
 
 const DIAZO = '#0d2c8c';
 const DIAZO_DEEP = '#081d63';

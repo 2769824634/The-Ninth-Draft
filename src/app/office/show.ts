@@ -22,7 +22,7 @@ export class SlideShow {
   private fan: GainNode | null = null;
   private fast = reducedMotion();
 
-  constructor(readonly slides: Slide[], private projector: () => Projector | undefined, private lamp: (on: boolean) => void) {}
+  constructor(public slides: Slide[], private projector: () => Projector | undefined, private lamp: (on: boolean) => void) {}
 
   private canvas(i: number) {
     let c = this.cache.get(i);
@@ -36,7 +36,43 @@ export class SlideShow {
   /** Language changed or a photograph arrived: draw again. */
   redraw() {
     this.cache.clear();
-    if (this.on) this.projector()?.setGate(this.canvas(this.index));
+    if (this.on) this.projector()?.setGate(this.slides.length ? this.canvas(this.index) : 'open');
+  }
+
+  /** The tray comes off: the slide lifts out of the gate, the tray turns back to its empty slot. */
+  unload() {
+    this.stopAuto();
+    ++this.run;
+    const p = this.projector();
+    if (this.slides.length) {
+      this.sfx('clack');
+      p?.setDrop(this.index, false);
+    }
+    p?.home();
+    this.slides = [];
+    this.index = 0;
+    this.cache.clear();
+    if (this.on) p?.setGate('open');
+    this.onChange();
+  }
+
+  /** A tray goes on: the first slide drops into the gate. */
+  load(slides: Slide[]) {
+    ++this.run;
+    this.slides = slides;
+    this.index = 0;
+    this.cache.clear();
+    const p = this.projector();
+    p?.turnTo(0);
+    const run = this.run;
+    window.setTimeout(() => {
+      if (run !== this.run) return;
+      this.sfx('clack');
+      p?.setDrop(0, true);
+      if (this.on) p?.setGate(this.canvas(0), this.fast ? 0 : 6);
+      window.setTimeout(() => run === this.run && this.on && p?.setGate(this.canvas(0)), this.fast ? 0 : 340);
+    }, this.fast ? 0 : 300);
+    this.onChange();
   }
 
   /* ---------------- sound ---------------- */
@@ -122,7 +158,10 @@ export class SlideShow {
     this.sfx('switch');
     this.setFan(on);
     const p = this.projector();
-    if (on) {
+    if (on && !this.slides.length) {
+      // no tray: the lamp shines straight through the empty gate
+      p?.setGate('open');
+    } else if (on) {
       p?.turnTo(this.index);
       p?.setDrop(this.index, true);
       p?.setGate(this.canvas(this.index), this.fast ? 0 : 5);
@@ -136,6 +175,7 @@ export class SlideShow {
   }
 
   go(i: number) {
+    if (!this.slides.length) return;
     i = Math.max(0, Math.min(this.slides.length - 1, i));
     if (i === this.index) return;
     const from = this.index;
@@ -172,11 +212,13 @@ export class SlideShow {
   }
 
   prev() {
+    if (this.index <= 0) return;
     this.go(this.index - 1);
   }
 
   toggleAuto() {
     if (this.auto) return this.stopAuto();
+    if (!this.slides.length) return;
     if (!this.on) this.power(true);
     this.auto = true;
     if (this.index >= this.slides.length - 1) this.go(0);

@@ -18,7 +18,7 @@ import type { Well } from './cassettes';
 import type { TapeData } from '../../lib/tapes';
 import { INK, clearanceKey } from '../clearance';
 import { SlideShow } from './show';
-import { buildSlides, caption, preload, type SlideFile } from './slides';
+import { buildTrays, caption, preload, type SlideFile, type Tray } from './slides';
 import { OfficeScene, ZONES, type Zone } from './scene';
 import lines from '../../data/archivist.json';
 
@@ -134,6 +134,7 @@ export function office() {
   };
   const setZone = (z: Zone) => {
     if (z !== 'deck' && held) putBack();
+    if (z !== 'sofa' && heldTray) putBackTray();
     zone = z;
     if (scene) scene.lightsDown = z === 'sofa';
     root.dataset.zone = z;
@@ -335,40 +336,72 @@ export function office() {
   };
 
   /* ---------------- the slide projector ---------------- */
-  const slideshow = new SlideShow(buildSlides(data.slides), () => scene?.room.projector, (on) => {
+  // trays in boxes in the crate; one is on the projector. A box is taken out and read before its tray goes on.
+  const trays = buildTrays(data.slides);
+  const trayOf = (id: string) => trays.find((t) => t.id === id);
+  let onTray: Tray | null = trays[0] ?? null;
+  let heldTray: Tray | null = null;
+  let trayBusy = false;
+  const slideshow = new SlideShow(onTray?.slides ?? [], () => scene?.room.projector, (on) => {
     if (scene) scene.lampOn = on;
   });
   preload(data.slides, () => slideshow.redraw());
   const fileOfSlide = () => {
     const s = slideshow.slides[slideshow.index];
-    return s.kind === 'cover' || s.kind === 'photo' ? s.f : null;
+    return s && (s.kind === 'cover' || s.kind === 'photo') ? s.f : null;
   };
+  const count = (n: number) => (isZh() ? `${n} 张` : `${n} slide${n === 1 ? '' : 's'}`);
   const showHere = () => {
     if (zone !== 'sofa') return;
+    const z = isZh();
+    if (heldTray) return ($('of-here').textContent = `${T(ZONE_NAME.sofa)} · ${z ? '手里' : 'in hand'} · ${heldTray.code}`);
+    if (!slideshow.slides.length) return ($('of-here').textContent = `${T(ZONE_NAME.sofa)} · ${z ? '放映机上没有托盘' : 'no tray on the projector'}`);
     const n = `${String(slideshow.index + 1).padStart(2, '0')} / ${String(slideshow.slides.length).padStart(2, '0')}`;
-    $('of-here').textContent = `${isZh() ? '幻灯片' : 'Slide'} ${n} · ${caption(slideshow.slides[slideshow.index], isZh())}`;
+    $('of-here').textContent = `${onTray?.code ?? ''} · ${z ? '幻灯片' : 'Slide'} ${n} · ${caption(slideshow.slides[slideshow.index], z)}`;
   };
   function drawShow(item: (mark: string, label: string, on: () => void) => void) {
+    const z = isZh();
+    // the box in hand: is this the one?
+    if (heldTray) {
+      const t = heldTray;
+      const li = document.createElement('li');
+      li.className = 'of-hold';
+      li.style.setProperty('--cloth', t.ink);
+      li.innerHTML = `<p class="of-hold__q micro"></p><p class="of-hold__t"><b></b> <span></span></p><p class="of-hold__k micro"></p><div class="of-hold__do"></div>`;
+      li.querySelector('.of-hold__q')!.textContent = z ? '是这盒吗？' : 'This one?';
+      li.querySelector('b')!.textContent = t.code;
+      li.querySelector('.of-hold__t span')!.textContent = T(t.title);
+      li.querySelector('.of-hold__k')!.textContent = `${count(t.slides.length)} · ${caption(t.slides[0], z)}`;
+      const row = li.querySelector('.of-hold__do')!;
+      const label = z ? '放上放映机' : 'Onto the projector';
+      row.append(btn('↗', onTray ? `${label} · ${z ? '换下' : 'swap'} ${onTray.code}` : label, () => loadTray(), { cls: 'is-pick' }));
+      row.append(btn('↩', z ? '放回去' : 'Put it back', () => putBackTray()));
+      listEl.append(li);
+    }
+    const has = slideshow.slides.length > 0;
     const li = document.createElement('li');
     li.className = 'of-deck of-show is-active';
-    const z = isZh();
     li.append(
       btn('⏻', slideshow.on ? (z ? '关灯' : 'Lamp off') : z ? '开灯' : 'Lamp on', () => {
         audio.unlock();
         slideshow.power();
-        voice.say(slideshow.on ? 'office.projector-on' : 'office.projector-off', {}, false);
+        voice.say(slideshow.on ? (has ? 'office.projector-on' : 'office.tray-empty') : 'office.projector-off', {}, false);
       }, { cls: slideshow.on ? 'is-lit' : '' }),
-      btn('◀', z ? '上一张' : 'Back', () => slideshow.prev(), { off: slideshow.index === 0 }),
-      btn('▶', z ? '下一张' : 'Next', () => slideshow.next(), { off: slideshow.index >= slideshow.slides.length - 1 }),
-      btn(slideshow.auto ? 'Ⅱ' : '⟳', slideshow.auto ? (z ? '停' : 'Stop') : z ? '自动' : 'Auto', () => slideshow.toggleAuto(), { cls: slideshow.auto ? 'is-lit' : '' }),
+      btn('◀', z ? '上一张' : 'Back', () => slideshow.prev(), { off: !has || slideshow.index === 0 }),
+      btn('▶', z ? '下一张' : 'Next', () => slideshow.next(), { off: !has || slideshow.index >= slideshow.slides.length - 1 }),
+      btn(slideshow.auto ? 'Ⅱ' : '⟳', slideshow.auto ? (z ? '停' : 'Stop') : z ? '自动' : 'Auto', () => slideshow.toggleAuto(), { off: !has, cls: slideshow.auto ? 'is-lit' : '' }),
     );
     listEl.append(li);
     const f = fileOfSlide();
     if (f) item('→', z ? `打开档案 ${f.file}` : `Open file ${f.file}`, () => (location.href = `${base}records/${f.slug}/`));
+    // the tray on the projector
     const h = document.createElement('li');
     h.className = 'of-shelf micro';
-    h.textContent = z ? '托盘' : 'The tray';
+    h.textContent = onTray ? `${z ? '放映机上' : 'On the projector'} · ${onTray.code} ${T(onTray.title)}` : trayBusy ? (z ? '正在换托盘' : 'Changing trays') : z ? '放映机上没有托盘' : 'No tray on the projector';
     listEl.append(h);
+    if (onTray && !trayBusy) {
+      item('⏏', z ? '把托盘取下来，放回盒里' : 'Lift the tray off, back into its box', () => unloadTray());
+    }
     slideshow.slides.forEach((s, i) => {
       item(String(i + 1).padStart(2, '0'), caption(s, z), () => slideshow.go(i));
       const b = listEl.lastElementChild!.querySelector('button')!;
@@ -376,12 +409,102 @@ export function office() {
       b.classList.toggle('is-on', i === slideshow.index);
       if (s.kind === 'district' || s.kind === 'title' || s.kind === 'end') b.classList.add('is-gap');
     });
+    // the crate
+    const c = document.createElement('li');
+    c.className = 'of-shelf micro';
+    c.textContent = z ? '木箱里的片盒' : 'Boxes in the crate';
+    listEl.append(c);
+    for (const t of trays) {
+      const where = onTray?.id === t.id ? (z ? ' · 在放映机上' : ' · on the projector') : heldTray?.id === t.id ? (z ? ' · 手里' : ' · in hand') : '';
+      item(t.code, `${T(t.title)} · ${count(t.slides.length)}${where}`, () => takeTray(t));
+      const b = listEl.lastElementChild!.querySelector('button')!;
+      b.style.setProperty('--cloth', t.ink);
+      b.classList.toggle('is-on', !!where);
+      b.disabled = trayBusy || onTray?.id === t.id;
+    }
     showHere();
     // keep the current slide in view in the list
-    listEl.querySelector('button.is-on')?.scrollIntoView({ block: 'nearest' });
+    if (heldTray) listEl.querySelector('.of-hold')?.scrollIntoView({ block: 'nearest' });
+    else listEl.querySelector('button.is-on')?.scrollIntoView({ block: 'nearest' });
   }
   slideshow.onChange = () => zone === 'sofa' && drawList();
   slideshow.onEnd = () => voice.say('office.projector-end', {}, false);
+
+  /** A box out of the crate and up to be read. */
+  function takeTray(t: Tray) {
+    audio.unlock();
+    if (trayBusy || onTray?.id === t.id || heldTray?.id === t.id) return;
+    if (heldTray) putBackTray();
+    if (zone !== 'sofa') scene?.goZone('sofa');
+    heldTray = t;
+    audio.flick();
+    scene?.room.crate.take(t.id, () => audio.paper());
+    if (scene) scene.trayView = 'hold';
+    voice.say('office.tray', {}, false);
+    drawList();
+  }
+
+  function putBackTray() {
+    if (!heldTray) return;
+    const t = heldTray;
+    heldTray = null;
+    if (scene && !trayBusy) scene.trayView = null;
+    audio.paper();
+    scene?.room.crate.putBack(t.id, () => audio.tick());
+    drawList();
+  }
+
+  /** Whatever tray is on comes off and goes home; then this box goes to the trolley and its tray onto the projector. */
+  function loadTray() {
+    if (!heldTray || trayBusy) return;
+    const t = heldTray;
+    heldTray = null;
+    const old = onTray;
+    onTray = null;
+    trayBusy = true;
+    if (scene) scene.trayView = 'load';
+    const on = () =>
+      scene?.room.crate.load(t.id, () => {
+        audio.click();
+        onTray = t;
+        trayBusy = false;
+        slideshow.load(t.slides);
+        window.setTimeout(() => {
+          if (scene && !heldTray && !trayBusy) scene.trayView = null;
+        }, 900);
+        drawList();
+      });
+    if (!scene) {
+      onTray = t;
+      trayBusy = false;
+      slideshow.load(t.slides);
+    } else if (old) {
+      slideshow.unload();
+      window.setTimeout(() => scene?.room.crate.unload(old.id, () => window.setTimeout(on, 250), () => audio.tick()), 650);
+    } else on();
+    drawList();
+  }
+
+  /** The tray off the projector and back in its box, the box back in the crate. */
+  function unloadTray() {
+    if (!onTray || trayBusy) return;
+    const old = onTray;
+    onTray = null;
+    trayBusy = true;
+    if (scene) scene.trayView = 'load';
+    slideshow.unload();
+    const finish = () => {
+      trayBusy = false;
+      if (scene && !heldTray) scene.trayView = null;
+      drawList();
+    };
+    if (scene) window.setTimeout(() => scene?.room.crate.unload(old.id, undefined, () => {
+      audio.tick();
+      finish();
+    }), 650);
+    else finish();
+    drawList();
+  }
 
   /* ---------------- the clock on the wall ---------------- */
   let clockAt = 0;
@@ -418,9 +541,11 @@ export function office() {
     if (e.key === 'Escape') {
       (document.activeElement as HTMLElement | null)?.blur?.();
       if (held) return putBack();
+      if (heldTray) return putBackTray();
       return scene?.goZone('overview');
     }
     if (e.key === 'Enter' && held && !(e.target instanceof HTMLButtonElement)) return confirm(freeWell());
+    if (e.key === 'Enter' && heldTray && !(e.target instanceof HTMLButtonElement)) return loadTray();
     if (e.target instanceof HTMLInputElement) return;
     if (/^[0-4]$/.test(e.key)) scene?.goZone(ZONES[Number(e.key)]);
     else if (zone === 'sofa' && (e.key === 'ArrowRight' || e.key === 'ArrowLeft' || (e.key === ' ' && !(e.target instanceof HTMLButtonElement)))) {
@@ -452,6 +577,13 @@ export function office() {
           ? `${n.file} · ${T(n.title)}`
           : k === 'projector'
             ? isZh() ? `放映机 · 点一下${slideshow.on ? '关' : '开'}灯` : `Projector · click to switch the lamp ${slideshow.on ? 'off' : 'on'}`
+            : k.startsWith('tray:')
+            ? (() => {
+                const t = trayOf(k.slice(5));
+                if (!t) return '';
+                const on = onTray?.id === t.id ? (isZh() ? ' · 在放映机上' : ' · on the projector') : '';
+                return `${t.code} · ${T(t.title)} · ${count(t.slides.length)}${on}`;
+              })()
             : k === 'screen'
             ? isZh() ? '幕布 · 点一下换下一张' : 'Screen · click for the next slide'
             : k.startsWith('tape:')
@@ -471,12 +603,16 @@ export function office() {
       projector: () => {
         audio.unlock();
         slideshow.power();
-        voice.say(slideshow.on ? 'office.projector-on' : 'office.projector-off', {}, false);
+        voice.say(slideshow.on ? (slideshow.slides.length ? 'office.projector-on' : 'office.tray-empty') : 'office.projector-off', {}, false);
       },
       screen: () => {
         audio.unlock();
         if (!slideshow.on) slideshow.power(true);
         else slideshow.next();
+      },
+      trayBox: (id) => {
+        const t = trayOf(id);
+        if (t) takeTray(t);
       },
       tape: (id) => {
         const t = tapeOf(id);
@@ -486,9 +622,11 @@ export function office() {
         if (w) press(w);
         else take(t);
       },
-    }, data.tapes.map((t) => ({ id: t.id, code: t.label, title: T(t.title), ink: inkOf(t) })), slideshow.slides.length);
-    scene.room.projector.turnTo(0);
-    scene.room.projector.setDrop(0, true);
+    }, data.tapes.map((t) => ({ id: t.id, code: t.label, title: T(t.title), ink: inkOf(t) })), trays.map((t) => ({ id: t.id, code: t.code, title: T(t.title), count: t.slides.length, ink: t.ink })), isZh());
+    if (slideshow.slides.length) {
+      scene.room.projector.turnTo(0);
+      scene.room.projector.setDrop(0, true);
+    }
     scene.deckView = deckView;
     scene.setTheme(prefs.get('theme'));
     requestAnimationFrame(() => root.classList.add('is-lit'));
@@ -505,6 +643,7 @@ export function office() {
     drawList();
     scene?.room.shelf.relabel((id) => T(tapeOf(id)?.title ?? { en: '', zh: '' }));
     slideshow.redraw();
+    scene?.room.crate.relabel((id) => T(trayOf(id)?.title ?? { en: '', zh: '' }), isZh());
   });
   root.dataset.zone = zone;
   drawList();

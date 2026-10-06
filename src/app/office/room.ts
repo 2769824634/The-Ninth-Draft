@@ -13,6 +13,7 @@ import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeom
 import { rainTexture, woodTexture } from '../library/textures';
 import { TapeShelf, type ShelfTape, type Well } from './cassettes';
 import { Projector } from './projector';
+import { TrayCrate, type TrayInfo } from './trays';
 import {
   calendarTexture, caseTexture, counterTexture, corkTexture, clockFaceTexture, corduroyTexture, deckTexture, screenTexture, slideBoxTexture, keyboardTexture, linoTexture, mapTexture, noticeTexture, passerbyTexture, plasticTexture, rugTexture, streetTexture, wallTexture,
 } from './textures';
@@ -25,6 +26,9 @@ export const DECK_DIR = new THREE.Vector3(0.1, 0.34, 1).normalize();
 /** The picture on the pull-down screen: its centre, and how wide it is. */
 export const PICTURE = { at: new THREE.Vector3(R.x0 + 0.075, 1.82, 0.72), w: 1.3 };
 /** The sideboard's place in the room. */
+/** The sofa view looks along this; a slide box is held up here to be read. */
+export const SOFA_DIR = new THREE.Vector3(1, 0.26, -0.38).normalize();
+export const TRAY_HOLD = new THREE.Vector3(-0.95, 0.95, 0.42);
 const SIDEBOARD = new THREE.Vector3(-1.6, 0, R.z0 + 0.26);
 
 export interface Notice {
@@ -58,6 +62,8 @@ export class Room {
     vu: 0,
   };
   shelf!: TapeShelf;
+  /** The crate of slide trays on the rug by the coffee table. */
+  crate!: TrayCrate;
   projector!: Projector;
   readonly drips: THREE.Points;
 
@@ -69,7 +75,7 @@ export class Room {
   private black = new THREE.MeshStandardMaterial({ color: '#1d1c1a', roughness: 0.6 });
   private poche = new THREE.MeshStandardMaterial({ color: '#2b2723', roughness: 0.9 });
 
-  constructor(records: { file: string; slug: string; title: string; date?: string; stamp: string; category: string }[], private tapes: ShelfTape[] = [], private reduce = false, private slides = 0) {
+  constructor(records: { file: string; slug: string; title: string; date?: string; stamp: string; category: string }[], private tapes: ShelfTape[] = [], private reduce = false, private trays: TrayInfo[] = [], private zh = false) {
     this.shell();
     this.window();
     this.desk();
@@ -425,9 +431,19 @@ export class Room {
     this.group.add(ring);
 
     // the projector on its trolley, behind the sofa, throwing over it
-    this.projector = new Projector({ at: new THREE.Vector3(1.38, 0, 0.72), aim: PICTURE.at, width: PICTURE.w, slides: this.slides });
+    this.projector = new Projector({ at: new THREE.Vector3(1.38, 0, 0.72), aim: PICTURE.at, width: PICTURE.w });
     this.group.add(this.projector.group, ...this.projector.lightParts);
     this.hits.projector = this.projector.hit;
+    // the trays, each in its box, standing in a crate on the rug at the end of the coffee table
+    this.crate = new TrayCrate(this.group, this.trays, {
+      at: new THREE.Vector3(-1.25, 0.004, -0.2),
+      hold: TRAY_HOLD,
+      holdDir: SOFA_DIR,
+      projector: this.projector,
+      mounted: this.trays[0]?.id,
+      reduce: this.reduce,
+      zh: this.zh,
+    });
 
     // standard lamp by the sofa
     const fl = new THREE.Group();
@@ -718,5 +734,6 @@ export class Room {
     }
     pos.needsUpdate = true;
     for (const r of this.reels) r.rotation.y += dt * 0.25;
+    this.crate.tick(dt);
   }
 }
