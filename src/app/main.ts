@@ -238,6 +238,7 @@ export function start() {
     $('dossier').setAttribute('aria-hidden', 'false');
     document.querySelector('.inspect')!.setAttribute('aria-hidden', 'false');
     dossier.fill(rec, { index: i, total: byCat[ci].length });
+    $('btn-back').querySelector('span')!.textContent = backLabel();
     const notes = dossier.noteSpan();
     retrieve.run(
       t('Drawer {drawer} · Folder {folder} · {file}', { drawer: String(ci + 1).padStart(2, '0'), folder: String(i + 1).padStart(2, '0'), file: rec.file }),
@@ -256,8 +257,32 @@ export function start() {
     if (push) history.pushState({ file: rec.file }, '', recordUrl(rec));
   }
 
+  /**
+   * A file opened from another room (the library, the office, a flat page)
+   * goes back there when it is put away: the link carried ?from=<path>.
+   */
+  const ROOMS: Record<string, string> = { library: 'Back to the library', office: 'Back to the office', daily: 'Back to the Daily', calendar: 'Back to the calendar', map: 'Back to the map', district: 'Back to the district', me: 'Back to my file', guide: 'Back to the guide' };
+  let returnTo: string | null = (() => {
+    const f = new URLSearchParams(location.search).get('from');
+    // only somewhere on this site
+    if (!f || !f.startsWith(base) || f.includes('//') || /records\//.test(f)) return null;
+    return f;
+  })();
+  const backLabel = () => {
+    const room = returnTo?.slice(base.length).split('/')[0] ?? '';
+    return t(ROOMS[room] ?? 'Archive overview');
+  };
+  if (location.search) history.replaceState(history.state, '', location.pathname + location.hash);
+
   function closeRecord(push = true) {
     if (view !== 'detail') return;
+    if (returnTo) {
+      const to = returnTo;
+      returnTo = null;
+      audio.close();
+      void iris.run(() => location.assign(to));
+      return;
+    }
     view = 'browse';
     current = null;
     root.dataset.view = 'browse';
@@ -480,6 +505,7 @@ export function start() {
       wallCount();
       renderHud(true);
       dossier.relang();
+      $('btn-back').querySelector('span')!.textContent = backLabel();
       if (view === 'detail' && current) document.title = t('{file} · {title} — The Ninth Draft', { file: current.file, title: current.title });
       else document.title = t(roomTarget === 'wall' ? 'Link analysis — The Ninth Draft' : 'The Ninth Draft — Archive');
       if (sweeps) $('wall-sweep').textContent = t('Sweep {n}', { n: String(sweeps).padStart(2, '0') });
@@ -587,17 +613,17 @@ export function start() {
         if (rec) openRecord(rec);
       }
     } else {
-      if (e.key === 'Escape' || e.key === 'Backspace') { e.preventDefault(); closeRecord(); }
-      else if (e.key === 'ArrowRight' || e.key === 'ArrowDown') { e.preventDefault(); stepRecord(1); }
-      else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') { e.preventDefault(); stepRecord(-1); }
-      else if (['1', '2', '3'].includes(e.key)) dossierTab(Number(e.key));
+      if (e.key === 'Escape' && dossier.slipOpen) { e.preventDefault(); dossier.closeSlip(); }
+      else if (e.key === 'Escape' || e.key === 'Backspace') { e.preventDefault(); closeRecord(); }
+      else if (e.key === 'ArrowRight') { e.preventDefault(); stepRecord(1); }
+      else if (e.key === 'ArrowLeft') { e.preventDefault(); stepRecord(-1); }
+      else if (['1', '2', '3'].includes(e.key)) dossier.jump(Number(e.key));
       else if (e.key === '[') dossier.stepDraft(-1);
       else if (e.key === ']') dossier.stepDraft(1);
     }
     if (e.key === 'n' || e.key === 'N') applyTheme(prefs.get('theme') === 'day' ? 'night' : 'day');
     if (e.key === 'l' || e.key === 'L') setLang(isZh() ? 'en' : 'zh');
   });
-  const dossierTab = (n: number) => dossier.show((['overview', 'record', 'related'] as const)[n - 1]);
 
   // Touch: horizontal swipe switches drawers
   let sx = 0, sy = 0;

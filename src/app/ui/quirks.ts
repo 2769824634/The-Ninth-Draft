@@ -170,7 +170,7 @@ function copyNote() {
     if (!sel || sel.isCollapsed || !e.clipboardData) return;
     const node = sel.anchorNode instanceof Element ? sel.anchorNode : sel.anchorNode?.parentElement;
     if (!node?.closest('#dossier')) return;
-    const foot = isZh() ? '\n\n—— 霏微记录署 · 已修订 · 第九稿' : '\n\n— Records Office, Gerimis · Revised · Draft 09';
+    const foot = isZh() ? '\n\n—— 霏微记录署 · 已归档' : '\n\n— Records Office, Gerimis · On file';
     e.clipboardData.setData('text/plain', sel.toString() + foot);
     e.preventDefault();
   });

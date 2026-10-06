@@ -3,6 +3,7 @@
  * amber phosphor, scanlines, a little bloom. Everything they say is in the
  * SYSTEM voice: system actions only, no jokes.
  */
+import { fromHere } from '../ui/recordlink';
 import { islandDate } from '../island';
 import type { LogLine, MachineData, MachineFile } from '../../lib/machine';
 import { audio } from '../audio';
@@ -363,7 +364,7 @@ export class ConsoleScreen {
           break;
         }
         p(`OPENING ${f.file}.`, `正在调取 ${f.file}。`);
-        window.setTimeout(() => (location.href = `${this.base}records/${f.slug}/`), 700);
+        window.setTimeout(() => (location.href = fromHere(`${this.base}records/${f.slug}/`)), 700);
         break;
       }
       case 'DIFF': {
