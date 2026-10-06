@@ -4,6 +4,7 @@ import { loadRecords } from '../../lib/records';
 import { buildLibrary } from '../../lib/library';
 import { loadBooks } from '../../lib/books';
 import '../../styles/library.css';
+import '../../styles/paper.css';
 
 const base = import.meta.env.BASE_URL;
 const lib = buildLibrary(await loadRecords(base), base, (await loadBooks(base)).map((b) => b.book));
@@ -63,6 +64,15 @@ const zones = [
         <button type="button" id="rd-next" aria-label="Next page">→</button>
       </footer>
     </aside>
+
+    <section class="np" id="np" hidden aria-label="The Gerimis Daily" data-no-i18n>
+      <div class="np__bar" id="np-bar"></div>
+      <div class="np-days" id="np-days" hidden></div>
+      <div class="np__desk" id="np-desk">
+        <article class="np__sheet" id="np-sheet"></article>
+      </div>
+      <footer class="np__turn" id="np-turn"></footer>
+    </section>
 
     <aside class="lib-panel lib-cat" id="lib-cat" aria-hidden="true" aria-label="Catalogue drawer">
       <header class="lib-panel__top">

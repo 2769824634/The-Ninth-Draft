@@ -1,23 +1,14 @@
 ---
-import Flat from '../../layouts/Flat.astro';
-import DailyIssue from '../../components/DailyIssue.astro';
-import { loadRecords } from '../../lib/records';
-import { buildIssues } from '../../lib/daily';
-import '../../styles/daily.css';
-
-const issues = buildIssues(await loadRecords(import.meta.env.BASE_URL));
-const issue = issues[0];
+// The Daily is read in the library now: today's paper hangs on the rack.
+const to = `${import.meta.env.BASE_URL}library/#daily-today`;
 ---
 
-<Flat title="Gerimis Daily — The Ninth Draft" description="The island's newspaper, 1999. It prints the official version." page="daily">
-  <DailyIssue issue={issue} prev={issues[1]} all={issues} />
-</Flat>
-
-<script>
-  import { flat } from '../../app/flat';
-  import { islandIso } from '../../app/island';
-  // The paper on the stand is today's, island time
-  const base = document.querySelector<HTMLAnchorElement>('.fhead__brand')?.getAttribute('href') ?? '/';
-  location.replace(`${base}daily/${islandIso()}/`);
-  flat();
-</script>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta http-equiv="refresh" content={`0; url=${to}`} />
+    <link rel="canonical" href={`${import.meta.env.BASE_URL}library/`} />
+    <title>The Ninth Draft</title>
+  </head>
+  <body><a href={to}>Library</a></body>
+</html>

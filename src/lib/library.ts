@@ -151,7 +151,7 @@ export function buildLibrary(records: ClientRecord[], base: string, books: LibBo
             )
           : { en: '', zh: '' },
         { en: `<p class="lib-small">${x.weather.en}</p>`, zh: `<p class="lib-small">${x.weather.zh}</p>` },
-        link(`${base}daily/${x.date}/`, 'Read the whole issue', '翻开当天整份报纸'),
+        p('The whole paper is on the table: four pages.', '整份报纸摊在桌上，共四版。'),
       ),
     };
   };
@@ -173,8 +173,8 @@ export function buildLibrary(records: ClientRecord[], base: string, books: LibBo
               list(set.map((x) => {
                 const dl = dayLabel(x);
                 return {
-                  en: `<li data-island-date="${x.date}"><a href="${base}daily/${x.date}/"><b>${dl.en}</b> ${esc(strip(x.lead.head.en))}</a></li>`,
-                  zh: `<li data-island-date="${x.date}"><a href="${base}daily/${x.date}/"><b>${dl.zh}</b> ${esc(strip(x.lead.head.zh))}</a></li>`,
+                  en: `<li data-island-date="${x.date}"><a href="#daily-${x.date}"><b>${dl.en}</b> ${esc(strip(x.lead.head.en))}</a></li>`,
+                  zh: `<li data-island-date="${x.date}"><a href="#daily-${x.date}"><b>${dl.zh}</b> ${esc(strip(x.lead.head.zh))}</a></li>`,
                 };
               })),
             )
