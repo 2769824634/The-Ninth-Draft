@@ -12,10 +12,10 @@ const parse = (s?: string) => {
   const i = s?.match(/\b(\d{4})-(\d{2})-(\d{2})\b/);
   return i ? i[0] : null;
 };
-type Item = { day: string; file: string; slug: string; title: string; titleZh?: string; what: { en: string; zh: string } };
+type Item = { day: string; file: string; slug: string; title: string; titleZh?: string; filed?: string; what: { en: string; zh: string } };
 const items: Item[] = [];
 for (const r of records) {
-  const base_ = { file: r.file, slug: r.slug, title: r.title, titleZh: r.zh?.title };
+  const base_ = { file: r.file, slug: r.slug, title: r.title, titleZh: r.zh?.title, filed: r.date };
   const d = parse(r.date);
   if (d) items.push({ ...base_, day: d, what: { en: 'Record', zh: '档案' } });
   for (const k of r.drafts) {
@@ -42,7 +42,7 @@ const payload = JSON.stringify({ base, items }).replace(/</g, '\\u003c');
     <div class="cal__main">
       <div class="cal__bar">
         <button class="f-btn f-btn--ghost" type="button" id="cal-prev" aria-label="Previous month"><span>←</span></button>
-        <h2 class="cal__month" id="cal-month">December 1999</h2>
+        <h2 class="cal__month" id="cal-month" data-no-i18n>1999</h2>
         <button class="f-btn f-btn--ghost" type="button" id="cal-next" aria-label="Next month"><span>→</span></button>
       </div>
       <div class="cal__grid" id="cal-grid" role="grid" aria-label="Month"></div>
@@ -54,8 +54,8 @@ const payload = JSON.stringify({ base, items }).replace(/</g, '\\u003c');
       </div>
       <div class="side__box cal__clock">
         <h3>Office clock</h3>
-        <p class="cal__time" id="cal-clock">23:59:50</p>
-        <p class="micro" id="cal-clock-d">31.12.99</p>
+        <p class="cal__time" id="cal-clock" data-no-i18n>--:--:--</p>
+        <p class="micro" id="cal-clock-d" data-no-i18n>--.--.99</p>
       </div>
     </aside>
   </div>
@@ -68,17 +68,21 @@ const payload = JSON.stringify({ base, items }).replace(/</g, '\\u003c');
   import { audio } from '../../app/audio';
   import { isZh, t } from '../../app/i18n';
   import { reducedMotion } from '../../app/prefs';
+  import { hms, isFiled, islandNow } from '../../app/island';
 
-  type Item = { day: string; file: string; slug: string; title: string; titleZh?: string; what: { en: string; zh: string } };
+  type Item = { day: string; file: string; slug: string; title: string; titleZh?: string; filed?: string; what: { en: string; zh: string } };
   const data = JSON.parse(document.getElementById('cal-data')!.textContent!) as { base: string; items: Item[] };
+  // Only what has happened by the island's today: a record still to come is not on file yet
+  data.items = data.items.filter((i) => isFiled(i.filed) && isFiled(i.day));
   const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
   const esc = (s: string) => s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
   const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
   const ZH = (n: number) => `${n + 1} 月`;
   const key = (m: number, d: number) => `1999-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
 
-  let month = 11;
-  let picked: number | null = 31;
+  const now = islandNow();
+  let month = now.month;
+  let picked: number | null = now.day;
 
   const dayList = () => {
     const h = $('cal-day-h');
@@ -108,7 +112,7 @@ const payload = JSON.stringify({ base, items }).replace(/</g, '\\u003c');
     for (let i = 0; i < first; i++) cells.push('<span class="cal__x"></span>');
     for (let d = 1; d <= days; d++) {
       const n = data.items.filter((i) => i.day === key(month, d)).length;
-      const cls = ['cal__d', d === 9 ? 'is-nine' : '', n ? 'has' : '', d === picked ? 'is-on' : '', month === 11 && d === 31 ? 'is-last' : ''].join(' ');
+      const cls = ['cal__d', d === 9 ? 'is-nine' : '', n ? 'has' : '', d === picked ? 'is-on' : '', month === now.month && d === now.day ? 'is-today' : ''].join(' ');
       cells.push(`<button type="button" class="${cls}" data-d="${d}" role="gridcell"><b>${d}</b>${n ? `<i>${'·'.repeat(Math.min(n, 4))}</i>` : ''}</button>`);
     }
     $('cal-grid').innerHTML = cells.join('');
@@ -136,11 +140,11 @@ const payload = JSON.stringify({ base, items }).replace(/</g, '\\u003c');
   flat(draw);
   draw();
 
-  // The Office clock never gets past the end of the year: 23:59:50 → 23:59:59, back to 50
-  let s = 50;
+  // The Office clock keeps island time
   const tick = () => {
-    $('cal-clock').textContent = `23:59:${String(s).padStart(2, '0')}`;
-    s = s >= 59 ? 50 : s + 1;
+    const t = islandNow();
+    $('cal-clock').textContent = hms(t.hours, t.minutes, t.seconds);
+    $('cal-clock-d').textContent = `${String(t.day).padStart(2, '0')}.${String(t.month + 1).padStart(2, '0')}.99`;
   };
   tick();
   window.setInterval(tick, 1000);

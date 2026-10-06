@@ -9,6 +9,7 @@ import type { ArchivistLines } from '../types';
 import { flat } from '../flat';
 import { audio } from '../audio';
 import { isZh } from '../i18n';
+import { isFiled } from '../island';
 import { prefs } from '../prefs';
 import { Archivist } from '../ui/archivist';
 import { DISTRICTS } from '../visitor/districts';
@@ -46,7 +47,14 @@ const SHELVES: { kind: TapeData['kind'][]; en: string; zh: string }[] = [
 
 export function office() {
   const $ = (id: string) => document.getElementById(id)!;
-  const data = JSON.parse($('of-data').textContent || '{}') as MachineData & { base: string; notices: { file: string; slug: string; title: L; date?: string; stamp: string; category: string }[]; tapes: TapeData[]; slides: SlideFile[] };
+  const data = JSON.parse($('of-data').textContent || '{}') as MachineData & { base: string; notices: { file: string; slug: string; title: L; date?: string; stamp: string; category: string }[]; tapes: TapeData[]; slides: SlideFile[]; filedOn: Record<string, string | undefined> };
+  // Records dated to a day still to come are not on file yet: no notice, no log line, no tape, no slide
+  const on = (file: string) => isFiled(data.filedOn[file]);
+  data.notices = data.notices.filter((n) => on(n.file)).slice(-5);
+  data.log = data.log.filter((l) => on(l.file) && isFiled(l.date));
+  data.files = data.files.filter((f) => on(f.file));
+  data.tapes = data.tapes.filter((t) => t.kind !== 'record' || on(t.label));
+  data.slides = data.slides.filter((f) => on(f.file));
   const root = $('of');
   const base = data.base;
   const voice = new Archivist(lines as unknown as ArchivistLines, 'office.idle');

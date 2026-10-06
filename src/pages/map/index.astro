@@ -1,6 +1,7 @@
 ---
 import Flat from '../../layouts/Flat.astro';
 import { loadRecords } from '../../lib/records';
+import { islandDay } from '../../app/island';
 import { DISTRICTS } from '../../app/visitor/districts';
 import IslandMap from '../../components/IslandMap.astro';
 
@@ -31,17 +32,18 @@ const unplaced = records.filter((r) => !r.district).length;
           <li class="map__item" data-d={d.id}>
             <button type="button" aria-expanded="false">
               <span class="map__item-name"><span data-l="en">{d.en}</span><span data-l="zh">{d.zh}</span></span>
-              <span class="micro"><span class="map__you" hidden>You · </span>{String(rs.length).padStart(2, '0')}</span>
+              <span class="micro"><span class="map__you" hidden>You · </span><span data-island-count={`#map-list .map__item[data-d="${d.id}"] > ul > li[data-island-date]`}>{String(rs.length).padStart(2, '0')}</span></span>
             </button>
             <ul>
               {rs.length ? (
                 rs.map((r) => (
-                  <li>
+                  <li data-island-date={islandDay(r.date) ?? ''}>
                     <a href={`${base}records/${r.slug}/`}><b>{r.file}</b><span data-l="en">{r.title}</span><span data-l="zh">{r.zh?.title ?? r.title}</span></a>
                   </li>
                 ))
-              ) : (
-                <li class="map__empty"><span data-l="en">Nothing filed here yet.</span><span data-l="zh">这里还没有档案。</span></li>
+              ) : null}
+              {(
+                <li class="map__empty" data-island-empty={`#map-list .map__item[data-d="${d.id}"] > ul > li[data-island-date]`}><span data-l="en">Nothing filed here yet.</span><span data-l="zh">这里还没有档案。</span></li>
               )}
             </ul>
             <a class="map__more micro" href={`${base}district/${d.id}/`}><span>District file</span> →</a>

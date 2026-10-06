@@ -63,7 +63,20 @@ export function hideFuture(root: ParentNode = document) {
     const n = [...document.querySelectorAll<HTMLElement>(el.dataset.islandCount ?? '')].filter((x) => !x.hidden).length;
     el.textContent = String(n).padStart(2, '0');
   });
+  // "Nothing here yet" notes: data-island-empty="<selector>" shows while none of it is showing.
+  root.querySelectorAll<HTMLElement>('[data-island-empty]').forEach((el) => {
+    el.hidden = [...document.querySelectorAll<HTMLElement>(el.dataset.islandEmpty ?? '')].some((x) => !x.hidden);
+  });
 }
+
+/** "1999-10-09" when a record is dated to a day of 1999; a range or another year gives undefined. */
+export const islandDay = (date?: string) => (date && /^1999-\d\d-\d\d$/.test(date) ? date : undefined);
+
+/** A record dated to a day still to come on the island is not on file yet. Ranges and other years always are. */
+export const isFiled = (date?: string) => {
+  const d = islandDay(date);
+  return !d || d <= islandIso();
+};
 
 /** Day on the island runs 07:00–19:00, roughly Singapore's sunrise and sunset. */
 export const islandIsNight = (at = Date.now()) => {

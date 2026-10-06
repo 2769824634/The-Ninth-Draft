@@ -1,6 +1,7 @@
 ---
 import Flat from '../../../layouts/Flat.astro';
 import { loadRecords } from '../../../lib/records';
+import { islandDay } from '../../../app/island';
 import { DISTRICTS } from '../../../app/visitor/districts';
 import { DISTRICT_TEXT } from '../../../app/visitor/counter';
 
@@ -29,11 +30,12 @@ const others = DISTRICTS.filter((x) => x.id !== d.id);
       {records.length ? (
         <ul class="dist-page__recs">
           {records.map((r) => (
-            <li><a href={`${base}records/${r.slug}/`}><b>{r.file}</b><span data-l="en">{r.title}</span><span data-l="zh">{r.zh?.title ?? r.title}</span></a></li>
+            <li data-island-date={islandDay(r.date) ?? ''}><a href={`${base}records/${r.slug}/`}><b>{r.file}</b><span data-l="en">{r.title}</span><span data-l="zh">{r.zh?.title ?? r.title}</span></a></li>
           ))}
         </ul>
-      ) : (
-        <p class="f-help"><span data-l="en">Nothing filed here yet. The Office says this is normal. The Office says that about everything.</span><span data-l="zh">这里还没有档案。署里说这很正常，署里什么都说正常。</span></p>
+      ) : null}
+      {(
+        <p class="f-help" data-island-empty=".dist-page__recs > li[data-island-date]"><span data-l="en">Nothing filed here yet. The Office says this is normal. The Office says that about everything.</span><span data-l="zh">这里还没有档案。署里说这很正常，署里什么都说正常。</span></p>
       )}
     </section>
 

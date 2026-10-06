@@ -185,7 +185,7 @@ const links = new Set(records.flatMap((r) => r.related.filter((f) => records.som
     </div>
     <ol class="wallhud__list" id="wall-list">
       {records.map((r) => (
-        <li>
+        <li data-file={r.file}>
           <a href={`${base}records/${r.slug}/`} data-file={r.file}><b>{r.file}</b> {r.title}</a>
           {r.related.length > 0 && <span> — linked to {r.related.join(', ')}</span>}
         </li>

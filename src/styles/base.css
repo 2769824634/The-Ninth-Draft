@@ -92,4 +92,4 @@ a { color: inherit; }
 }
 
 /* Island time: anything dated after today stays out of sight, whatever its display. */
-[data-island-date][hidden], [data-island-until][hidden] { display: none !important; }
+[data-island-date][hidden], [data-island-until][hidden], [data-island-empty][hidden] { display: none !important; }
