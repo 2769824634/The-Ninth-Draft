@@ -639,3 +639,48 @@ export function corkTexture() {
   g.fillRect(300, 210, 120, 90);
   return tex(c);
 }
+
+/** The screen's cloth: matt white with a fine weave, a black border down the sides and along the bottom. */
+export function screenTexture() {
+  const W = 768, H = 572;
+  const [c, g] = canvas(W, H);
+  g.fillStyle = '#f2f0ea';
+  g.fillRect(0, 0, W, H);
+  g.globalAlpha = 0.05;
+  for (let y = 0; y < H; y += 2) {
+    g.fillStyle = y % 4 ? '#000' : '#fff';
+    g.fillRect(0, y, W, 1);
+  }
+  for (let x = 0; x < W; x += 3) {
+    g.fillStyle = '#000';
+    g.fillRect(x, 0, 1, H);
+  }
+  g.globalAlpha = 1;
+  g.fillStyle = '#141312';
+  const b = Math.round(W * 0.03);
+  g.fillRect(0, 0, b, H);
+  g.fillRect(W - b, 0, b, H);
+  g.fillRect(0, H - b * 1.4, W, b * 1.4);
+  // the top, where it comes off the roller, is a little greyer
+  const top = g.createLinearGradient(0, 0, 0, 60);
+  top.addColorStop(0, 'rgba(60,55,45,.25)');
+  top.addColorStop(1, 'rgba(60,55,45,0)');
+  g.fillStyle = top;
+  g.fillRect(0, 0, W, 60);
+  return tex(c);
+}
+
+/** The lid of a yellow slide box, its label written on. */
+export function slideBoxTexture() {
+  const [c, g] = canvas(256, 180);
+  g.fillStyle = '#d9a62e';
+  g.fillRect(0, 0, 256, 180);
+  g.fillStyle = '#efe7d2';
+  g.fillRect(28, 40, 200, 100);
+  g.fillStyle = '#1d1b17';
+  g.font = `600 18px ${MONO}`;
+  g.fillText('SLIDES · 36', 42, 70);
+  g.font = `italic 400 24px ${SERIF}`;
+  g.fillText('Survey, 1999', 42, 112);
+  return tex(c);
+}

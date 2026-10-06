@@ -17,6 +17,8 @@ import { Deck } from './deck';
 import type { Well } from './cassettes';
 import type { TapeData } from '../../lib/tapes';
 import { INK, clearanceKey } from '../clearance';
+import { SlideShow } from './show';
+import { buildSlides, caption, preload, type SlideFile } from './slides';
 import { OfficeScene, ZONES, type Zone } from './scene';
 import lines from '../../data/archivist.json';
 
@@ -32,7 +34,7 @@ const PROGRAMS: { id: Program; key: string; en: string; zh: string }[] = [
 const ZONE_NAME: Record<Zone, L> = {
   overview: { en: 'The whole room', zh: '整间办公室' },
   desk: { en: 'The desk and the computer', zh: '办公桌和电脑' },
-  sofa: { en: 'The sofa', zh: '沙发' },
+  sofa: { en: 'The sofa and the projector', zh: '沙发和放映机' },
   wall: { en: 'Notice board and calendar', zh: '告示板和挂历' },
   deck: { en: 'The cassette deck', zh: '磁带机' },
 };
@@ -44,7 +46,7 @@ const SHELVES: { kind: TapeData['kind'][]; en: string; zh: string }[] = [
 
 export function office() {
   const $ = (id: string) => document.getElementById(id)!;
-  const data = JSON.parse($('of-data').textContent || '{}') as MachineData & { base: string; notices: { file: string; slug: string; title: L; date?: string; stamp: string; category: string }[]; tapes: TapeData[] };
+  const data = JSON.parse($('of-data').textContent || '{}') as MachineData & { base: string; notices: { file: string; slug: string; title: L; date?: string; stamp: string; category: string }[]; tapes: TapeData[]; slides: SlideFile[] };
   const root = $('of');
   const base = data.base;
   const voice = new Archivist(lines as unknown as ArchivistLines, 'office.idle');
@@ -124,6 +126,7 @@ export function office() {
     };
     if (zone === 'desk') for (const p of PROGRAMS) item(p.key, T(p), () => show(p.id));
     else if (zone === 'deck') drawDeck(item);
+    else if (zone === 'sofa') drawShow(item);
     else if (zone === 'wall') {
       for (const n of data.notices) item(n.file, T(n.title), () => (location.href = `${base}records/${n.slug}/`));
       item('⌚', isZh() ? '墙上的钟：换一个区' : 'The clock: another district', cycleClock);
@@ -132,6 +135,7 @@ export function office() {
   const setZone = (z: Zone) => {
     if (z !== 'deck' && held) putBack();
     zone = z;
+    if (scene) scene.lightsDown = z === 'sofa';
     root.dataset.zone = z;
     drawList();
     audio.tick();
@@ -330,6 +334,55 @@ export function office() {
     },
   };
 
+  /* ---------------- the slide projector ---------------- */
+  const slideshow = new SlideShow(buildSlides(data.slides), () => scene?.room.projector, (on) => {
+    if (scene) scene.lampOn = on;
+  });
+  preload(data.slides, () => slideshow.redraw());
+  const fileOfSlide = () => {
+    const s = slideshow.slides[slideshow.index];
+    return s.kind === 'cover' || s.kind === 'photo' ? s.f : null;
+  };
+  const showHere = () => {
+    if (zone !== 'sofa') return;
+    const n = `${String(slideshow.index + 1).padStart(2, '0')} / ${String(slideshow.slides.length).padStart(2, '0')}`;
+    $('of-here').textContent = `${isZh() ? '幻灯片' : 'Slide'} ${n} · ${caption(slideshow.slides[slideshow.index], isZh())}`;
+  };
+  function drawShow(item: (mark: string, label: string, on: () => void) => void) {
+    const li = document.createElement('li');
+    li.className = 'of-deck of-show is-active';
+    const z = isZh();
+    li.append(
+      btn('⏻', slideshow.on ? (z ? '关灯' : 'Lamp off') : z ? '开灯' : 'Lamp on', () => {
+        audio.unlock();
+        slideshow.power();
+        voice.say(slideshow.on ? 'office.projector-on' : 'office.projector-off', {}, false);
+      }, { cls: slideshow.on ? 'is-lit' : '' }),
+      btn('◀', z ? '上一张' : 'Back', () => slideshow.prev(), { off: slideshow.index === 0 }),
+      btn('▶', z ? '下一张' : 'Next', () => slideshow.next(), { off: slideshow.index >= slideshow.slides.length - 1 }),
+      btn(slideshow.auto ? 'Ⅱ' : '⟳', slideshow.auto ? (z ? '停' : 'Stop') : z ? '自动' : 'Auto', () => slideshow.toggleAuto(), { cls: slideshow.auto ? 'is-lit' : '' }),
+    );
+    listEl.append(li);
+    const f = fileOfSlide();
+    if (f) item('→', z ? `打开档案 ${f.file}` : `Open file ${f.file}`, () => (location.href = `${base}records/${f.slug}/`));
+    const h = document.createElement('li');
+    h.className = 'of-shelf micro';
+    h.textContent = z ? '托盘' : 'The tray';
+    listEl.append(h);
+    slideshow.slides.forEach((s, i) => {
+      item(String(i + 1).padStart(2, '0'), caption(s, z), () => slideshow.go(i));
+      const b = listEl.lastElementChild!.querySelector('button')!;
+      if (s.kind === 'cover' || s.kind === 'photo') b.style.setProperty('--cloth', INK[clearanceKey(s.f.stamp)]);
+      b.classList.toggle('is-on', i === slideshow.index);
+      if (s.kind === 'district' || s.kind === 'title' || s.kind === 'end') b.classList.add('is-gap');
+    });
+    showHere();
+    // keep the current slide in view in the list
+    listEl.querySelector('button.is-on')?.scrollIntoView({ block: 'nearest' });
+  }
+  slideshow.onChange = () => zone === 'sofa' && drawList();
+  slideshow.onEnd = () => voice.say('office.projector-end', {}, false);
+
   /* ---------------- the clock on the wall ---------------- */
   let clockAt = 0;
   function cycleClock() {
@@ -370,6 +423,13 @@ export function office() {
     if (e.key === 'Enter' && held && !(e.target instanceof HTMLButtonElement)) return confirm(freeWell());
     if (e.target instanceof HTMLInputElement) return;
     if (/^[0-4]$/.test(e.key)) scene?.goZone(ZONES[Number(e.key)]);
+    else if (zone === 'sofa' && (e.key === 'ArrowRight' || e.key === 'ArrowLeft' || (e.key === ' ' && !(e.target instanceof HTMLButtonElement)))) {
+      e.preventDefault();
+      audio.unlock();
+      if (!slideshow.on) slideshow.power(true);
+      else if (e.key === 'ArrowLeft') slideshow.prev();
+      else slideshow.next();
+    }
     else if (e.key === ' ' && zone === 'deck' && !(e.target instanceof HTMLButtonElement)) {
       e.preventDefault();
       press();
@@ -390,7 +450,11 @@ export function office() {
         const n = data.notices.find((x) => x.slug === k);
         call.textContent = n
           ? `${n.file} · ${T(n.title)}`
-          : k.startsWith('tape:')
+          : k === 'projector'
+            ? isZh() ? `放映机 · 点一下${slideshow.on ? '关' : '开'}灯` : `Projector · click to switch the lamp ${slideshow.on ? 'off' : 'on'}`
+            : k === 'screen'
+            ? isZh() ? '幕布 · 点一下换下一张' : 'Screen · click for the next slide'
+            : k.startsWith('tape:')
             ? (() => {
                 const t = tapeOf(k.slice(5));
                 const w = t && wellOf(t.id);
@@ -404,6 +468,16 @@ export function office() {
       notice: (slug) => (location.href = `${base}records/${slug}/`),
       clock: cycleClock,
       deck: () => press(),
+      projector: () => {
+        audio.unlock();
+        slideshow.power();
+        voice.say(slideshow.on ? 'office.projector-on' : 'office.projector-off', {}, false);
+      },
+      screen: () => {
+        audio.unlock();
+        if (!slideshow.on) slideshow.power(true);
+        else slideshow.next();
+      },
       tape: (id) => {
         const t = tapeOf(id);
         if (!t) return;
@@ -412,7 +486,9 @@ export function office() {
         if (w) press(w);
         else take(t);
       },
-    }, data.tapes.map((t) => ({ id: t.id, code: t.label, title: T(t.title), ink: inkOf(t) })));
+    }, data.tapes.map((t) => ({ id: t.id, code: t.label, title: T(t.title), ink: inkOf(t) })), slideshow.slides.length);
+    scene.room.projector.turnTo(0);
+    scene.room.projector.setDrop(0, true);
     scene.deckView = deckView;
     scene.setTheme(prefs.get('theme'));
     requestAnimationFrame(() => root.classList.add('is-lit'));
@@ -428,6 +504,7 @@ export function office() {
     labelKeys();
     drawList();
     scene?.room.shelf.relabel((id) => T(tapeOf(id)?.title ?? { en: '', zh: '' }));
+    slideshow.redraw();
   });
   root.dataset.zone = zone;
   drawList();
