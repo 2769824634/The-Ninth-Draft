@@ -12,7 +12,7 @@ import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 import { rainTexture, woodTexture } from '../library/textures';
 import {
-  calendarTexture, caseTexture, corkTexture, clockFaceTexture, corduroyTexture, deckTexture, keyboardTexture, linoTexture, mapTexture, noticeTexture, passerbyTexture, plasticTexture, rugTexture, streetTexture, wallTexture,
+  calendarTexture, caseTexture, cassetteTexture, counterTexture, hubTexture, corkTexture, clockFaceTexture, corduroyTexture, deckTexture, keyboardTexture, linoTexture, mapTexture, noticeTexture, passerbyTexture, plasticTexture, rugTexture, streetTexture, wallTexture,
 } from './textures';
 
 export const R = { x0: -3.5, x1: 3.5, z0: -2.5, z1: 2.5, h: 3.0, wall: 0.2, slab: 0.22 };
@@ -43,6 +43,17 @@ export class Room {
   readonly notices: Notice[] = [];
   readonly reels: THREE.Mesh[] = [];
   readonly hits: Record<string, THREE.Object3D> = {};
+  /** The cassette deck's moving parts. */
+  readonly deck = {
+    cassette: new THREE.Group(),
+    label: new THREE.MeshStandardMaterial({ color: '#2a2826', roughness: 0.4 }),
+    hubs: [] as THREE.Mesh[],
+    needles: [] as THREE.Mesh[],
+    counter: counterTexture(),
+    insert: 0,
+    loaded: false,
+    vu: 0,
+  };
   readonly drips: THREE.Points;
 
   private wood = new THREE.MeshStandardMaterial({ map: woodTexture(21, '#6b4a2e'), roughness: 0.5 });
@@ -412,6 +423,7 @@ export class Room {
     const face = new THREE.MeshStandardMaterial({ map: deckTexture(), roughness: 0.45, metalness: 0.3 });
     const body = new THREE.MeshStandardMaterial({ color: '#a8a59c', roughness: 0.45, metalness: 0.35 });
     this.box(0.5, 0.15, 0.3, [body, body, body, body, face, body], -0.4, 0.865, 0.02, g);
+    this.deckParts(g);
     // speakers either side
     const grille = new THREE.MeshStandardMaterial({ color: '#2a2826', roughness: 0.95 });
     for (const x of [-0.74, -0.05]) this.box(0.16, 0.26, 0.2, [this.woodDark, this.woodDark, this.woodDark, this.woodDark, grille, this.woodDark], x, 0.92, 0.04, g);
@@ -428,6 +440,71 @@ export class Room {
     tapes.castShadow = true;
     g.add(tapes);
     this.hit('deck', 1.7, 0.8, 0.7, -1.6, 0.75, R.z0 + 0.3);
+  }
+
+  /**
+   * On the deck's face (0.5 × 0.15 m, drawn 1024 × 300): a cassette that sits
+   * in well A and turns its hubs, two VU needles, and the tape counter.
+   */
+  private deckParts(g: THREE.Group) {
+    const px = (x: number, y: number): [number, number] => [-0.4 - 0.25 + (x / 1024) * 0.5, 0.865 + 0.075 - (y / 300) * 0.15];
+    const front = 0.02 + 0.15;
+    const d = this.deck;
+    const [wx, wy] = px(190, 120);
+    d.cassette.position.set(wx, wy, front);
+    d.cassette.visible = false;
+    g.add(d.cassette);
+    const shell = new THREE.MeshStandardMaterial({ color: '#2a2826', roughness: 0.4 });
+    const body = this.box(0.1, 0.064, 0.012, [shell, shell, shell, shell, d.label, shell], 0, 0, 0.006, d.cassette);
+    body.castShadow = false;
+    const hub = new THREE.MeshStandardMaterial({ map: hubTexture(), roughness: 0.5, transparent: true });
+    for (const x of [-0.021, 0.021]) {
+      const h = new THREE.Mesh(new THREE.CircleGeometry(0.0072, 24), hub);
+      h.position.set(x, -0.0008, 0.0125);
+      d.cassette.add(h);
+      d.hubs.push(h);
+    }
+    const needleMat = new THREE.MeshStandardMaterial({ color: '#1d1c1a', roughness: 0.6 });
+    for (const x of [775, 925]) {
+      const geo = new THREE.BoxGeometry(0.0011, 0.033, 0.0008);
+      geo.translate(0, 0.0165, 0);
+      const n = new THREE.Mesh(geo, needleMat);
+      const [nx, ny] = px(x, 128);
+      n.position.set(nx, ny, front + 0.001);
+      n.rotation.z = 0.62;
+      g.add(n);
+      d.needles.push(n);
+    }
+    const counter = new THREE.Mesh(new THREE.PlaneGeometry(0.044, 0.0165), new THREE.MeshBasicMaterial({ map: d.counter.tex }));
+    const [cx, cy] = px(755, 197);
+    counter.position.set(cx, cy, front + 0.0006);
+    g.add(counter);
+  }
+
+  /** Put a cassette in well A (or take it out, with null). */
+  setCassette(tape: { code: string; title: string; ink: string } | null) {
+    const d = this.deck;
+    d.loaded = !!tape;
+    if (!tape) return;
+    d.label.map?.dispose();
+    d.label.map = cassetteTexture(tape.code, tape.title, tape.ink);
+    d.label.color.set('#ffffff');
+    d.label.needsUpdate = true;
+    d.insert = 0;
+  }
+
+  /** Per frame: hubs turn at `spin` rad/s, needles follow `level` (0..1). */
+  deckTick(dt: number, spin: number, level: number, counter: number) {
+    const d = this.deck;
+    d.insert += ((d.loaded ? 1 : 0) - d.insert) * Math.min(1, dt * (d.loaded ? 7 : 10));
+    d.cassette.visible = d.insert > 0.02;
+    d.cassette.position.z = 0.17 + (1 - d.insert) * 0.06;
+    d.cassette.rotation.x = -(1 - d.insert) * 0.6;
+    for (const h of d.hubs) h.rotation.z += spin * dt;
+    // fast up, slow down, like a real meter
+    d.vu += (level - d.vu) * Math.min(1, dt * (level > d.vu ? 18 : 4));
+    d.needles.forEach((n, i) => (n.rotation.z = 0.62 - Math.min(1.25, d.vu * (i ? 1.18 : 1.24) * 1.25)));
+    d.counter.draw(counter);
   }
 
   /* ---------------- walls: board, calendar, map, clock ---------------- */

@@ -250,15 +250,119 @@ export function deckTexture() {
     g.fillText(`VU ${l}`, x + 6, 112);
   }
   g.fillStyle = '#2b2a28';
-  g.font = `700 20px ${COND}`;
-  g.fillText('RO-DS STEREO CASSETTE DECK', 710, 160);
+  g.font = `700 17px ${COND}`;
+  g.fillText('RO-DS STEREO CASSETTE DECK', 710, 160, 290);
   // counter
   g.fillStyle = '#111';
   g.fillRect(710, 180, 90, 34);
-  g.fillStyle = '#e8e2d2';
-  g.font = `500 24px ${MONO}`;
-  g.fillText('000', 724, 206);
   return tex(c);
+}
+
+/** A cassette seen from the front: shell, the label with its code and title, the window. */
+export function cassetteTexture(code: string, title: string, ink: string) {
+  const W = 512, H = 328;
+  const [c, g] = canvas(W, H);
+  g.fillStyle = '#2a2826';
+  g.fillRect(0, 0, W, H);
+  // label
+  g.fillStyle = '#ece4cf';
+  g.fillRect(22, 20, W - 44, 220);
+  g.fillStyle = ink;
+  g.fillRect(22, 20, W - 44, 18);
+  g.fillRect(22, 222, W - 44, 18);
+  g.fillStyle = '#1d1b17';
+  g.font = `600 30px ${MONO}`;
+  g.fillText(code, 40, 76);
+  g.font = `600 18px ${MONO}`;
+  g.textAlign = 'right';
+  g.fillText('A', W - 40, 74);
+  g.textAlign = 'left';
+  g.font = `italic 400 30px ${SERIF}`;
+  let t = title;
+  while (g.measureText(t).width > W - 90 && t.length > 2) t = t.slice(0, -2) + '…';
+  g.fillText(t, 40, 112);
+  // ruled lines for the hand
+  g.strokeStyle = 'rgba(29,27,23,.22)';
+  g.lineWidth = 1;
+  for (const y of [84, 120]) {
+    g.beginPath();
+    g.moveTo(36, y);
+    g.lineTo(W - 36, y);
+    g.stroke();
+  }
+  // window, with the tape pack and the hub holes
+  g.fillStyle = '#3a2c22';
+  g.fillRect(110, 128, W - 220, 88);
+  g.fillStyle = '#5a3c26';
+  g.beginPath();
+  g.arc(W * 0.29, 168, 52, 0, Math.PI * 2);
+  g.arc(W * 0.71, 168, 40, 0, Math.PI * 2);
+  g.fill();
+  g.fillStyle = 'rgba(255,255,255,.08)';
+  g.fillRect(110, 128, W - 220, 22);
+  // the bottom ridge and its screws
+  g.fillStyle = '#211f1d';
+  g.beginPath();
+  g.moveTo(80, H);
+  g.lineTo(110, 262);
+  g.lineTo(W - 110, 262);
+  g.lineTo(W - 80, H);
+  g.fill();
+  g.fillStyle = '#8d9091';
+  for (const [x, y] of [[16, 16], [W - 16, 16], [16, H - 16], [W - 16, H - 16], [W / 2, 290]]) {
+    g.beginPath();
+    g.arc(x, y, 6, 0, Math.PI * 2);
+    g.fill();
+  }
+  return tex(c);
+}
+
+/** The white hub a reel turns on, with its six teeth. */
+export function hubTexture() {
+  const S = 128;
+  const [c, g] = canvas(S, S);
+  g.fillStyle = '#e9e5da';
+  g.beginPath();
+  g.arc(S / 2, S / 2, S / 2 - 2, 0, Math.PI * 2);
+  g.fill();
+  g.fillStyle = '#2a2826';
+  g.beginPath();
+  g.arc(S / 2, S / 2, S * 0.28, 0, Math.PI * 2);
+  g.fill();
+  g.fillStyle = '#e9e5da';
+  for (let i = 0; i < 6; i++) {
+    const a = (i / 6) * Math.PI * 2;
+    g.save();
+    g.translate(S / 2, S / 2);
+    g.rotate(a);
+    g.fillRect(-5, -S * 0.3, 10, 16);
+    g.restore();
+  }
+  return tex(c);
+}
+
+/** The three-digit tape counter; redraws itself when the number changes. */
+export function counterTexture() {
+  const [c, g] = canvas(128, 48);
+  const t = tex(c);
+  let last = -1;
+  const draw = (n: number) => {
+    if (n === last) return;
+    last = n;
+    g.fillStyle = '#111';
+    g.fillRect(0, 0, 128, 48);
+    g.font = `500 34px ${MONO}`;
+    g.textBaseline = 'middle';
+    String(n).padStart(3, '0').split('').forEach((d, i) => {
+      g.fillStyle = '#1e1d1b';
+      g.fillRect(10 + i * 38, 4, 32, 40);
+      g.fillStyle = '#e8e2d2';
+      g.fillText(d, 16 + i * 38, 26);
+    });
+    t.needsUpdate = true;
+  };
+  draw(0);
+  return { tex: t, draw };
 }
 
 /** Wall calendar for the current month of 1999, today circled. */

@@ -31,6 +31,11 @@ const records = defineCollection({
     /** Image path inside /public, e.g. "records/p-0001.jpg". */
     image: z.string().optional(),
     imageCaption: z.string().optional(),
+    /**
+     * Optional recording inside /public, e.g. "tapes/e-0004.mp3". The file's
+     * cassette in the office plays it instead of the synthetic reading.
+     */
+    audio: z.string().optional(),
     /** Extra label/value rows on the dossier. */
     fields: z.array(z.object({ label: z.string(), value: z.string() })).default([]),
     /** One-paragraph abstract (Overview tab). Body markdown goes to the Record tab. */

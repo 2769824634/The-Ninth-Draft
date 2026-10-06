@@ -165,6 +165,15 @@ function scheduleStation() {
   stationTimer = window.setTimeout(numbersStation, 80000 + Math.random() * 70000);
 }
 
+/**
+ * The context and a bus of their own for players that schedule their own
+ * sound (the office's cassette deck). Same master switch as everything else.
+ */
+export function audioOut(): { ctx: AudioContext; bus: GainNode; noise: AudioBuffer } | null {
+  if (!ensure() || !ctx) return null;
+  return { ctx, bus: sfxBus, noise: noiseBuf };
+}
+
 export const audio = {
   /** Must be called from a user gesture. */
   unlock() {

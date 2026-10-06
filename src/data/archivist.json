@@ -326,6 +326,24 @@
       "Someone's just walked past the window. Wet shoes.",
       "The desk lamp buzzes when it rains. It's raining.",
       "That plant's older than the computer. It's in better shape."
+    ],
+    "deck": [
+      "The deck's older than the computer. Press play firmly; in the wet season the key sticks.",
+      "Heuss tapes everything: music, files, himself. The cassettes are in the rack on the right."
+    ],
+    "tape-music": [
+      "{tape}. Nobody knows who made this one. It came in a box of RO-7 forms.",
+      "{tape}. It's been played so often the start has gone thin."
+    ],
+    "tape-record": [
+      "{tape}. The machine reads it out. No expression, same as the paper.",
+      "{tape}. The black bars come out as a beep. Same as the paper, only louder."
+    ],
+    "tape-dictation": [
+      "That's Heuss. He dictates everything and types none of it."
+    ],
+    "tape-file": [
+      "{tape}. Somebody brought this one in. The label's in pencil."
     ]
   }
 }
