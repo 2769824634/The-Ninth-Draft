@@ -6,7 +6,7 @@ import { audio } from './audio';
 import { isZh, markDocument, onLang, setLang, t, translateDom } from './i18n';
 import { prefs, reducedMotion } from './prefs';
 import { fileNo, loadVisitor } from './visitor/store';
-import { hms, islandDateLabel, islandNow, visitorClock } from './island';
+import { hideFuture, hms, islandDateLabel, islandNow, visitorClock } from './island';
 
 export function flat(relang?: () => void) {
   const root = document.querySelector<HTMLElement>('.flat')!;
@@ -62,6 +62,7 @@ export function flat(relang?: () => void) {
   };
   tick();
   window.setInterval(tick, 15000);
+  hideFuture();
   onLang(tick);
 
   const title = document.title;

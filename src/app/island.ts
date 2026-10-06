@@ -49,6 +49,22 @@ export function islandIso(at = Date.now()): string {
   return `1999-${String(t.month + 1).padStart(2, '0')}-${String(t.day).padStart(2, '0')}`;
 }
 
+/**
+ * Nothing dated after today on the island is shown yet: elements carrying
+ * data-island-date="YYYY-MM-DD" stay hidden until that day comes round, and
+ * data-island-until="YYYY-MM-DD" marks the stand-in shown until then.
+ */
+export function hideFuture(root: ParentNode = document) {
+  const today = islandIso();
+  root.querySelectorAll<HTMLElement>('[data-island-date]').forEach((el) => (el.hidden = (el.dataset.islandDate ?? '') > today));
+  root.querySelectorAll<HTMLElement>('[data-island-until]').forEach((el) => (el.hidden = (el.dataset.islandUntil ?? '') <= today));
+  // Counts that would give the future away: data-island-count="<selector>" counts what is still showing.
+  root.querySelectorAll<HTMLElement>('[data-island-count]').forEach((el) => {
+    const n = [...document.querySelectorAll<HTMLElement>(el.dataset.islandCount ?? '')].filter((x) => !x.hidden).length;
+    el.textContent = String(n).padStart(2, '0');
+  });
+}
+
 /** Day on the island runs 07:00–19:00, roughly Singapore's sunrise and sunset. */
 export const islandIsNight = (at = Date.now()) => {
   const h = islandNow(at).hours;

@@ -7,7 +7,7 @@
 import type { CatDrawer, LibBay, LibBook, LibPage } from '../../lib/library';
 import type { ArchivistLines } from '../types';
 import { flat } from '../flat';
-import { islandDate } from '../island';
+import { hideFuture, islandDate, islandIso } from '../island';
 import { audio } from '../audio';
 import { isZh } from '../i18n';
 import { prefs, reducedMotion } from '../prefs';
@@ -192,7 +192,10 @@ export function library() {
       $('rd-mark').textContent = open.book.mark;
       $('rd-book').textContent = `${T(open.book.spine)} · ${T(open.book.sub)}`;
       $('rd-head').textContent = T(p.head);
-      $('rd-body').innerHTML = T(p.html);
+      $('rd-body').innerHTML = p.date && p.date > islandIso()
+        ? (isZh() ? '<p class="lib-small">这一期还没付印。</p>' : '<p class="lib-small">This issue has not gone to press yet.</p>')
+        : T(p.html);
+      hideFuture($('rd-body'));
       $('rd-no').textContent = isZh() ? `第 ${page + 1} 页 / 共 ${open.pages.length} 页` : `p. ${page + 1} / ${open.pages.length}`;
       ($('rd-prev') as HTMLButtonElement).disabled = page === 0;
       ($('rd-next') as HTMLButtonElement).disabled = page === open.pages.length - 1;

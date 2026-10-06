@@ -21,6 +21,8 @@ type L = { en: string; zh: string };
 export interface LibPage {
   head: L;
   html: L;
+  /** An issue of the Daily: not shown before its day on the island. */
+  date?: string;
 }
 
 export interface LibBook {
@@ -122,6 +124,7 @@ export function buildLibrary(records: ClientRecord[], base: string): Library {
   const issuePage = (x: Issue): LibPage => {
     const d = longDate(x.date);
     return {
+      date: x.date,
       head: { en: `No. ${x.no} · ${d.en}`, zh: `第 ${x.no} 期 · ${d.zh}` },
       html: join(
         { en: `<h4>${esc(strip(x.lead.head.en))}</h4>`, zh: `<h4>${esc(strip(x.lead.head.zh))}</h4>` },
@@ -155,8 +158,8 @@ export function buildLibrary(records: ClientRecord[], base: string): Library {
               list(set.map((x) => {
                 const dl = dayLabel(x);
                 return {
-                  en: `<li><a href="${base}daily/${x.date}/"><b>${dl.en}</b> ${esc(strip(x.lead.head.en))}</a></li>`,
-                  zh: `<li><a href="${base}daily/${x.date}/"><b>${dl.zh}</b> ${esc(strip(x.lead.head.zh))}</a></li>`,
+                  en: `<li data-island-date="${x.date}"><a href="${base}daily/${x.date}/"><b>${dl.en}</b> ${esc(strip(x.lead.head.en))}</a></li>`,
+                  zh: `<li data-island-date="${x.date}"><a href="${base}daily/${x.date}/"><b>${dl.zh}</b> ${esc(strip(x.lead.head.zh))}</a></li>`,
                 };
               })),
             )

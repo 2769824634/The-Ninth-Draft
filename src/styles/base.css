@@ -90,3 +90,6 @@ a { color: inherit; }
     animation-iteration-count: 1 !important;
   }
 }
+
+/* Island time: anything dated after today stays out of sight, whatever its display. */
+[data-island-date][hidden], [data-island-until][hidden] { display: none !important; }
