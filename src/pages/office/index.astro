@@ -3,6 +3,7 @@ import Flat from '../../layouts/Flat.astro';
 import { loadRecords } from '../../lib/records';
 import { buildMachine } from '../../lib/machine';
 import { buildTapes } from '../../lib/tapes';
+import { calendarItems } from '../../lib/calendar';
 import '../../styles/library.css';
 import '../../styles/crt.css';
 import '../../styles/office.css';
@@ -31,7 +32,9 @@ const slides = records.map((r) => ({
 }));
 // the day each record turns up, for the ones dated to a day of 1999
 const filedOn = Object.fromEntries(records.map((r) => [r.file, r.date]));
-const payload = JSON.stringify({ ...data, base, notices, tapes, slides, filedOn }).replace(/</g, '\\u003c');
+// every dated thing of 1999, for the wall calendar
+const calendar = calendarItems(records);
+const payload = JSON.stringify({ ...data, base, notices, tapes, slides, filedOn, calendar }).replace(/</g, '\\u003c');
 const zones = [
   { id: 'overview', en: 'The whole room', zh: '整间办公室' },
   { id: 'desk', en: 'Desk and computer', zh: '办公桌和电脑' },
@@ -59,6 +62,8 @@ const zones = [
     </div>
 
     <p class="lib__callout micro" id="of-callout" aria-hidden="true" data-no-i18n></p>
+
+    <aside class="of-day" id="of-day" hidden aria-label="Slip" data-no-i18n></aside>
 
     <div class="lib__foot">
       <p class="voice" id="voice" aria-live="polite"><span class="voice__who"><i></i>Archivist</span><span class="voice__line" id="voice-line"></span></p>

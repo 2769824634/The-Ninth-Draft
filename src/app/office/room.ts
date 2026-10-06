@@ -14,8 +14,9 @@ import { rainTexture, woodTexture } from '../library/textures';
 import { TapeShelf, type ShelfTape, type Well } from './cassettes';
 import { Projector } from './projector';
 import { TrayCrate, type TrayInfo } from './trays';
+import { WallCalendar } from './calendar';
 import {
-  calendarTexture, caseTexture, counterTexture, corkTexture, clockFaceTexture, corduroyTexture, deckTexture, screenTexture, slideBoxTexture, keyboardTexture, linoTexture, mapTexture, noticeTexture, passerbyTexture, plasticTexture, rugTexture, streetTexture, wallTexture,
+  caseTexture, counterTexture, corkTexture, clockFaceTexture, corduroyTexture, deckTexture, screenTexture, slideBoxTexture, keyboardTexture, linoTexture, mapTexture, noticeTexture, passerbyTexture, plasticTexture, rugTexture, streetTexture, wallTexture,
 } from './textures';
 
 export const R = { x0: -3.5, x1: 3.5, z0: -2.5, z1: 2.5, h: 3.0, wall: 0.2, slab: 0.22 };
@@ -53,6 +54,7 @@ export class Room {
   screenMat!: THREE.MeshStandardMaterial;
   readonly clock = { hour: new THREE.Mesh(), minute: new THREE.Mesh(), second: new THREE.Mesh(), face: null as unknown as THREE.MeshStandardMaterial, group: new THREE.Group() };
   readonly notices: Notice[] = [];
+  readonly calendar: WallCalendar;
   readonly reels: THREE.Mesh[] = [];
   readonly hits: Record<string, THREE.Object3D> = {};
   /** The cassette deck's moving parts, and the rack of tapes beside it. */
@@ -76,6 +78,7 @@ export class Room {
   private poche = new THREE.MeshStandardMaterial({ color: '#2b2723', roughness: 0.9 });
 
   constructor(records: { file: string; slug: string; title: string; date?: string; stamp: string; category: string }[], private tapes: ShelfTape[] = [], private reduce = false, private trays: TrayInfo[] = [], private zh = false) {
+    this.calendar = new WallCalendar(zh, reduce);
     this.shell();
     this.window();
     this.desk();
@@ -566,12 +569,12 @@ export class Room {
       this.group.add(card);
       this.notices.push({ mesh: card, file: r.file, slug: r.slug });
     });
-    // calendar, between the board and the screen
-    const cal = new THREE.Mesh(new THREE.PlaneGeometry(0.36, 0.49), new THREE.MeshStandardMaterial({ map: calendarTexture(), roughness: 0.9 }));
+    // the Office's calendar on its nail, between the board and the screen
+    const cal = this.calendar.group;
     cal.rotation.y = Math.PI / 2;
-    cal.position.set(x + 0.012, 1.55, -0.34);
-    cal.castShadow = cal.receiveShadow = true;
+    cal.position.set(x + 0.012, 1.58, -0.34);
     this.group.add(cal);
+    this.hits.calendar = this.calendar.face;
     this.hit('wall', 0.4, 1.4, 4.6, x + 0.2, 1.6, 0.2);
 
     // framed island map above the sideboard
