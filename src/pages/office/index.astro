@@ -1,0 +1,60 @@
+---
+import Flat from '../../layouts/Flat.astro';
+import { loadRecords } from '../../lib/records';
+import { buildMachine } from '../../lib/machine';
+import '../../styles/library.css';
+import '../../styles/crt.css';
+import '../../styles/office.css';
+
+const base = import.meta.env.BASE_URL;
+const records = await loadRecords(base);
+const data = buildMachine(records);
+// the latest backflow events, for the notice board
+const notices = records
+  .filter((r) => r.category === 'events')
+  .slice(-5)
+  .map((r) => ({ file: r.file, slug: r.slug, title: { en: r.title, zh: r.zh?.title ?? r.title }, date: r.date, stamp: r.stamp, category: r.category }));
+const payload = JSON.stringify({ ...data, base, notices }).replace(/</g, '\\u003c');
+const zones = [
+  { id: 'overview', en: 'The whole room', zh: '整间办公室' },
+  { id: 'desk', en: 'Desk and computer', zh: '办公桌和电脑' },
+  { id: 'sofa', en: 'Sofa', zh: '沙发' },
+  { id: 'wall', en: 'Notice board', zh: '告示板' },
+];
+---
+
+<Flat title="Office — The Ninth Draft" description="The Data Section office in the basement: the desk and its computer, the sofa, the notice board." page="office">
+  <div class="of" id="of" data-zone="overview">
+    <canvas class="of__canvas" id="of-canvas" aria-hidden="true"></canvas>
+
+    <div class="lib__head">
+      <p class="lib__kicker micro"><span data-l="en">Room 04 / Basement · Data Section</span><span data-l="zh">04 室 / 地下一层 · 数据组</span></p>
+      <h1 class="lib__title"><span data-l="en">Office</span><span data-l="zh">办公室</span></h1>
+      <p class="lib__stats micro"><span data-l="en">{data.log.length} revisions logged · {data.files.length} files · one computer</span><span data-l="zh">修订 {data.log.length} 条 · 档案 {data.files.length} 份 · 电脑一台</span></p>
+      <nav class="lib__zones" id="of-zones" aria-label="Corners of the room">
+        {zones.map((z, i) => (
+          <button type="button" data-zone={z.id} aria-pressed={i === 0 ? 'true' : 'false'}><i>{String(i).padStart(2, '0')}</i><span data-l="en">{z.en}</span><span data-l="zh">{z.zh}</span></button>
+        ))}
+      </nav>
+      <p class="lib__here micro" id="of-here" data-no-i18n></p>
+      <ol class="lib__list" id="of-list" data-no-i18n></ol>
+    </div>
+
+    <p class="lib__callout micro" id="of-callout" aria-hidden="true" data-no-i18n></p>
+
+    <div class="lib__foot">
+      <p class="voice" id="voice" aria-live="polite"><span class="voice__who"><i></i>Archivist</span><span class="voice__line" id="voice-line"></span></p>
+      <p class="lib__hints micro">
+        <span data-l="en">0–3 corners · F1–F5 programs · Esc back</span>
+        <span data-l="zh">0–3 切换区域 · F1–F5 切换程序 · Esc 返回</span>
+      </p>
+    </div>
+  </div>
+
+  <script type="application/json" id="of-data" set:html={payload} />
+</Flat>
+
+<script>
+  import { office } from '../../app/office/main';
+  office();
+</script>

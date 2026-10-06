@@ -3,7 +3,7 @@
  * The one page navigation, shared by the archive room and every flat page,
  * so the site reads as one building with the same signs in every corridor.
  */
-export type NavId = 'archive' | 'links' | 'library' | 'machine' | 'map' | 'calendar' | 'daily' | 'guide';
+export type NavId = 'archive' | 'links' | 'library' | 'office' | 'map' | 'calendar' | 'daily' | 'guide';
 
 interface Props {
   current?: NavId | null;
@@ -14,7 +14,7 @@ const items: { id: NavId; href: string; label: string; key?: string }[] = [
   { id: 'archive', href: base, label: 'Archive' },
   { id: 'links', href: `${base}wall/`, label: 'Links', key: 'W' },
   { id: 'library', href: `${base}library/`, label: 'Library' },
-  { id: 'machine', href: `${base}machine/`, label: 'Machines' },
+  { id: 'office', href: `${base}office/`, label: 'Office' },
   { id: 'map', href: `${base}map/`, label: 'Map' },
   { id: 'calendar', href: `${base}calendar/`, label: 'Calendar' },
   { id: 'daily', href: `${base}daily/`, label: 'Daily' },
