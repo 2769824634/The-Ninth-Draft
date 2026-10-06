@@ -53,9 +53,27 @@
 .pc > .crt__scan { position: absolute; inset: 0; z-index: 3; pointer-events: none; }
 .pc .crt__in { padding: 14px 20px 6px; font-size: 14px; }
 
+/* ---------- the cassette deck: transport keys and the tape rack ---------- */
+.of .lib__list .of-deck { display: flex; gap: .3rem; margin: .1rem 0 .5rem; }
+.of .lib__list .of-deck button {
+  display: flex; align-items: center; justify-content: center; gap: .35rem;
+  flex: 1; padding: .35rem .2rem; border: 1px solid var(--ink); border-left-width: 1px;
+  font: 500 .66rem/1 var(--f-mono); letter-spacing: .06em; text-transform: uppercase;
+  transition: background 200ms var(--ease), color 200ms var(--ease);
+}
+.of .lib__list .of-deck button i { color: inherit; font-size: .7rem; }
+.of .lib__list .of-deck button:hover:not(:disabled) { padding-left: .2rem; background: var(--ink); color: var(--bg); }
+.of .lib__list .of-deck button:disabled { opacity: .35; cursor: default; }
+.of .lib__list .of-shelf { margin: .7rem 0 .2rem; color: var(--ink-3); letter-spacing: .12em; text-transform: uppercase; }
+.of .lib__list button.is-on { color: var(--ink); background: linear-gradient(90deg, color-mix(in srgb, var(--cloth) 14%, transparent), transparent); }
+.of .lib__list button.is-on span::after { content: ' ◂'; color: var(--accent); }
+
 @media (max-width: 900px) {
   .of::before { display: none; }
   .of .lib__head > :not(.lib__zones) { transition: opacity 500ms var(--ease); }
   .of:not([data-zone='overview']) .lib__head > :not(.lib__zones) { opacity: 0; pointer-events: none; }
   .of:not([data-zone='overview']) .lib__zones { position: fixed; left: 1rem; right: 1rem; top: 7.4rem; padding: .3rem .5rem; background: var(--bg); }
+  /* at the deck, the rack stays: it is the only way to pick a tape on a phone */
+  .of[data-zone='deck'] .lib__head > .lib__list { opacity: 1; pointer-events: auto; }
+  .of[data-zone='deck'] .lib__list { display: block; position: fixed; left: 1rem; right: 1rem; bottom: 3.4rem; max-height: 34vh; padding: .5rem .7rem; background: var(--bg); border-top: 2px solid var(--ink); }
 }

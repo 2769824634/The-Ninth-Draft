@@ -2,6 +2,7 @@
 import Flat from '../../layouts/Flat.astro';
 import { loadRecords } from '../../lib/records';
 import { buildMachine } from '../../lib/machine';
+import { buildTapes } from '../../lib/tapes';
 import '../../styles/library.css';
 import '../../styles/crt.css';
 import '../../styles/office.css';
@@ -14,23 +15,25 @@ const notices = records
   .filter((r) => r.category === 'events')
   .slice(-5)
   .map((r) => ({ file: r.file, slug: r.slug, title: { en: r.title, zh: r.zh?.title ?? r.title }, date: r.date, stamp: r.stamp, category: r.category }));
-const payload = JSON.stringify({ ...data, base, notices }).replace(/</g, '\\u003c');
+const tapes = buildTapes(records, base);
+const payload = JSON.stringify({ ...data, base, notices, tapes }).replace(/</g, '\\u003c');
 const zones = [
   { id: 'overview', en: 'The whole room', zh: '整间办公室' },
   { id: 'desk', en: 'Desk and computer', zh: '办公桌和电脑' },
   { id: 'sofa', en: 'Sofa', zh: '沙发' },
   { id: 'wall', en: 'Notice board', zh: '告示板' },
+  { id: 'deck', en: 'Cassette deck', zh: '磁带机' },
 ];
 ---
 
-<Flat title="Office — The Ninth Draft" description="The Data Section office in the basement: the desk and its computer, the sofa, the notice board." page="office">
+<Flat title="Office — The Ninth Draft" description="The Data Section office in the basement: the desk and its computer, the sofa, the notice board, the cassette deck." page="office">
   <div class="of" id="of" data-zone="overview">
     <canvas class="of__canvas" id="of-canvas" aria-hidden="true"></canvas>
 
     <div class="lib__head">
       <p class="lib__kicker micro"><span data-l="en">Room 04 / Basement · Data Section</span><span data-l="zh">04 室 / 地下一层 · 数据组</span></p>
       <h1 class="lib__title"><span data-l="en">Office</span><span data-l="zh">办公室</span></h1>
-      <p class="lib__stats micro"><span data-l="en">{data.log.length} revisions logged · {data.files.length} files · one computer</span><span data-l="zh">修订 {data.log.length} 条 · 档案 {data.files.length} 份 · 电脑一台</span></p>
+      <p class="lib__stats micro"><span data-l="en">{data.log.length} revisions logged · {data.files.length} files · one computer · {tapes.length} tapes</span><span data-l="zh">修订 {data.log.length} 条 · 档案 {data.files.length} 份 · 电脑一台 · 磁带 {tapes.length} 盘</span></p>
       <nav class="lib__zones" id="of-zones" aria-label="Corners of the room">
         {zones.map((z, i) => (
           <button type="button" data-zone={z.id} aria-pressed={i === 0 ? 'true' : 'false'}><i>{String(i).padStart(2, '0')}</i><span data-l="en">{z.en}</span><span data-l="zh">{z.zh}</span></button>
@@ -45,8 +48,8 @@ const zones = [
     <div class="lib__foot">
       <p class="voice" id="voice" aria-live="polite"><span class="voice__who"><i></i>Archivist</span><span class="voice__line" id="voice-line"></span></p>
       <p class="lib__hints micro">
-        <span data-l="en">0–3 corners · F1–F5 programs · Esc back</span>
-        <span data-l="zh">0–3 切换区域 · F1–F5 切换程序 · Esc 返回</span>
+        <span data-l="en">0–4 corners · F1–F5 programs · Space play / stop · Esc back</span>
+        <span data-l="zh">0–4 切换区域 · F1–F5 切换程序 · 空格 放 / 停 · Esc 返回</span>
       </p>
     </div>
   </div>

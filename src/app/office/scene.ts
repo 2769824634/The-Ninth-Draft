@@ -16,14 +16,23 @@ import { Spring, SpringV3, damp } from '../spring';
 import { reducedMotion } from '../prefs';
 import { Room, R, SCREEN, WIN } from './room';
 
-export type Zone = 'overview' | 'desk' | 'sofa' | 'wall';
-export const ZONES: Zone[] = ['overview', 'desk', 'sofa', 'wall'];
+export type Zone = 'overview' | 'desk' | 'sofa' | 'wall' | 'deck';
+export const ZONES: Zone[] = ['overview', 'desk', 'sofa', 'wall', 'deck'];
+
+/** What the cassette deck is doing, read every frame. */
+export interface DeckView {
+  spin: number;
+  level: number;
+  counter: number;
+}
 
 export interface OfficeEvents {
   zone(z: Zone): void;
   hover(label: string | null): void;
   notice(slug: string): void;
   clock(): void;
+  /** The deck itself clicked while standing at it. */
+  deck(): void;
 }
 
 interface View {
@@ -80,6 +89,7 @@ export class OfficeScene {
   private last = performance.now();
   private t0 = performance.now();
   private clockOffset = 0;
+  deckView: DeckView = { spin: 0, level: 0, counter: 0 };
 
   constructor(private host: HTMLElement, private canvas: HTMLCanvasElement, screenEl: HTMLElement, records: ConstructorParameters<typeof Room>[0], private on: OfficeEvents) {
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true, powerPreference: 'high-performance' });
@@ -155,6 +165,8 @@ export class OfficeScene {
         return { at: this.screenCentre(), dir: new THREE.Vector3(0.05, 0.08, 1).normalize(), w: SCREEN.w * 1.7, h: SCREEN.h * 1.6 };
       case 'sofa':
         return { at: new THREE.Vector3(R.x0, 1.6, 0.72), dir: new THREE.Vector3(1, 0.24, -0.04).normalize(), w: 2.5, h: 1.8 };
+      case 'deck':
+        return { at: new THREE.Vector3(-1.9, 0.9, -2.07), dir: new THREE.Vector3(0.1, 0.34, 1).normalize(), w: 0.82, h: 0.42 };
       case 'wall':
         return { at: new THREE.Vector3(R.x0, 1.55, -1.05), dir: new THREE.Vector3(1, 0.16, 0.1).normalize(), w: 2.4, h: 1.35 };
       default:
@@ -229,6 +241,8 @@ export class OfficeScene {
     r.lampShades[1].emissiveIntensity = L.night * 1.1;
     r.screenMat.emissiveIntensity = 0.15 + on * (0.5 + L.night * 0.8);
     r.tick(t, dt);
+    const dv = this.deckView;
+    r.deckTick(dt, dv.spin, dv.level, dv.counter);
     r.setClock(new Date(), this.clockOffset);
 
     // camera
@@ -267,19 +281,21 @@ export class OfficeScene {
   }
 
   /* ---------------- input ---------------- */
-  private pick(x: number, y: number): { zone?: Zone; notice?: string; clock?: boolean } | null {
+  private pick(x: number, y: number): { zone?: Zone; notice?: string; clock?: boolean; deck?: boolean } | null {
     const rect = this.canvas.getBoundingClientRect();
     this.raycaster.setFromCamera(new THREE.Vector2(((x - rect.left) / rect.width) * 2 - 1, -((y - rect.top) / rect.height) * 2 + 1), this.camera);
     const targets: THREE.Object3D[] = [];
     const hits = this.room.hits;
     if (this.zoneNow === 'wall') targets.push(...this.room.notices.map((n) => n.mesh));
     targets.push(hits.clock);
-    for (const z of ['desk', 'sofa', 'wall'] as const) if (z !== this.zoneNow) targets.push(hits[z]);
+    // the corner you stand in is not a target, except the deck: clicking it plays
+    for (const z of ['desk', 'sofa', 'wall', 'deck'] as const) if (z !== this.zoneNow || z === 'deck') targets.push(hits[z]);
     const hit = this.raycaster.intersectObjects(targets, false)[0];
     if (!hit) return null;
     const u = hit.object.userData;
     if (u.notice) return { notice: u.notice as string };
     if (u.zone === 'clock') return { clock: true };
+    if (u.zone === 'deck' && this.zoneNow === 'deck') return { deck: true };
     if (u.zone) return { zone: u.zone as Zone };
     return null;
   }
@@ -292,7 +308,7 @@ export class OfficeScene {
       this.pointer.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
       if ((e.target as HTMLElement).closest('.pc')) return;
       const p = this.pick(e.clientX, e.clientY);
-      const key = p ? p.notice ?? p.zone ?? 'clock' : '';
+      const key = p ? p.notice ?? (p.deck ? 'deck-play' : p.zone) ?? 'clock' : '';
       if (key === this.hoverKey) return;
       this.hoverKey = key;
       c.style.cursor = p ? 'pointer' : 'default';
@@ -304,6 +320,7 @@ export class OfficeScene {
       if (!p) return;
       if (p.notice) this.on.notice(p.notice);
       else if (p.clock) this.on.clock();
+      else if (p.deck) this.on.deck();
       else if (p.zone) this.goZone(p.zone);
     });
     window.addEventListener('resize', () => this.resize());

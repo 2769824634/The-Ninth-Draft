@@ -13,6 +13,9 @@ import { prefs } from '../prefs';
 import { Archivist } from '../ui/archivist';
 import { DISTRICTS } from '../visitor/districts';
 import { BackupScreen, ClockScreen, ConsoleScreen, LogScreen, YearScreen } from './programs';
+import { Deck } from './deck';
+import type { TapeData } from '../../lib/tapes';
+import { INK, clearanceKey } from '../clearance';
 import { OfficeScene, ZONES, type Zone } from './scene';
 import lines from '../../data/archivist.json';
 
@@ -30,11 +33,17 @@ const ZONE_NAME: Record<Zone, L> = {
   desk: { en: 'The desk and the computer', zh: '办公桌和电脑' },
   sofa: { en: 'The sofa', zh: '沙发' },
   wall: { en: 'Notice board and calendar', zh: '告示板和挂历' },
+  deck: { en: 'The cassette deck', zh: '磁带机' },
 };
+const SHELVES: { kind: TapeData['kind'][]; en: string; zh: string }[] = [
+  { kind: ['music'], en: 'Music', zh: '音乐' },
+  { kind: ['dictation', 'file'], en: 'Recordings', zh: '录音' },
+  { kind: ['record'], en: 'Files, read aloud', zh: '档案朗读' },
+];
 
 export function office() {
   const $ = (id: string) => document.getElementById(id)!;
-  const data = JSON.parse($('of-data').textContent || '{}') as MachineData & { base: string; notices: { file: string; slug: string; title: L; date?: string; stamp: string; category: string }[] };
+  const data = JSON.parse($('of-data').textContent || '{}') as MachineData & { base: string; notices: { file: string; slug: string; title: L; date?: string; stamp: string; category: string }[]; tapes: TapeData[] };
   const root = $('of');
   const base = data.base;
   const voice = new Archivist(lines as unknown as ArchivistLines, 'office.idle');
@@ -113,6 +122,7 @@ export function office() {
       listEl.append(li);
     };
     if (zone === 'desk') for (const p of PROGRAMS) item(p.key, T(p), () => show(p.id));
+    else if (zone === 'deck') drawDeck(item);
     else if (zone === 'wall') {
       for (const n of data.notices) item(n.file, T(n.title), () => (location.href = `${base}records/${n.slug}/`));
       item('⌚', isZh() ? '墙上的钟：换一个区' : 'The clock: another district', cycleClock);
@@ -130,6 +140,70 @@ export function office() {
     if (z !== 'overview') voice.say(`office.${z}`, {}, false);
   };
   document.querySelectorAll<HTMLButtonElement>('#of-zones button').forEach((b) => b.addEventListener('click', () => scene?.goZone(b.dataset.zone as Zone)));
+
+  /* ---------------- the cassette deck ---------------- */
+  const deck = new Deck();
+  const inkOf = (t: TapeData) => (t.kind === 'music' ? INK.conf : t.kind === 'record' ? INK[clearanceKey(t.stamp ?? '')] : INK.draft);
+  const here = () => {
+    if (zone !== 'deck') return;
+    const t = deck.tape;
+    const state = { empty: ['EMPTY', '空'], stop: ['STOP', '停'], play: ['PLAY', '放'], rew: ['REW', '倒带'], end: ['END', '完'] }[deck.mode];
+    $('of-here').textContent = t ? `${T(ZONE_NAME.deck)} · ${t.label} · ${isZh() ? state[1] : state[0]}` : `${T(ZONE_NAME.deck)} · ${isZh() ? '空着' : 'empty'}`;
+  };
+  function drawDeck(item: (mark: string, label: string, on: () => void) => void) {
+    // transport keys
+    const li = document.createElement('li');
+    li.className = 'of-deck';
+    const keys: [string, L, () => void, boolean][] = [
+      [deck.mode === 'play' ? 'Ⅱ' : '▶', deck.mode === 'play' ? { en: 'Pause', zh: '暂停' } : { en: 'Play', zh: '放' }, () => press(), !deck.tape],
+      ['◀◀', { en: 'Rewind', zh: '倒带' }, () => deck.rewind(), !deck.tape],
+      ['⏏', { en: 'Eject', zh: '退带' }, () => deck.eject(), !deck.tape],
+    ];
+    for (const [mark, label, on, off] of keys) {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.disabled = off;
+      b.innerHTML = `<i>${mark}</i><span></span>`;
+      b.querySelector('span')!.textContent = T(label);
+      b.addEventListener('click', on);
+      li.append(b);
+    }
+    listEl.append(li);
+    for (const shelf of SHELVES) {
+      const tapes = data.tapes.filter((t) => shelf.kind.includes(t.kind));
+      if (!tapes.length) continue;
+      const h = document.createElement('li');
+      h.className = 'of-shelf micro';
+      h.textContent = T(shelf);
+      listEl.append(h);
+      for (const t of tapes) {
+        item(t.label, T(t.title), () => insert(t, true));
+        const b = listEl.lastElementChild!.querySelector('button')!;
+        b.style.setProperty('--cloth', inkOf(t));
+        b.classList.toggle('is-on', deck.tape?.id === t.id);
+      }
+    }
+    here();
+  }
+  function insert(t: TapeData, autoplay: boolean): void {
+    if (deck.tape?.id === t.id) return press();
+    deck.load(t);
+    scene?.room.setCassette({ code: t.label, title: T(t.title), ink: inkOf(t) });
+    voice.say(`office.tape-${t.kind}`, { tape: T(t.title) }, false);
+    if (autoplay) window.setTimeout(() => press(true), 450);
+  }
+  function press(forcePlay = false): void {
+    audio.unlock();
+    // pressing play is asking for sound
+    if (!prefs.get('sound') && (forcePlay || deck.mode !== 'play')) document.getElementById('btn-sound')?.click();
+    if (!deck.tape) return insert(data.tapes[0], true);
+    if (forcePlay) deck.play();
+    else deck.toggle();
+  }
+  deck.onChange = () => {
+    if (!deck.tape) scene?.room.setCassette(null);
+    if (zone === 'deck') drawList();
+  };
 
   /* ---------------- the clock on the wall ---------------- */
   let clockAt = 0;
@@ -168,7 +242,11 @@ export function office() {
       return scene?.goZone('overview');
     }
     if (e.target instanceof HTMLInputElement) return;
-    if (/^[0-3]$/.test(e.key)) scene?.goZone(ZONES[Number(e.key)]);
+    if (/^[0-4]$/.test(e.key)) scene?.goZone(ZONES[Number(e.key)]);
+    else if (e.key === ' ' && zone === 'deck' && !(e.target instanceof HTMLButtonElement)) {
+      e.preventDefault();
+      press();
+    }
     else if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
       const i = ZONES.indexOf(zone) + (e.key === 'ArrowRight' ? 1 : -1);
       scene?.goZone(ZONES[(i + ZONES.length) % ZONES.length]);
@@ -183,12 +261,28 @@ export function office() {
       hover: (k) => {
         if (!k) return call.classList.remove('is-on');
         const n = data.notices.find((x) => x.slug === k);
-        call.textContent = n ? `${n.file} · ${T(n.title)}` : k === 'clock' ? (isZh() ? '挂钟 · 点一下换一个区' : 'Wall clock · click for another district') : T(ZONE_NAME[k as Zone] ?? { en: k, zh: k });
+        call.textContent = n
+          ? `${n.file} · ${T(n.title)}`
+          : k === 'deck-play'
+            ? isZh() ? '磁带机 · 点一下放 / 停' : 'Cassette deck · click to play or stop'
+            : k === 'clock' ? (isZh() ? '挂钟 · 点一下换一个区' : 'Wall clock · click for another district') : T(ZONE_NAME[k as Zone] ?? { en: k, zh: k });
         call.classList.add('is-on');
       },
       notice: (slug) => (location.href = `${base}records/${slug}/`),
       clock: cycleClock,
+      deck: () => press(),
     });
+    scene.deckView = {
+      get spin() {
+        return deck.spin;
+      },
+      get level() {
+        return deck.level;
+      },
+      get counter() {
+        return deck.counter;
+      },
+    };
     scene.setTheme(prefs.get('theme'));
     requestAnimationFrame(() => root.classList.add('is-lit'));
   } catch (err) {

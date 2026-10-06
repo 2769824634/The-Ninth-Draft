@@ -32,6 +32,8 @@ export interface ClientRecord {
   district?: string;
   image?: string;
   imageCaption?: string;
+  /** Recording for the office cassette deck (URL), when the author gave one. */
+  audio?: string;
   fields: { label: string; value: string }[];
   summary: string;
   body: string;
@@ -104,6 +106,7 @@ export async function loadRecords(base: string): Promise<ClientRecord[]> {
       district: data.district,
       image: data.image ? `${base}${data.image.replace(/^\//, '')}` : undefined,
       imageCaption: data.imageCaption,
+      audio: data.audio ? `${base}${data.audio.replace(/^\//, '')}` : undefined,
       fields: data.fields.map((f) => ({ label: esc(f.label), value: inline(f.value) })),
       summary: inline(data.summary),
       body: revise(redact(rendered?.html ?? '')),

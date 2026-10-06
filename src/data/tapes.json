@@ -1,0 +1,47 @@
+{
+  "tapes": [
+    {
+      "id": "wet-season",
+      "kind": "music",
+      "song": "wet-season",
+      "label": "MX-01",
+      "title": { "en": "Wet Season", "zh": "雨季" }
+    },
+    {
+      "id": "last-bus",
+      "kind": "music",
+      "song": "last-bus",
+      "label": "MX-02",
+      "title": { "en": "Last Bus", "zh": "末班车" }
+    },
+    {
+      "id": "year-field",
+      "kind": "music",
+      "song": "year-field",
+      "label": "MX-03",
+      "title": { "en": "Year Field", "zh": "年份字段" }
+    },
+    {
+      "id": "heuss-dictation",
+      "kind": "dictation",
+      "label": "DS-14",
+      "title": { "en": "Heuss · dictation, batch 14", "zh": "Heuss · 口述，第十四批" },
+      "lines": {
+        "en": [
+          "Data Section. Dictation. Ninth of March, ninety-nine.",
+          "Year field remediation, batch fourteen. Two hundred and six forms checked. Eleven still keep the year in two digits.",
+          "The pensions ledger wants four digits. The bus pass ledger wants two. Each says the other one is wrong.",
+          "For the file: the dehumidifier in the tape cupboard was unplugged again. Somebody needed the socket for a kettle.",
+          "Batch fifteen on Monday. End of dictation."
+        ],
+        "zh": [
+          "数据组，口述记录。九九年三月九号。",
+          "年份字段整改，第十四批。查了两百零六张表，还有十一张把年份存成两位数。",
+          "养老金台账要四位，巴士月票台账要两位，两边都说对方错。",
+          "另记一笔：磁带柜的除湿机又被拔了插头，有人要用插座烧水。",
+          "第十五批下周一做。口述完毕。"
+        ]
+      }
+    }
+  ]
+}
