@@ -15,8 +15,9 @@ import { CSS3DObject, CSS3DRenderer } from 'three/examples/jsm/renderers/CSS3DRe
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 import { Spring, SpringV3, damp } from '../spring';
 import { reducedMotion } from '../prefs';
-import { Room, R, SCREEN, WIN, DECK_DIR } from './room';
+import { Room, R, SCREEN, WIN, DECK_DIR, SOFA_DIR, TRAY_HOLD } from './room';
 import type { ShelfTape, Well } from './cassettes';
+import type { TrayInfo } from './trays';
 
 export type Zone = 'overview' | 'desk' | 'sofa' | 'wall' | 'deck';
 export const ZONES: Zone[] = ['overview', 'desk', 'sofa', 'wall', 'deck'];
@@ -40,6 +41,8 @@ export interface OfficeEvents {
   /** At the sofa: the projector, or the screen, clicked. */
   projector(): void;
   screen(): void;
+  /** A slide-tray box in the crate clicked. */
+  trayBox(id: string): void;
 }
 
 interface View {
@@ -101,11 +104,13 @@ export class OfficeScene {
   holding = false;
   /** The projector's lamp (on/off) and whether the room lights are down for it. */
   lampOn = false;
+  /** A slide box held up to be read, or a tray going onto (or off) the projector: the camera follows. */
+  trayView: 'hold' | 'load' | null = null;
   lightsDown = false;
   private lamp = 0;
   private dim = new Spring(0, 1.6);
 
-  constructor(private host: HTMLElement, private canvas: HTMLCanvasElement, screenEl: HTMLElement, records: ConstructorParameters<typeof Room>[0], private on: OfficeEvents, tapes: ShelfTape[] = [], slides = 0) {
+  constructor(private host: HTMLElement, private canvas: HTMLCanvasElement, screenEl: HTMLElement, records: ConstructorParameters<typeof Room>[0], private on: OfficeEvents, tapes: ShelfTape[] = [], trays: TrayInfo[] = [], zh = false) {
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true, powerPreference: 'high-performance' });
     this.renderer.setClearColor(0x000000, 0);
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -116,7 +121,7 @@ export class OfficeScene {
     this.scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
     pmrem.dispose();
 
-    this.room = new Room(records, tapes, reducedMotion(), slides);
+    this.room = new Room(records, tapes, reducedMotion(), trays, zh);
     this.scene.add(this.room.group);
 
     // a soft contact shadow where the model sits on the paper
@@ -179,7 +184,9 @@ export class OfficeScene {
         return { at: this.screenCentre(), dir: new THREE.Vector3(0.05, 0.08, 1).normalize(), w: SCREEN.w * 1.7, h: SCREEN.h * 1.6 };
       case 'sofa':
         // sitting down: the sofa's back at the bottom of the frame, the screen ahead
-        return { at: new THREE.Vector3(R.x0 + 1.1, 1.45, 0.74), dir: new THREE.Vector3(1, 0.26, -0.38).normalize(), w: 3.3, h: 1.95 };
+        if (this.trayView === 'hold') return { at: TRAY_HOLD.clone(), dir: SOFA_DIR.clone(), w: 0.62, h: 0.42 };
+        if (this.trayView === 'load') return { at: new THREE.Vector3(1.3, 0.62, 0.55), dir: new THREE.Vector3(-0.42, 0.8, -0.45).normalize(), w: 1.4, h: 1.15 };
+        return { at: new THREE.Vector3(R.x0 + 1.1, 1.38, 0.7), dir: SOFA_DIR.clone(), w: 3.3, h: 2.1 };
       case 'deck':
         if (this.holding) return { at: this.room.holdPoint(), dir: DECK_DIR.clone(), w: 0.3, h: 0.17 };
         return { at: new THREE.Vector3(-1.84, 0.93, -2.12), dir: DECK_DIR.clone(), w: 1.25, h: 0.5 };
@@ -282,7 +289,7 @@ export class OfficeScene {
     // the head column sits on the left: the subject sits right of it
     const look = at.clone().addScaledVector(right, portrait ? 0 : -visW * 0.12);
     // on a phone the tape rack covers the bottom of the screen: the deck sits higher
-    if (portrait) look.addScaledVector(UP, this.zoneNow === 'overview' ? -2 * dist * tan * 0.1 : this.zoneNow === 'deck' ? -2 * dist * tan * 0.24 : 0);
+    if (portrait) look.addScaledVector(UP, this.zoneNow === 'overview' ? -2 * dist * tan * 0.1 : this.zoneNow === 'deck' ? -2 * dist * tan * 0.24 : this.zoneNow === 'sofa' && this.trayView ? -2 * dist * tan * 0.1 : 0);
     const camDir = dir.clone().applyQuaternion(new THREE.Quaternion().setFromAxisAngle(UP, this.parallax.x * 0.02));
     camDir.y -= this.parallax.y * 0.012;
     this.camera.position.copy(look).addScaledVector(camDir.normalize(), dist);
@@ -303,7 +310,7 @@ export class OfficeScene {
   }
 
   /* ---------------- input ---------------- */
-  private pick(x: number, y: number): { zone?: Zone; notice?: string; clock?: boolean; deck?: boolean; tape?: string; projector?: boolean; screen?: boolean } | null {
+  private pick(x: number, y: number): { zone?: Zone; notice?: string; clock?: boolean; deck?: boolean; tape?: string; projector?: boolean; screen?: boolean; trayBox?: string } | null {
     const rect = this.canvas.getBoundingClientRect();
     this.raycaster.setFromCamera(new THREE.Vector2(((x - rect.left) / rect.width) * 2 - 1, -((y - rect.top) / rect.height) * 2 + 1), this.camera);
     const targets: THREE.Object3D[] = [];
@@ -312,13 +319,14 @@ export class OfficeScene {
     targets.push(hits.clock);
     // at the deck: the tapes, and the deck itself (play / stop)
     if (this.zoneNow === 'deck') targets.push(...this.room.shelf.meshes, hits.deckBody);
-    if (this.zoneNow === 'sofa') targets.push(hits.projector, hits.screen);
+    if (this.zoneNow === 'sofa') targets.push(...this.room.crate.meshes, hits.projector, hits.screen);
     for (const z of ['desk', 'sofa', 'wall', 'deck'] as const) if (z !== this.zoneNow) targets.push(hits[z]);
     const hit = this.raycaster.intersectObjects(targets, false)[0];
     if (!hit) return null;
     const u = hit.object.userData;
     if (u.notice) return { notice: u.notice as string };
     if (u.tape) return { tape: u.tape as string };
+    if (u.trayBox) return { trayBox: u.trayBox as string };
     if (u.zone === 'deckBody') return { deck: true };
     if (u.zone === 'projector') return { projector: true };
     if (u.zone === 'screen') return { screen: true };
@@ -335,10 +343,11 @@ export class OfficeScene {
       this.pointer.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
       if ((e.target as HTMLElement).closest('.pc')) return;
       const p = this.pick(e.clientX, e.clientY);
-      const key = p ? p.notice ?? (p.tape ? `tape:${p.tape}` : p.deck ? 'deck-play' : p.projector ? 'projector' : p.screen ? 'screen' : p.zone) ?? 'clock' : '';
+      const key = p ? p.notice ?? (p.tape ? `tape:${p.tape}` : p.trayBox ? `tray:${p.trayBox}` : p.deck ? 'deck-play' : p.projector ? 'projector' : p.screen ? 'screen' : p.zone) ?? 'clock' : '';
       if (key === this.hoverKey) return;
       this.hoverKey = key;
       this.room.shelf.setHover(p?.tape ?? null);
+      this.room.crate.setHover(p?.trayBox ?? null);
       c.style.cursor = p ? 'pointer' : 'default';
       this.on.hover(p ? key : null);
     });
@@ -351,6 +360,7 @@ export class OfficeScene {
       else if (p.clock) this.on.clock();
       else if (p.deck) this.on.deck();
       else if (p.tape) this.on.tape(p.tape);
+      else if (p.trayBox) this.on.trayBox(p.trayBox);
       else if (p.projector) this.on.projector();
       else if (p.screen) this.on.screen();
       else if (p.zone) this.goZone(p.zone);
