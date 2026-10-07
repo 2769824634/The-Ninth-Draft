@@ -11,10 +11,10 @@ import { audio } from '../audio';
 import { postText } from './mount';
 import type { Block } from './street';
 
-/** [english, chinese, kind, x, y, district number in base.json] */
-type Entry = [string, string, 'd' | 'm' | 'l' | 'p' | 'w' | 'r', number, number, number];
+/** [english, chinese, kind, x, y, district number in base.json]; a facility also has its own kind and postcode */
+type Entry = [string, string, 'd' | 'm' | 'l' | 'p' | 'w' | 'r' | 'f', number, number, number, string?, string?];
 
-export interface GoTo { x: number; y: number; scale: number; district?: string; block?: number }
+export interface GoTo { x: number; y: number; scale: number; district?: string; block?: number; fac?: string }
 
 interface Options {
   base: string;
@@ -22,9 +22,9 @@ interface Options {
   blocks: () => Promise<{ all: Block[] }>;
 }
 
-const KIND: Record<Entry[2], [string, string]> = { d: ['District', '区'], m: ['MRT', '地铁'], l: ['LRT', '轻轨'], p: ['Area', '地名'], w: ['River', '河'], r: ['', ''] };
+const KIND: Record<Entry[2], [string, string]> = { d: ['District', '区'], m: ['MRT', '地铁'], l: ['LRT', '轻轨'], p: ['Area', '地名'], w: ['River', '河'], r: ['', ''], f: ['', ''] };
 /** The scale each kind of name is shown at. */
-const SCALE: Record<Entry[2], number> = { d: 0, m: 20000, l: 20000, p: 20000, w: 20000, r: 10000 };
+const SCALE: Record<Entry[2], number> = { d: 0, m: 20000, l: 20000, p: 20000, w: 20000, r: 10000, f: 10000 };
 // the way people write streets, and the way the directory does
 const SHORT: Record<string, string> = { ave: 'avenue', st: 'street', rd: 'road', dr: 'drive', cres: 'crescent', cl: 'close', ctrl: 'central', nth: 'north', sth: 'south', bt: 'bukit', jln: 'jalan', kg: 'kampong', lor: 'lorong', upp: 'upper', ter: 'terrace', pk: 'park', tg: 'tanjong' };
 const words = (s: string) => s.toLowerCase().replace(/[^a-z0-9\u3400-\u9fff]+/g, ' ').trim().split(' ').filter(Boolean).map((w) => SHORT[w] ?? w);
@@ -36,6 +36,7 @@ export function mountGazetteer(root: HTMLElement, o: Options) {
   const head = root.querySelector<HTMLElement>('#gaz-head')!;
   const list = root.querySelector<HTMLOListElement>('#gaz-list')!;
   let index: Entry[] = [];
+  let kinds: Record<string, string[]> = {};
   let keys: string[][] = [];
   let letter = 'A';
   let blocks: Block[] | null = null;
@@ -49,9 +50,9 @@ export function mountGazetteer(root: HTMLElement, o: Options) {
 
   const row = (e: Entry, i: number) => {
     const zh = isZh();
-    const [en, cn, k, x, y, d] = e;
+    const [en, cn, k, x, y, d, fk] = e;
     const name = zh && cn ? `${esc(cn)} <small>${esc(en)}</small>` : esc(en);
-    const kind = KIND[k][zh ? 1 : 0];
+    const kind = k === 'f' ? kinds[fk!]?.[zh ? 1 : 0] ?? '' : KIND[k][zh ? 1 : 0];
     const where = k === 'd' ? '' : dName(d, zh);
     return `<li class="gaz__e is-${k}"><button type="button" data-i="${i}"><span class="gaz__n">${name}${kind ? ` <em>${kind}</em>` : ''}${where ? `<span class="gaz__d">${esc(where)}</span>` : ''}</span><span class="gaz__r">${ref(x, y)}</span></button></li>`;
   };
@@ -121,8 +122,8 @@ export function mountGazetteer(root: HTMLElement, o: Options) {
       const blk = blocks![Number(b.dataset.b)];
       return o.go({ x: blk.x, y: blk.y, scale: 5000, block: blk.i });
     }
-    const [, , k, x, y, d] = index[Number(b.dataset.i)];
-    o.go(k === 'd' ? { x, y, scale: 0, district: dIds[d] } : { x, y, scale: SCALE[k] });
+    const [en, , k, x, y, d] = index[Number(b.dataset.i)];
+    o.go(k === 'd' ? { x, y, scale: 0, district: dIds[d] } : k === 'f' ? { x, y, scale: SCALE[k], fac: en } : { x, y, scale: SCALE[k] });
   });
   abc.addEventListener('click', (e) => {
     const b = (e.target as HTMLElement).closest<HTMLButtonElement>('button[data-c]');
@@ -134,10 +135,16 @@ export function mountGazetteer(root: HTMLElement, o: Options) {
 
   // the index is fetched when the page has settled
   const open = async () => {
-    const ix = (await (await fetch(`${o.base}map/index.json`)).json()) as { districts: string[]; index: Entry[] };
+    const ix = (await (await fetch(`${o.base}map/index.json`)).json()) as { districts: string[]; index: Entry[]; kinds?: Record<string, string[]> };
     dIds.push(...ix.districts);
     index = ix.index;
-    keys = index.map((e) => words(`${e[0]} ${e[1]}`));
+    kinds = ix.kinds ?? {};
+    // a facility is also found by its kind, its district and its postcode: "Ang Mo Kio market", 「宏茂桥 巴刹」, 560713
+    keys = index.map((e) => {
+      if (e[2] !== 'f') return words(`${e[0]} ${e[1]}`);
+      const d = district(dIds[e[5]]);
+      return words(`${e[0]} ${e[1]} ${(kinds[e[6]!] ?? []).slice(0, 2).join(' ')} ${d?.en ?? ''} ${d?.zh ?? ''} ${e[7] ?? ''}`);
+    });
     letters();
     if (q.value) search();
     else page(letter);

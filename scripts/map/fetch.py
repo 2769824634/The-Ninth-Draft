@@ -4,7 +4,8 @@ Fetch the map's sources into .cache/map-src/ (not committed).
   python3 scripts/map/fetch.py
 
 - OpenStreetMap, through the Overture Maps release on AWS (base: land, water,
-  land use, infrastructure; transportation: segments; divisions: areas). Only
+  land use, infrastructure; transportation: segments; divisions: areas;
+  buildings: only the ones with a name, for the facilities layer). Only
   the row groups that touch the Singapore box are read.
 - HDB blocks with block numbers and completion years: NUS Urban Analytics Lab,
   hdb3d-data (OpenStreetMap footprints joined with HDB open data).
@@ -14,7 +15,7 @@ Needs: pyarrow. Everything derived from these is in public/map/ and is
 ODbL, (c) OpenStreetMap contributors. See scripts/map/README.md.
 """
 import os, sys, re, io, ssl, urllib.parse, urllib.request
-import numpy as np, pyarrow as pa, pyarrow.parquet as pq
+import numpy as np, pyarrow as pa, pyarrow.parquet as pq, pyarrow.compute as pc
 BASE='https://overturemaps-us-west-2.s3.us-west-2.amazonaws.com'
 REL='release/2026-09-23.1'
 BOX=(103.55,1.13,104.15,1.50)
@@ -50,7 +51,9 @@ class RF(io.RawIOBase):
     def readinto(s,buf):
         b=s.read(len(buf)); buf[:len(b)]=b; return len(b)
 
-def overture(theme, typ, out):
+def overture(theme, typ, out, columns=None, named=False):
+    # columns / named: read only some columns, keep only rows with a name
+    # (buildings: the whole island is ~1 GB, the named ones a few MB)
     if os.path.exists(out): return
     tables=[]
     for k,size in keys(f'{REL}/theme={theme}/type={typ}/'):
@@ -60,9 +63,11 @@ def overture(theme, typ, out):
         for g in range(md.num_row_groups):
             rg=md.row_group(g); st={n:rg.column(i).statistics for n,i in ix.items()}
             if not (st['xmin'].min<BOX[2] and st['xmax'].max>BOX[0] and st['ymin'].min<BOX[3] and st['ymax'].max>BOX[1]): continue
-            t=f.read_row_group(g); b=t.column('bbox').combine_chunks()
+            t=f.read_row_group(g, columns=columns); b=t.column('bbox').combine_chunks()
             m=(b.field('xmin').to_numpy()<BOX[2])&(b.field('xmax').to_numpy()>BOX[0])&(b.field('ymin').to_numpy()<BOX[3])&(b.field('ymax').to_numpy()>BOX[1])
-            if m.any(): tables.append(t.filter(pa.array(m)))
+            t=t.filter(pa.array(m))
+            if named: t=t.filter(pc.is_valid(t.column('names')))
+            if t.num_rows: tables.append(t)
     pq.write_table(pa.concat_tables(tables, promote_options='default'), out)
     print(out, flush=True)
 
@@ -78,3 +83,6 @@ if __name__=='__main__':
         if not os.path.exists(p): open(p,'wb').write(get(url)); print(p)
     for theme,typ in [('base','land'),('base','water'),('base','land_use'),('base','infrastructure'),('transportation','segment'),('divisions','division_area')]:
         overture(theme, typ, os.path.join(DIR, f'{typ}.parquet'))
+    # named buildings: markets, malls, hospitals, schools for the facilities layer
+    overture('buildings', 'building', os.path.join(DIR, 'building_named.parquet'), named=True,
+             columns=['id','geometry','names','class','subtype','height','num_floors','bbox','sources'])

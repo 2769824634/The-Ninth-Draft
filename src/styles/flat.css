@@ -608,6 +608,12 @@ textarea.f-input { font-family: var(--f-serif); font-size: 1.05rem; resize: vert
 .k-old { height: 0 !important; border-top: 1px dashed var(--accent); }
 .k-blank { height: .8rem !important; background: repeating-linear-gradient(45deg, var(--ink-3) 0 .8px, transparent .8px 6px); box-shadow: 0 0 0 1px var(--line); }
 .k-rec { width: 1.1rem !important; height: .8rem !important; box-shadow: inset 0 0 0 1.2px var(--accent); }
+.smap__key b.k-fac { flex: none; min-width: 1.8rem; padding: 0 .2rem; border: 1px solid var(--ink); background: var(--paper); color: var(--ink); font: 600 .5rem/1.35 var(--f-mono); letter-spacing: .04em; text-align: center; }
+[data-lang='zh'] .smap__key b.k-fac { font: 600 .58rem/1.25 var(--f-sans); letter-spacing: 0; }
+.smap__key b.k-fac.is-solid { background: var(--ink); color: var(--paper); }
+.smap__key b.k-fac.is-gone { border: 1px dashed var(--accent); color: var(--accent); opacity: .75; }
+.smap__card-gone { color: var(--accent); }
+.smap__card-down { color: var(--ink); }
 .dist-page__map { margin: 1.8rem 0 0; }
 .smap__card-post { font-family: var(--f-mono); font-size: .8rem; letter-spacing: .12em; color: var(--ink) !important; }
 .smap__card-rec { display: block; margin-top: .35rem; padding-top: .35rem; border-top: 1px dashed var(--line); color: var(--accent); text-decoration: none; }
