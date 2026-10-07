@@ -8,6 +8,17 @@ import { Spring, SpringV3, damp } from '../spring';
 import { reducedMotion } from '../prefs';
 import { FOLDER, Folder, fillerGeometry } from './folder';
 import { drawerLabel, MANILA, plainTexture, setMaxAnisotropy } from './textures';
+import type { ClearanceKey } from '../clearance';
+
+/** Lamp colour by clearance, warm to cold: about 2700 K up to 6500 K. */
+export const LAMP_K: Record<ClearanceKey, string> = {
+  declass: '#ffc98a',
+  draft: '#ffc98a',
+  restr: '#ffdcae',
+  conf: '#fff0dc',
+  secret: '#eef1ff',
+  top: '#d2defc',
+};
 
 const COL = 4.3; // drawer spacing on X
 const SP = 0.17; // folder spacing inside a drawer
@@ -353,9 +364,13 @@ export class Stage {
     this.folders.get(rec.file)?.setStamp(stamp);
   }
 
-  /** Tint the night lamp toward the current record's clearance colour. */
-  setClearance(hex: string) {
-    this.lampTint.set('#ffd29a').lerp(new THREE.Color(hex), 0.22);
+  /**
+   * The lamp over an open file runs colder the higher its clearance: a warm
+   * tungsten bulb for the declassified, the Office's tube light for top
+   * secret (papers at that level are read under the tube, by the rules).
+   */
+  setClearance(key: ClearanceKey) {
+    this.lampTint.set(LAMP_K[key]);
   }
 
   setTheme(theme: 'day' | 'night') {

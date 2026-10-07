@@ -371,5 +371,35 @@
     "tray-empty": [
       "No tray on. What's on the screen is just the bulb."
     ]
+  },
+  "stacks": {
+    "dark": [
+      "All four off. The exit sign still works, if you need it.",
+      "Dark in here now. The dehumidifier carries on regardless."
+    ],
+    "lights": [
+      "Switch two is the formal cabinets. Somebody labelled them, once.",
+      "The bulbs take a second to make up their minds. They're older than me."
+    ],
+    "rain": [
+      "Rain's on the louvres. The hygrometer goes up a notch for every hour of it.",
+      "Wet day. Leave your umbrella open by the door, everyone does."
+    ],
+    "tank": [
+      "Half a bucket out of the air. That's Gerimis for you.",
+      "Tank's empty again. It'll be full by tomorrow if this rain keeps up."
+    ],
+    "routine": [
+      "Routine paperwork. Bus timetables, water readings, lost umbrellas. Being shelved district by district.",
+      "That's the routine side. Nobody's pulled those drawers in years, and they're still not finished filing them."
+    ],
+    "safe": [
+      "The strong cabinet. The combination's on a card in Heuss's drawer, which is worse than no lock at all.",
+      "Top secret goes in there. You can still read it, mind. Just under the tube light, by the regulations."
+    ],
+    "push": [
+      "Mind the drawer, it sticks halfway.",
+      "Pull it out, the runners are greased. Mostly."
+    ]
   }
 }
