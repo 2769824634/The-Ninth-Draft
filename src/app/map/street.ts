@@ -43,6 +43,10 @@ export interface StreetMapOptions {
   pins?: () => Record<string, number>;
   zh: () => boolean;
   onPick?: (id: string | null) => void;
+  /** Only these districts can be picked (registration: where people live). The rest are printed paler. */
+  selectable?: (id: string) => boolean;
+  /** A tap on a district that cannot be picked. */
+  onRefuse?: (id: string) => void;
   /** What is under the pointer (or the centre): district and page reference. */
   onPoint?: (id: string | null, ref: string | null) => void;
 }
@@ -200,6 +204,8 @@ export function streetMap(o: StreetMapOptions) {
   let D: { id: string; rings: Float32Array[]; lx: number; ly: number; box: Box; path: Path2D }[] = [];
   let hdb: { pts: Float32Array; b: string; x: number; y: number; cell: number }[] = [];
   let picked: string | null = o.focus ?? null, hover: string | null = null;
+  let pendingFrame: string[] | null = null;
+  let area: Set<string> | null = null; // a region shown on its own, the rest paled
   let P = palette(document.documentElement.dataset.theme === 'night');
   let pats: Record<string, CanvasPattern> = {};
 
@@ -273,6 +279,7 @@ export function streetMap(o: StreetMapOptions) {
     });
     frame.classList.add('is-ready');
     if (o.focus) fit(o.focus, false);
+    else if (pendingFrame) frameIds(pendingFrame, false);
     draw();
     point(null);
   };
@@ -442,6 +449,16 @@ export function streetMap(o: StreetMapOptions) {
     ctx.globalAlpha = 1;
     ctx.setLineDash([]);
     const sel = D.find((d) => d.id === picked), hov = D.find((d) => d.id === hover && d.id !== picked);
+    if (area && !o.focus) {
+      // the part of the island being looked at; the rest goes pale
+      ctx.save();
+      ctx.fillStyle = P.paper; ctx.globalAlpha = 0.5;
+      const m = new Path2D();
+      m.rect(v.x0 - 10, v.y0 - 10, v.x1 - v.x0 + 20, v.y1 - v.y0 + 20);
+      for (const d of D) if (area.has(d.id)) m.addPath(d.path);
+      ctx.fill(m, 'evenodd');
+      ctx.restore();
+    }
     if (hov) { ctx.strokeStyle = P.ink; ctx.lineWidth = px(1.4); ctx.stroke(hov.path); }
     if (sel) {
       // everything outside the picked district goes pale
@@ -514,17 +531,6 @@ export function streetMap(o: StreetMapOptions) {
     };
     const F = fonts();
 
-    // page numbers in the corner of each page, as the directory prints them
-    if (fade(pagesOn * 0.9)) {
-      for (const cell of PAGES) {
-        const x = (cell % PAGE.cols) * PAGE.w, y = Math.floor(cell / PAGE.cols) * PAGE.h;
-        if (x > v.x1 || x + PAGE.w < v.x0 || y > v.y1 || y + PAGE.h < v.y0) continue;
-        const [sx, sy] = toScreen(x, y);
-        text(String(PAGES.indexOf(cell) + 1), sx + 4, sy + 12, `500 10px ${F.mono}`, P.page, { align: 'left', halo: 2.5, spacing: 0.5 });
-      }
-    }
-    ctx.globalAlpha = 1;
-
     // the visitor's district and the picked one first, then the large towns, then the rest
     const order = [...D].sort((a, b) => rank(b.id) - rank(a.id));
     const pins = o.pins?.() ?? {};
@@ -543,7 +549,8 @@ export function streetMap(o: StreetMapOptions) {
       ctx.letterSpacing = `${sp}px`;
       const nameW = ctx.measureText(name).width;
       ctx.globalAlpha = major || pins[d.id] ? 1 : ramp(s, 1.15);
-      const shown = (major || s >= 1.15) && text(name, x, y + size * 0.35, nameFont, on ? P.accent : P.label, { spacing: sp, halo: 3.5, force: on });
+      const pale = o.selectable && !o.selectable(d.id);
+      const shown = (major || s >= 1.15) && text(name, x, y + size * 0.35, nameFont, on ? P.accent : pale ? P.label2 : P.label, { spacing: sp, halo: 3.5, force: on });
       ctx.globalAlpha = 1;
       const n = pins[d.id];
       if (n) {
@@ -623,6 +630,17 @@ export function streetMap(o: StreetMapOptions) {
         if (h.x < v.x0 || h.x > v.x1 || h.y < v.y0 || h.y > v.y1 || !h.b) continue;
         const [x, y] = toScreen(h.x, h.y);
         text(h.b, x, y + 3, `600 ${s > 30 ? 11 : 9}px ${F.mono}`, P.label, { halo: 2.5 });
+      }
+    }
+    ctx.globalAlpha = 1;
+
+    // page numbers in the corner of each page, as the directory prints them (last: they give way to names)
+    if (fade(pagesOn * 0.9)) {
+      for (const cell of PAGES) {
+        const x = (cell % PAGE.cols) * PAGE.w, y = Math.floor(cell / PAGE.cols) * PAGE.h;
+        if (x > v.x1 || x + PAGE.w < v.x0 || y > v.y1 || y + PAGE.h < v.y0) continue;
+        const [sx, sy] = toScreen(x, y);
+        text(String(PAGES.indexOf(cell) + 1), sx + 4, sy + 12, `500 10px ${F.mono}`, P.page, { align: 'left', halo: 2.5, spacing: 0.5 });
       }
     }
     ctx.globalAlpha = 1;
@@ -832,17 +850,33 @@ export function streetMap(o: StreetMapOptions) {
     const [x, y] = toSheet(sx, sy);
     flyTo(x - (sx - W / 2) / s, y - (sy - H / 2) / s, s, 380);
   };
-  const fit = (id: string, animate = true) => {
-    const d = D.find((x) => x.id === id);
-    if (!d) return;
+  /** Fly to the closest printed scale a box fits on. */
+  const fitBox = (b: Box, animate = true, floor = 1) => {
     const pad = 1.2;
-    const want = Math.min(W / ((d.box.x1 - d.box.x0) * pad), H / ((d.box.y1 - d.box.y0) * pad));
-    // the closest printed scale the whole district fits on
+    area = null;
+    const want = Math.min(W / ((b.x1 - b.x0) * pad), H / ((b.y1 - b.y0) * pad));
     const ls = levels();
     const s = [...ls].reverse().find((l) => l <= want) ?? ls[0];
-    flyTo((d.box.x0 + d.box.x1) / 2, (d.box.y0 + d.box.y1) / 2, Math.max(s, ls[Math.min(1, ls.length - 1)]), animate ? 800 : 0);
+    flyTo((b.x0 + b.x1) / 2, (b.y0 + b.y1) / 2, Math.max(s, ls[Math.min(floor, ls.length - 1)]), animate ? 800 : 0);
   };
-  const reset = () => flyTo(500, 285, fitIsland());
+  const fit = (id: string, animate = true) => {
+    const d = D.find((x) => x.id === id);
+    if (d) fitBox(d.box, animate);
+  };
+  /** Fly to show a group of districts together (a region of the island). */
+  const frameIds = (ids: string[], animate = true) => {
+    const ds = D.filter((d) => ids.includes(d.id));
+    if (!ds.length) return;
+    area = new Set(ids);
+    // a region is shown whole, at whatever scale it fits; the next turn of the wheel goes back to the printed ones
+    // framed on the districts' names, with room round them: a district's far corners (Tekong, say) do not drag the view out to sea
+    const m = 32;
+    const b = { x0: Math.min(...ds.map((d) => d.lx)) - m, y0: Math.min(...ds.map((d) => d.ly)) - m, x1: Math.max(...ds.map((d) => d.lx)) + m, y1: Math.max(...ds.map((d) => d.ly)) + m };
+    const s = Math.min(W / ((b.x1 - b.x0) * 1.12), H / ((b.y1 - b.y0) * 1.12), PRINT[2]);
+    flyTo((b.x0 + b.x1) / 2, (b.y0 + b.y1) / 2, Math.max(s, fitIsland()), animate ? 800 : 0);
+  };
+
+  const reset = () => { area = null; flyTo(500, 285, fitIsland()); };
 
   // pointers: drag to move, two fingers to pinch, a tap to pick
   const ptrs = new Map<number, { x: number; y: number }>();
@@ -873,7 +907,8 @@ export function streetMap(o: StreetMapOptions) {
         lastPoint = [p.x, p.y];
         const [x, y] = toSheet(p.x, p.y);
         const id = base ? districtAt(x, y) : null;
-        if (id !== hover) { hover = id; draw(); }
+        const h = id && o.selectable && !o.selectable(id) ? null : id;
+        if (h !== hover) { hover = h; draw(); }
         point(lastPoint);
       }
       return;
@@ -914,7 +949,8 @@ export function streetMap(o: StreetMapOptions) {
     if (downAt && moved < 6 && performance.now() - downAt.t < 500) {
       const [x, y] = toSheet(p.x, p.y);
       const id = districtAt(x, y);
-      pick(id === picked && !o.focus ? null : id);
+      if (id && o.selectable && !o.selectable(id)) o.onRefuse?.(id);
+      else pick(id === picked && !o.focus && !o.selectable ? null : id);
     } else if (!reducedMotion() && performance.now() - vel.t < 80 && Math.hypot(vel.x, vel.y) > 0.15) {
       // let it glide a little
       let vx = vel.x * 16, vy = vel.y * 16;
@@ -970,7 +1006,10 @@ export function streetMap(o: StreetMapOptions) {
     picked = id;
     draw();
     o.onPick?.(id);
-    if (fly && id) fit(id);
+    if (fly && id) {
+      if (W && D.length) fit(id);
+      else pendingFrame = [id];
+    }
   };
 
   // theme and fonts
@@ -995,6 +1034,7 @@ export function streetMap(o: StreetMapOptions) {
     if (first) {
       view.s = fitIsland();
       if (o.focus && D.length) fit(o.focus, false);
+      else if (pendingFrame && D.length) frameIds(pendingFrame, false);
     }
   }).observe(frame);
 
@@ -1004,6 +1044,8 @@ export function streetMap(o: StreetMapOptions) {
   return {
     /** Pick a district (or none) and, if asked, fly to it. */
     pick: (id: string | null, fly = true) => pick(id, fly),
+    /** Show these districts together, at the closest printed scale they fit on. */
+    frame: (ids: string[]) => (D.length && W ? frameIds(ids) : (pendingFrame = ids)),
     /** One printed scale in (1) or out (-1). */
     step: (dir: number) => step(dir),
     /** The plate's nominal scale, "1 : 50 000". */

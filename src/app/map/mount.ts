@@ -16,6 +16,11 @@ export interface MountOptions {
   onPick?: (id: string | null) => void;
   /** Idle text for the corner when the pointer is off the map. */
   idle?: () => string;
+  /** No card on the sheet when a district is picked (the page says it elsewhere). */
+  card?: boolean;
+  /** Only these districts can be picked; a tap on another calls onRefuse. */
+  selectable?: (id: string) => boolean;
+  onRefuse?: (id: string) => void;
 }
 
 /** "112 C3" as the directory prints it. */
@@ -45,7 +50,7 @@ export function mountStreetMap(root: HTMLElement, opt: MountOptions) {
   const showCard = (id: string | null) => {
     current = id;
     const d = id ? district(id) : undefined;
-    if (!d || id === focus) {
+    if (!d || id === focus || opt.card === false) {
       card.hidden = true;
       return;
     }
@@ -80,6 +85,8 @@ export function mountStreetMap(root: HTMLElement, opt: MountOptions) {
       opt.onPick?.(id);
     },
     onPoint: corner,
+    selectable: opt.selectable,
+    onRefuse: opt.onRefuse,
   });
 
   root.querySelectorAll<HTMLButtonElement>('[data-z]').forEach((b) =>
@@ -95,7 +102,8 @@ export function mountStreetMap(root: HTMLElement, opt: MountOptions) {
 
   return {
     map,
-    pick: (id: string | null) => map.pick(id, true),
+    pick: (id: string | null, fly = true) => map.pick(id, fly),
+    frame: (ids: string[]) => map.frame(ids),
     /** After the language changes. */
     relang: () => {
       showCard(current === focus ? null : current);

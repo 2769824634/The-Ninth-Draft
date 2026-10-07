@@ -405,9 +405,13 @@ def merged(items, tol):
     return out
 
 
+blank_sheet = to_sheet(blank_deg).buffer(0)
 districts_out = []
 for d, g in district_s.items():
-    lp = shapely.ops.polylabel(max(polys(g), key=lambda p: p.area), tolerance=0.5)
+    # the name goes on the part of the district that was surveyed, if there is one (Ubin, not Tekong)
+    seen = g.difference(blank_sheet) if d not in UNSURVEYED else g
+    parts = polys(seen) if not seen.is_empty and seen.area > g.area * 0.05 else polys(g)
+    lp = shapely.ops.polylabel(max(parts, key=lambda p: p.area), tolerance=0.5)
     districts_out.append({'id': d, 'r': enc_polys(district_deg[d], 0.25), 'lx': r1(lp.x), 'ly': r1(lp.y)})
 
 base = {

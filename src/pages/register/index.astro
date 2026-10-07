@@ -1,6 +1,6 @@
 ---
 import Flat from '../../layouts/Flat.astro';
-import IslandMap from '../../components/IslandMap.astro';
+import StreetMap from '../../components/StreetMap.astro';
 import { REGIONS, RESIDENTIAL } from '../../app/visitor/districts';
 
 const base = import.meta.env.BASE_URL;
@@ -40,11 +40,17 @@ const arrow = '<svg viewBox="0 0 24 12" aria-hidden="true"><path d="M0 6h22M17 1
           <div class="form__top micro"><span class="form__no">RO-9 / 1999</span><span id="step-label"></span></div>
           <div class="wiz__panel" id="panel"></div>
           <div class="wiz__map" id="map-wrap" hidden>
-            <div class="map__frame"><IslandMap id="reg-map" only="residential" /></div>
+            <div class="wiz__regions" role="group" aria-label="Part of the island">
+              {REGIONS.map((g, i) => (
+                <button type="button" class="wiz__reg" data-r={g.id}><i>{String(i + 1).padStart(2, '0')}</i><span data-l="en">{g.en}</span><span data-l="zh">{g.zh}</span><small class="micro">{RESIDENTIAL.filter((d) => d.region === g.id).length}</small></button>
+              ))}
+            </div>
+            <StreetMap id="reg-map" />
             <p class="wiz__blurb" id="blurb"></p>
             <div class="wiz__picks" id="picks">
+              <p class="f-help wiz__hint" id="picks-hint"><span data-l="en">Choose a part of the island above, or tap the sheet.</span><span data-l="zh">先在上面选一片，或者直接点地图。</span></p>
               {REGIONS.map((g) => (
-                <div class="wiz__region">
+                <div class="wiz__region" data-r={g.id} hidden>
                   <p class="micro"><span data-l="en">{g.en}</span><span data-l="zh">{g.zh}</span></p>
                   <div>{RESIDENTIAL.filter((d) => d.region === g.id).map((d) => <button type="button" class="wiz__pick" data-d={d.id}><span data-l="en">{d.en}</span><span data-l="zh">{d.zh}</span></button>)}</div>
                 </div>
@@ -109,13 +115,15 @@ const arrow = '<svg viewBox="0 0 24 12" aria-hidden="true"><path d="M0 6h22M17 1
   import { halftone } from '../../app/scene/halftone';
   import { toPhrase, fromPhrase } from '../../app/visitor/phrase';
   import { fileNo, loadVisitor, saveVisitor, type Visitor } from '../../app/visitor/store';
-  import { districtName, type DistrictId } from '../../app/visitor/districts';
+  import { district, districtName, REGIONS, RESIDENTIAL, DISTRICTS, type DistrictId } from '../../app/visitor/districts';
+  import { mountStreetMap } from '../../app/map/mount';
   import { QUESTIONS, type L } from '../../app/visitor/questions';
   import { COUNTER, DISTRICT_TEXT, FILING } from '../../app/visitor/counter';
 
-  const { markMe } = flat(() => {
+  const { markMe, base } = flat(() => {
     render();
     say(lastSay, true, lastVars);
+    sm?.relang();
   });
   const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
   const form = $<HTMLFormElement>('form');
@@ -144,7 +152,7 @@ const arrow = '<svg viewBox="0 0 24 12" aria-hidden="true"><path d="M0 6h22M17 1
   /* ---------- state ---------- */
   const STEPS = 7; // 0 name, 1 district, 2–4 questions, 5 line, 6 review
   const no = 100 + Math.floor(Math.random() * 3996);
-  const st = { step: 0, code: '', district: null as DistrictId | null, answers: [-1, -1, -1], line: '', back: false };
+  const st = { step: 0, code: '', district: null as DistrictId | null, region: null as string | null, answers: [-1, -1, -1], line: '', back: false };
 
   /* ---------- the clerk ---------- */
   const clerk = $('clerk-line');
@@ -216,12 +224,47 @@ const arrow = '<svg viewBox="0 0 24 12" aria-hidden="true"><path d="M0 6h22M17 1
   const panel = $('panel');
   const mapWrap = $('map-wrap');
   const err = $('err');
-  const nodes = [...mapWrap.querySelectorAll<SVGGElement>('.map__d')];
   const picks = [...mapWrap.querySelectorAll<HTMLButtonElement>('.wiz__pick')];
+  const regs = [...mapWrap.querySelectorAll<HTMLButtonElement>('.wiz__reg')];
+  const groups = [...mapWrap.querySelectorAll<HTMLElement>('.wiz__region')];
+  const LIVES = new Set(RESIDENTIAL.map((d) => d.id));
 
-  const setDistrict = (id: DistrictId, sound = true) => {
+  // the street map: first a part of the island, then a district in it; only where people live
+  let syncing = false;
+  const sm = mountStreetMap($('reg-map'), {
+    base,
+    card: false,
+    selectable: (id) => LIVES.has(id),
+    onRefuse: (id) => {
+      const d = district(id);
+      if (!d) return;
+      say(d.kind === 'unsurveyed' ? COUNTER.unsurveyed : COUNTER.noHomes, false, { name: districtName(id, isZh()) });
+    },
+    onPick: (id) => {
+      if (syncing || !id) return;
+      setDistrict(id, true, false);
+    },
+  });
+  const setRegion = (r: string | null, fly = true, sound = true) => {
+    st.region = r;
+    regs.forEach((b) => b.classList.toggle('is-on', b.dataset.r === r));
+    groups.forEach((g) => (g.hidden = g.dataset.r !== r));
+    $('picks-hint').hidden = !!r;
+    if (!r) return;
+    if (fly) sm.frame(DISTRICTS.filter((d) => d.region === r).map((d) => d.id));
+    if (sound) {
+      audio.click();
+      say(COUNTER.region, false, { region: tx(REGIONS.find((g) => g.id === r)!) });
+    }
+  };
+
+  const setDistrict = (id: DistrictId, sound = true, fly = true) => {
     st.district = id;
-    nodes.forEach((n) => n.classList.toggle('is-home', n.dataset.d === id));
+    const r = district(id)?.region ?? null;
+    if (r !== st.region) setRegion(r, false, false);
+    syncing = true;
+    sm.pick(id, fly);
+    syncing = false;
     picks.forEach((b) => b.classList.toggle('is-on', b.dataset.d === id));
     $('blurb').innerHTML = `<b>${esc(districtName(id, isZh()))}</b> ${esc(tx(DISTRICT_TEXT[id].blurb))}`;
     if (sound) {
@@ -236,6 +279,7 @@ const arrow = '<svg viewBox="0 0 24 12" aria-hidden="true"><path d="M0 6h22M17 1
     $('step-label').textContent = tx(LABELS[s]);
     steps.querySelectorAll('li').forEach((li, i) => li.classList.toggle('is-on', i <= s));
     mapWrap.hidden = s !== 1;
+    panel.classList.toggle('is-short', s === 1);
     err.hidden = true;
     $('back').hidden = s === 0;
     $('next').querySelector('span')!.textContent = s === STEPS - 1 ? t('File application') : s === 5 && !st.line ? t('Skip') : t('Next step');
@@ -261,11 +305,13 @@ const arrow = '<svg viewBox="0 0 24 12" aria-hidden="true"><path d="M0 6h22M17 1
       });
       if (!matchMedia('(pointer: coarse)').matches) input.focus();
     } else if (s === 1) {
-      panel.innerHTML = `<p class="f-qlabel">${isZh() ? '你住哪一带？在地图上点一个区，或者在下面的单子里挑。' : 'Where do you live? Tap a district on the map, or pick one from the list under it.'}</p>`;
-      nodes.forEach((n) => n.classList.toggle('is-home', n.dataset.d === st.district));
+      panel.innerHTML = `<p class="f-qlabel">${isZh() ? '你住哪一带？先选一片，再在地图上点一个区，或者从地图下面的单子里挑。' : 'Where do you live? Choose a part of the island, then tap a district on the sheet or pick it from the list under it.'}</p>`;
       picks.forEach((b) => b.classList.toggle('is-on', b.dataset.d === st.district));
       if (st.district) setDistrict(st.district, false);
-      else $('blurb').textContent = isZh() ? '还没选。' : 'Nothing chosen yet.';
+      else {
+        setRegion(st.region, !!st.region, false);
+        $('blurb').textContent = isZh() ? '还没选。' : 'Nothing chosen yet.';
+      }
     } else if (s <= 4) {
       const i = s - 2;
       const q = QUESTIONS[i];
@@ -372,16 +418,7 @@ const arrow = '<svg viewBox="0 0 24 12" aria-hidden="true"><path d="M0 6h22M17 1
 
   // Clicking the island, or the list under it
   picks.forEach((b) => b.addEventListener('click', () => setDistrict(b.dataset.d as DistrictId)));
-  nodes.forEach((n) => {
-    const pick = () => setDistrict(n.dataset.d as DistrictId);
-    n.addEventListener('click', pick);
-    n.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter' || e.key === ' ') {
-        e.preventDefault();
-        pick();
-      }
-    });
-  });
+  regs.forEach((b) => b.addEventListener('click', () => setRegion(b.dataset.r!)));
 
   /* ---------- filing ---------- */
   const wait = (ms: number) => new Promise<void>((r) => window.setTimeout(r, calm ? Math.min(ms, 60) : ms));
