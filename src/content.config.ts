@@ -1,6 +1,11 @@
 import { defineCollection } from 'astro:content';
 import { glob } from 'astro/loaders';
 import { z } from 'astro/zod';
+import { DISTRICT_DATA } from './data/gerimis/districts';
+import { LEGACY_DISTRICTS, currentDistrict } from './data/gerimis/legacy';
+
+// district keys from the gazetteer; the seven old keys still work and are read as their new names
+const DISTRICT_KEYS = [...DISTRICT_DATA.map((d) => d.id), ...Object.keys(LEGACY_DISTRICTS)] as [string, ...string[]];
 
 /**
  * One Markdown file = one record.
@@ -25,9 +30,11 @@ const records = defineCollection({
     /**
      * Which district of Gerimis the record belongs to (optional). `place` is the
      * text readers see; this is the fixed key used for the map and for matching
-     * a visitor's secret to a file.
+     * a visitor's secret to a file. Keys are in src/data/gerimis/districts.ts.
      */
-    district: z.enum(['axis', 'pons-ruber', 'palus-magna', 'collis-ruber', 'portus-posterior', 'silva', 'serrangon']).optional(),
+    district: z.enum(DISTRICT_KEYS).transform(currentDistrict).optional(),
+    /** A neighbourhood inside the district, as the gazetteer names it (optional), e.g. "Tiong Bahru". */
+    block: z.string().optional(),
     /** Image path inside /public, e.g. "records/p-0001.jpg". */
     image: z.string().optional(),
     imageCaption: z.string().optional(),

@@ -1,17 +1,26 @@
 ---
-import { DISTRICTS } from '../app/visitor/districts';
+/**
+ * The survey sheet: the coast traced by hand on the 1999 base, the old shore
+ * in red pencil, and a pin per district. Only the large towns carry a name on
+ * the island-wide sheet; the rest show theirs when picked.
+ */
+import { DISTRICTS, labelSide } from '../app/visitor/districts';
+import { SHEET } from '../data/gerimis/districts';
 
-interface Props { counts?: Record<string, number>; id?: string }
-const { counts, id = 'map' } = Astro.props;
+interface Props { counts?: Record<string, number>; id?: string; only?: 'residential' }
+const { counts, id = 'map', only } = Astro.props;
 const COLS = 'ABCDEFGHIJ';
-// Drawn by hand: a wide island, a northern lobe, the core on the south shore
-const COAST = 'M170 300C160 240 210 200 270 190C320 150 360 90 430 70C490 60 520 110 560 140C620 150 700 140 760 160C820 170 870 210 880 260C885 300 850 330 800 340C740 360 700 400 640 430C600 450 560 470 500 462C440 455 390 440 340 430C280 420 220 380 190 350Z';
-const OLD = 'M330 404C400 412 460 420 520 410C580 400 620 385 690 362';
+const shown = DISTRICTS.filter((d) => !only || d.kind === only);
+const label = (d: (typeof DISTRICTS)[number]) => {
+  const p = labelSide(d);
+  if (p === 't' || p === 'b') return { x: d.x, y: p === 't' ? d.y - 13 : d.y + 22, anchor: 'middle' };
+  return { x: p === 'l' ? d.x - 12 : d.x + 12, y: d.y + 4, anchor: p === 'l' ? 'end' : 'start' };
+};
 ---
 
 <svg class="map__svg" id={id} viewBox="0 0 1000 560" role="img" aria-label="Map of Gerimis">
   <defs>
-    <linearGradient id="map-scan" x1="0" x2="1">
+    <linearGradient id={`${id}-scan`} x1="0" x2="1">
       <stop offset="0" stop-color="var(--accent)" stop-opacity="0" />
       <stop offset=".9" stop-color="var(--accent)" stop-opacity=".05" />
       <stop offset="1" stop-color="var(--accent)" stop-opacity=".14" />
@@ -23,18 +32,26 @@ const OLD = 'M330 404C400 412 460 420 520 410C580 400 620 385 690 362';
     {Array.from({ length: 10 }, (_, i) => <text x={i * 100 + 8} y="18">{COLS[i]}</text>)}
     {Array.from({ length: 5 }, (_, i) => <text x="8" y={(i + 1) * 100 + 16}>{String(i + 2).padStart(2, '0')}</text>)}
   </g>
-  <path class="map__sea" d={COAST} transform="translate(0 14) scale(1 1.03)" aria-hidden="true" />
-  <path class="map__land" d={COAST} />
-  <path class="map__old" d={OLD} aria-hidden="true" />
-  <rect class="map__scan" id="map-sweep" x="-160" y="0" width="160" height="560" aria-hidden="true" />
-  {DISTRICTS.map((d) => {
+  <g aria-hidden="true">
+    <path class="map__sea" d={SHEET.coast} transform="translate(0 7)" />
+    <path class="map__land" d={SHEET.coast} />
+    {SHEET.islands.map((d) => <path class="map__land map__isle" d={d} />)}
+    <path class="map__old" d={SHEET.oldShore} />
+  </g>
+  <rect class="map__scan" id={`${id}-sweep`} x="-160" y="0" width="160" height="560" fill={`url(#${id}-scan)`} aria-hidden="true" />
+  {shown.map((d) => {
     const n = counts?.[d.id];
+    const at = label(d);
+    const cls = ['map__d', `is-${d.kind}`, d.major ? 'is-major' : '', d.id === 'axis' ? 'is-axis' : ''].filter(Boolean).join(' ');
     return (
-      <g class={`map__d${d.id === 'axis' ? ' is-axis' : ''}`} data-d={d.id} tabindex="0" role="button" aria-label={d.en}>
-        <circle cx={d.x} cy={d.y} r={d.id === 'axis' ? 30 : 24} />
-        <circle class="map__pin" cx={d.x} cy={d.y} r="3.5" />
-        <text x={d.left ? d.x - 36 : d.x + 36} y={d.y - 4} text-anchor={d.left ? 'end' : 'start'}><tspan data-l="en">{d.en}</tspan><tspan data-l="zh" class="map__zh">{d.zh}</tspan></text>
-        {n !== undefined && <text class="map__n" x={d.left ? d.x - 36 : d.x + 36} y={d.y + 13} text-anchor={d.left ? 'end' : 'start'}><tspan data-island-count={`#map-list .map__item[data-d="${d.id}"] > ul > li[data-island-date]`}>{String(n).padStart(2, '0')}</tspan> REC.</text>}
+      <g class={cls} data-d={d.id} tabindex="0" role="button" aria-label={d.en}>
+        <circle class="map__hit" cx={d.x} cy={d.y} r="13" />
+        {d.kind === 'unsurveyed'
+          ? <rect class="map__mark" x={d.x - 5} y={d.y - 5} width="10" height="10" />
+          : <circle class="map__mark" cx={d.x} cy={d.y} r={d.id === 'axis' ? 8 : d.major ? 6 : 4.5} />}
+        <circle class="map__pin" cx={d.x} cy={d.y} r={d.kind === 'open' ? 0 : 1.8} />
+        <text class="map__name" x={at.x} y={at.y} text-anchor={at.anchor}><tspan data-l="en">{d.en}</tspan><tspan data-l="zh" class="map__zh">{d.zh}</tspan></text>
+        {n ? <text class="map__n" x={d.x + 5} y={d.y - 5} text-anchor="start"><tspan data-island-count={`#map-list .map__item[data-d="${d.id}"] > ul > li[data-island-date]`}>{n}</tspan></text> : null}
       </g>
     );
   })}

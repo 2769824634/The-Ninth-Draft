@@ -1,11 +1,18 @@
 /**
  * Recovery phrase: four words that carry a registration to another browser.
+ * Four words are 32 bits:
  *
- * 32 bits = file number (12) + district (3) + three answers (2 each) + an
- * 11-bit check tied to the codename, so the phrase only works together with
- * the codename it was issued to. The optional free line is not carried.
+ *   v1 (seven districts)  file number 12 · district 3 · answers 2+2+2 · check 11
+ *   v2 (the survey)       file number 12 · district and answers 3 · 11 · check 7
+ *
+ * In v2 the district and the three answers are one number, district × 27 +
+ * answers in base 3, split round the two bits where v1 kept its first answer;
+ * those two bits hold 3, which no v1 phrase has, so a phrase is read one way
+ * only. The check is tied to the codename, so a phrase only works together
+ * with the codename it was issued to. The optional free line is not carried.
  */
 import { DISTRICTS } from './districts';
+import { PHRASE_V1, currentDistrict } from '../../data/gerimis/legacy';
 import { hash, normCode, type Visitor } from './store';
 
 // 256 words, one per byte. Short, plain, and from the island's vocabulary.
@@ -46,12 +53,15 @@ const WORDS = (
 
 if (WORDS.length !== 256 || new Set(WORDS).size !== 256) throw new Error(`phrase: wordlist must hold 256 unique words (has ${new Set(WORDS).size})`);
 
-const check = (code: string, payload: number) => hash(`${normCode(code)}#${payload}`) & 0x7ff;
+const check1 = (code: string, payload: number) => hash(`${normCode(code)}#${payload}`) & 0x7ff;
+const check2 = (code: string, payload: number) => hash(`${normCode(code)}#2#${payload}`) & 0x7f;
+const MARK = 3 << 15;
 
 export function toPhrase(v: Visitor): string[] {
-  const d = DISTRICTS.findIndex((x) => x.id === v.district);
-  const payload = ((v.no & 0xfff) << 9) | (d << 6) | (v.answers[0] << 4) | (v.answers[1] << 2) | v.answers[2];
-  const n = ((payload << 11) | check(v.code, payload)) >>> 0;
+  const d = Math.max(0, DISTRICTS.findIndex((x) => x.id === v.district));
+  const combo = d * 27 + v.answers[0] * 9 + v.answers[1] * 3 + v.answers[2];
+  const top = (((v.no & 0xfff) << 20) | ((combo >>> 8) << 17) | MARK | ((combo & 0xff) << 7)) >>> 0;
+  const n = (top | check2(v.code, top >>> 7)) >>> 0;
   return [24, 16, 8, 0].map((s) => WORDS[(n >>> s) & 0xff]);
 }
 
@@ -62,10 +72,19 @@ export function fromPhrase(code: string, phrase: string): Omit<Visitor, 'at'> | 
   const idx = words.map((w) => WORDS.indexOf(w));
   if (idx.some((i) => i < 0)) return null;
   const n = ((idx[0] << 24) | (idx[1] << 16) | (idx[2] << 8) | idx[3]) >>> 0;
+  const no = n >>> 20;
+  if (((n & MARK) >>> 0) === MARK) {
+    if ((n & 0x7f) !== check2(code, n >>> 7)) return null;
+    const combo = (((n >>> 17) & 7) << 8) | ((n >>> 7) & 0xff);
+    const d = Math.floor(combo / 27), a = combo % 27;
+    if (d >= DISTRICTS.length) return null;
+    return { no, code: code.trim(), district: DISTRICTS[d].id, answers: [Math.floor(a / 9), Math.floor(a / 3) % 3, a % 3] };
+  }
+  // a phrase issued before the survey
   const payload = n >>> 11;
-  if ((n & 0x7ff) !== check(code, payload)) return null;
+  if ((n & 0x7ff) !== check1(code, payload)) return null;
   const d = (payload >>> 6) & 7;
   const answers: [number, number, number] = [(payload >>> 4) & 3, (payload >>> 2) & 3, payload & 3];
-  if (d >= DISTRICTS.length || answers.some((a) => a > 2)) return null;
-  return { no: payload >>> 9, code: code.trim(), district: DISTRICTS[d].id, answers };
+  if (d >= PHRASE_V1.length || answers.some((a) => a > 2)) return null;
+  return { no, code: code.trim(), district: currentDistrict(PHRASE_V1[d]), answers };
 }

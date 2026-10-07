@@ -28,8 +28,10 @@ export interface ClientRecord {
   stamp: string;
   date?: string;
   place?: string;
-  /** District key (axis, pons-ruber, …); see content.config.ts. */
+  /** District key (axis, ang-mo-kio, …); see src/data/gerimis/districts.ts. */
   district?: string;
+  /** Neighbourhood inside the district, as the gazetteer names it. */
+  block?: string;
   image?: string;
   imageCaption?: string;
   /** Recording for the office cassette deck (URL), when the author gave one. */
@@ -104,6 +106,7 @@ export async function loadRecords(base: string): Promise<ClientRecord[]> {
       date: data.date,
       place: data.place,
       district: data.district,
+      block: data.block,
       image: data.image ? `${base}${data.image.replace(/^\//, '')}` : undefined,
       imageCaption: data.imageCaption,
       audio: data.audio ? `${base}${data.audio.replace(/^\//, '')}` : undefined,

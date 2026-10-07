@@ -10,7 +10,7 @@ import type { LogLine, MachineData, MachineFile } from '../../lib/machine';
 import { audio } from '../audio';
 import { isZh } from '../i18n';
 import { reducedMotion } from '../prefs';
-import { DISTRICTS } from '../visitor/districts';
+import { CLOCKS } from '../visitor/districts';
 import { fileNo, loadVisitor } from '../visitor/store';
 
 type L = { en: string; zh: string };
@@ -140,15 +140,15 @@ export class ClockScreen {
   render() {
     const zh = isZh();
     this.screen.body.innerHTML = `
-      <div class="crt__dials">${DISTRICTS.map((d) => `<figure class="crt__dial" data-d="${d.id}"><i class="crt__h"></i><i class="crt__m"></i><i class="crt__s"></i><figcaption>${zh ? d.zh : d.en.toUpperCase()}<b></b></figcaption></figure>`).join('')}</div>
-      <ol class="crt__out" id="ck-out"><li>${zh ? '林地 +1 小时。后港 −1 小时。' : 'SILVA +1 H. PORTUS POSTERIOR −1 H.'}</li></ol>
+      <div class="crt__dials">${CLOCKS.map((d) => `<figure class="crt__dial" data-d="${d.id}"><i class="crt__h"></i><i class="crt__m"></i><i class="crt__s"></i><figcaption>${zh ? d.zh : d.en.toUpperCase()}<b></b></figcaption></figure>`).join('')}</div>
+      <ol class="crt__out" id="ck-out"><li>${zh ? '兀兰 +1 小时。后港 −1 小时。' : 'WOODLANDS +1 H. HOUGANG −1 H.'}</li></ol>
       <p class="crt__acts"><button type="button" class="crt__btn" id="ck-sync">[ ${zh ? '同步到中枢' : 'SYNC TO AXIS'} ]</button><a class="crt__btn" href="${this.base}records/r-0003/">[ R-0003 ]</a></p>`;
     this.screen.body.querySelector('#ck-sync')!.addEventListener('click', () => void this.sync());
     this.tick();
   }
   private tick() {
     const now = islandDate();
-    for (const d of DISTRICTS) {
+    for (const d of CLOCKS) {
       const fig = this.screen.body.querySelector<HTMLElement>(`[data-d="${d.id}"]`);
       if (!fig) continue;
       const off = d.tz + (this.pull.get(d.id) ?? 0);
@@ -172,7 +172,7 @@ export class ClockScreen {
     const zh = isZh();
     this.say(zh ? '同步中。' : 'SYNCHRONISING.');
     audio.relay();
-    for (const d of DISTRICTS) if (d.tz) this.pull.set(d.id, -d.tz);
+    for (const d of CLOCKS) if (d.tz) this.pull.set(d.id, -d.tz);
     this.screen.glass.classList.add('is-sync');
     this.tick();
     await wait(900);
@@ -180,11 +180,11 @@ export class ClockScreen {
     this.say(zh ? '全部时钟：中枢时间。' : 'ALL CLOCKS: AXIS TIME.');
     await wait(3200);
     // they go back on their own, without being asked
-    for (const d of DISTRICTS) if (d.tz) this.pull.set(d.id, 0);
+    for (const d of CLOCKS) if (d.tz) this.pull.set(d.id, 0);
     this.screen.glass.classList.remove('is-sync');
     this.tick();
     audio.tick();
-    this.say(zh ? '林地 +1 小时。后港 −1 小时。原因：不明。' : 'SILVA +1 H. PORTUS POSTERIOR −1 H. CAUSE: UNKNOWN.');
+    this.say(zh ? '兀兰 +1 小时。后港 −1 小时。原因：不明。' : 'WOODLANDS +1 H. HOUGANG −1 H. CAUSE: UNKNOWN.');
     this.busy = false;
   }
 }
@@ -415,7 +415,7 @@ export class ConsoleScreen {
         break;
       case 'CLOCK':
       case 'CLOCKS':
-        p('SILVA +1 H. PORTUS POSTERIOR −1 H.', '林地 +1 小时。后港 −1 小时。');
+        p('WOODLANDS +1 H. HOUGANG −1 H.', '兀兰 +1 小时。后港 −1 小时。');
         this.hooks.focus('clocks');
         break;
       case 'SYNC':

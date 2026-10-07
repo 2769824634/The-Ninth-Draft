@@ -10,7 +10,8 @@
  * 3:2 frame sits in the middle and everything around it is black, so no
  * light falls outside the picture.
  */
-import { DISTRICTS } from '../visitor/districts';
+import { DISTRICTS, district } from '../visitor/districts';
+import { SHEET } from '../../data/gerimis/districts';
 import { INK, clearanceKey } from '../clearance';
 
 type L = { en: string; zh: string };
@@ -60,9 +61,9 @@ const full = (slides: Slide[]): Slide[] => [...slides.slice(0, TRAY - 1), { kind
 
 /**
  * The trays on the floor by the sofa: one that goes round the island (the
- * title and every district's map), then one per district that has files
- * (its map, then each file's cover and photograph), and one for files that
- * belong to no district.
+ * title, then the map of every large town and of every district with files),
+ * then one per district that has files (its map, then each file's cover and
+ * photograph), and one for files that belong to no district.
  */
 export function buildTrays(files: SlideFile[]): Tray[] {
   const trays: Tray[] = [];
@@ -78,13 +79,13 @@ export function buildTrays(files: SlideFile[]): Tray[] {
     ink: '#c08a1e',
     slides: full([
       { kind: 'title', files: files.length, districts: groups.length },
-      ...DISTRICTS.map((d) => ({ kind: 'district' as const, district: d.id, files: files.filter((f) => f.district === d.id).length })),
+      ...DISTRICTS.filter((d) => d.major || groups.some((g) => g.district === d.id)).map((d) => ({ kind: 'district' as const, district: d.id, files: files.filter((f) => f.district === d.id).length })),
     ]),
   });
   const loose = files.filter((f) => !f.district || !DISTRICTS.some((d) => d.id === f.district));
   if (loose.length) groups.push({ district: '', files: loose });
   for (const g of groups) {
-    const d = DISTRICTS.find((x) => x.id === g.district);
+    const d = district(g.district);
     const slides: Slide[] = [{ kind: 'district', district: g.district, files: g.files.length }];
     for (const f of g.files.slice().sort((a, b) => a.file.localeCompare(b.file))) {
       slides.push({ kind: 'cover', f });
@@ -108,7 +109,7 @@ export function caption(s: Slide, zh: boolean): string {
     case 'title':
       return zh ? '片头' : 'Title';
     case 'district': {
-      const d = DISTRICTS.find((x) => x.id === s.district);
+      const d = district(s.district);
       return d ? (zh ? `区图 · ${d.zh}` : `Map · ${d.en}`) : zh ? '区图 · 全岛' : 'Map · Island-wide';
     }
     case 'cover':
@@ -185,31 +186,21 @@ function hair(g: CanvasRenderingContext2D, seed: number) {
 /** The island in white line, one district picked out. */
 function island(g: CanvasRenderingContext2D, x0: number, y0: number, w: number, h: number, pick: string) {
   const sx = w / 1000, sy = h / 560;
-  const pts = DISTRICTS.map((d) => [x0 + d.x * sx, y0 + d.y * sy] as const);
-  const cx = pts.reduce((a, p) => a + p[0], 0) / pts.length, cy = pts.reduce((a, p) => a + p[1], 0) / pts.length;
-  let s = 2;
-  const r = () => {
-    s ^= s << 13;
-    s ^= s >>> 17;
-    s ^= s << 5;
-    return ((s >>> 0) % 100000) / 100000;
-  };
   g.save();
   g.strokeStyle = WHITE;
-  g.lineWidth = 3;
   g.setLineDash([]);
-  g.beginPath();
-  for (let i = 0; i <= 48; i++) {
-    const a = (i / 48) * Math.PI * 2;
-    const rad = (Math.abs(Math.cos(a)) * 300 + Math.abs(Math.sin(a)) * 190) * sx * (0.92 + r() * 0.12);
-    const x = cx + Math.cos(a) * rad, y = cy + Math.sin(a) * rad * 0.9;
-    if (i === 0) g.moveTo(x, y);
-    else g.lineTo(x, y);
-  }
-  g.closePath();
+  g.lineJoin = 'round';
   g.fillStyle = 'rgba(255,255,255,.06)';
-  g.fill();
-  g.stroke();
+  const outline = (pts: [number, number][], lw: number) => {
+    g.lineWidth = lw;
+    g.beginPath();
+    pts.forEach(([x, y], i) => (i ? g.lineTo(x0 + x * sx, y0 + y * sy) : g.moveTo(x0 + x * sx, y0 + y * sy)));
+    g.closePath();
+    g.fill();
+    g.stroke();
+  };
+  outline(SHEET.coastPoints, 3);
+  SHEET.islandPoints.forEach((p) => outline(p, 2));
   // survey grid
   g.globalAlpha = 0.18;
   g.lineWidth = 1;
@@ -226,24 +217,33 @@ function island(g: CanvasRenderingContext2D, x0: number, y0: number, w: number, 
     g.stroke();
   }
   g.globalAlpha = 1;
+  // every district a point; the picked one ringed (its name is the slide's title), or else the large towns named small
+  const on = DISTRICTS.find((d) => d.id === pick);
   for (const d of DISTRICTS) {
+    if (d === on) continue;
     const x = x0 + d.x * sx, y = y0 + d.y * sy;
-    const on = d.id === pick;
-    g.fillStyle = on ? AMBER : CYAN;
+    g.fillStyle = CYAN;
+    g.globalAlpha = d.kind === 'residential' ? 0.9 : 0.45;
     g.beginPath();
-    g.arc(x, y, on ? 9 : 5, 0, Math.PI * 2);
+    g.arc(x, y, d.major ? 3.5 : 2.2, 0, Math.PI * 2);
     g.fill();
-    if (on) {
-      g.strokeStyle = AMBER;
-      g.lineWidth = 2.5;
-      g.beginPath();
-      g.arc(x, y, 24, 0, Math.PI * 2);
-      g.stroke();
-    }
-    g.fillStyle = on ? AMBER : CYAN;
-    g.font = `${on ? 700 : 500} ${on ? 19 : 15}px ${COND}`;
+    g.globalAlpha = 1;
+    if (!d.major || on) continue;
+    g.font = `500 13px ${COND}`;
     g.textAlign = d.left ? 'right' : 'left';
-    g.fillText(`${d.en.toUpperCase()} ${d.zh}`, x + (d.left ? -14 : 14), y + 6);
+    g.fillText(`${d.en.toUpperCase()} ${d.zh}`, x + (d.left ? -8 : 8), y + 5);
+  }
+  if (on) {
+    const x = x0 + on.x * sx, y = y0 + on.y * sy;
+    g.fillStyle = AMBER;
+    g.strokeStyle = AMBER;
+    g.beginPath();
+    g.arc(x, y, 7, 0, Math.PI * 2);
+    g.fill();
+    g.lineWidth = 2.5;
+    g.beginPath();
+    g.arc(x, y, 20, 0, Math.PI * 2);
+    g.stroke();
   }
   g.textAlign = 'left';
   g.restore();
@@ -312,12 +312,16 @@ export function drawSlide(s: Slide, n: number, zh: boolean): HTMLCanvasElement {
       g.fillStyle = AMBER;
       g.fillRect(FX + 40, FY + (zh ? 290 : 360), 120, 8);
     } else if (s.kind === 'district') {
-      const d = DISTRICTS.find((x) => x.id === s.district);
+      const d = district(s.district);
       header(g, zh ? '区图' : 'DISTRICT MAP', `SLIDE ${no}`);
-      island(g, FX + 300, FY + 120, 500, 300, s.district);
+      island(g, FX + 330, FY + 120, 460, 258, s.district);
       g.fillStyle = WHITE;
-      g.font = `800 ${zh ? 54 : 46}px ${SANS}`;
-      g.fillText(d ? (zh ? d.zh : d.en.toUpperCase()) : zh ? '全岛' : 'ISLAND-WIDE', FX + 40, FY + 170);
+      // a long name sets smaller, never over the island
+      const name = d ? (zh ? d.zh : d.en.toUpperCase()) : zh ? '全岛' : 'ISLAND-WIDE';
+      let px = zh ? 54 : 46;
+      g.font = `800 ${px}px ${SANS}`;
+      while (px > 22 && g.measureText(name).width > 270) g.font = `800 ${(px -= 2)}px ${SANS}`;
+      g.fillText(name, FX + 40, FY + 170);
       if (d) {
         g.font = `500 22px ${MONO}`;
         g.fillStyle = CYAN;
@@ -328,7 +332,7 @@ export function drawSlide(s: Slide, n: number, zh: boolean): HTMLCanvasElement {
       g.fillText(zh ? `档案 ${s.files} 份` : `${s.files} file${s.files === 1 ? '' : 's'}`, FX + 40, FY + FH - 60);
     } else if (s.kind === 'cover') {
       const f = s.f;
-      const dist = DISTRICTS.find((x) => x.id === f.district);
+      const dist = district(f.district);
       header(g, `FILE ${f.file}`, `SLIDE ${no}`);
       g.fillStyle = WHITE;
       g.font = `700 112px ${COND}`;

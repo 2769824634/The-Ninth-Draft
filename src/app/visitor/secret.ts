@@ -10,7 +10,7 @@
  * Office's version: bland, with the interesting parts blacked out. Earlier
  * drafts say more.
  */
-import { DISTRICTS, districtName } from './districts';
+import { RESIDENTIAL, districtName } from './districts';
 import { QUESTIONS, type L } from './questions';
 import { hash, normCode, rng, type Visitor } from './store';
 
@@ -88,7 +88,7 @@ export function makeSecret(v: Visitor, records: SecretRecord[], base: string): S
   const yy = 91 + Math.floor(r() * 9);
   const n = 2 + Math.floor(r() * 7);
   const lend = 1980 + Math.floor(r() * 11);
-  const other = pick(DISTRICTS.filter((d) => d.id !== v.district)).id;
+  const other = pick(RESIDENTIAL.filter((d) => d.id !== v.district)).id;
   // A record from the visitor's district when there is one, else any record
   const near = records.filter((x) => x.district === v.district);
   const rec = records.length ? pick(near.length ? near : records) : null;
