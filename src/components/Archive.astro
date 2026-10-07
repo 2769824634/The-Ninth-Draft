@@ -11,6 +11,7 @@ import '../styles/quirks.css';
 import '../styles/attach.css';
 import '../styles/system.css';
 import '../styles/zh.css';
+import '../styles/stacks.css';
 
 interface Props {
   records: ClientRecord[];
@@ -26,12 +27,21 @@ const programsNo = String(CATEGORIES.findIndex((c) => c.id === 'programs') + 1).
 const programs = records.filter((r) => r.category === 'programs');
 const years = programs.flatMap((r) => (r.date ?? '').match(/\d{4}/g) ?? []).map(Number);
 const span = years.length ? `${Math.min(...years)} — ${Math.max(...years)}` : '';
+const stackZones = [
+  { id: 'overview', en: 'The whole room', zh: '整间档案库' },
+  { id: 'formal', en: 'Formal records', zh: '正式档案' },
+  { id: 'routine', en: 'Routine paperwork', zh: '例行文件' },
+  { id: 'reading', en: 'Reading table', zh: '阅档桌' },
+  { id: 'counter', en: 'Intake desk', zh: '入库台' },
+  { id: 'door', en: 'Door and switches', zh: '门口和开关' },
+];
 const links = new Set(records.flatMap((r) => r.related.filter((f) => records.some((x) => x.file === f)).map((f) => [r.file, f].sort().join('|')))).size;
 ---
 
-<div class="archive" id="archive" data-view="browse" data-boot="on" data-room={room}>
+<div class="archive" id="archive" data-view="browse" data-boot="on" data-room={room} data-layer="stacks">
   <canvas class="stage" id="stage" aria-hidden="true"></canvas>
   <canvas class="wall" id="wall" aria-hidden="true"></canvas>
+  <canvas class="stacks" id="stacks" aria-hidden="true"></canvas>
   <div class="veil" aria-hidden="true"></div>
 
   <!-- Orbital drafting lines: the quiet space-age layer -->
@@ -152,6 +162,12 @@ const links = new Set(records.flatMap((r) => r.related.filter((f) => records.som
     <span class="foot__mark"><b>Gerimis</b> <span>Records Office</span><i></i></span>
   </footer>
 
+  <!-- Back out of the drawers into the room -->
+  <button class="back tostacks" id="to-stacks" type="button">
+    <svg viewBox="0 0 24 12" aria-hidden="true"><path d="M24 6H2M7 1 2 6l5 5" /></svg>
+    <span>Back to the stacks</span><span class="kbd">Esc</span>
+  </button>
+
   <!-- ===================== DOSSIER ===================== -->
   <aside class="inspect" aria-hidden="true">
     <button class="back" id="btn-back" type="button">
@@ -166,6 +182,37 @@ const links = new Set(records.flatMap((r) => r.related.filter((f) => records.som
   </aside>
 
   <div class="watermark" id="watermark" aria-hidden="true">0001</div>
+
+
+  <!-- ===================== THE STACKS (the room you walk into) ===================== -->
+  <section class="stackshud" id="stackshud" aria-label="The stacks" data-no-i18n>
+    <div class="stackshud__head">
+      <p class="stackshud__kicker micro"><span data-l="en">Room 01 / Ground floor · Archive</span><span data-l="zh">01 室 / 一楼 · 档案库</span></p>
+      <h1 class="stackshud__title"><span data-l="en">The stacks</span><span data-l="zh">档案库</span></h1>
+      <p class="stackshud__stats micro" id="stacks-stats" data-no-i18n></p>
+      <nav class="stackshud__zones" id="stacks-zones" aria-label="Corners of the room">
+        {stackZones.map((z, i) => (
+          <button type="button" data-zone={z.id} aria-pressed={i === 0 ? 'true' : 'false'}><i>{String(i).padStart(2, '0')}</i><span data-l="en">{z.en}</span><span data-l="zh">{z.zh}</span></button>
+        ))}
+      </nav>
+      <div class="stackshud__cats" id="stacks-cats">
+        <p class="micro"><span data-l="en">Formal records · open a cabinet</span><span data-l="zh">正式档案 · 拉开柜子</span></p>
+        {CATEGORIES.map((c, i) => (
+          <button type="button" data-cat={i}><i>{c.code}</i><span data-l="en">{c.label}</span><span data-l="zh">{({ personnel: '人员', events: '事件', programs: '计划' } as Record<string, string>)[c.id]}</span><b class="micro" data-count={c.id} data-no-i18n></b></button>
+        ))}
+      </div>
+      <div class="stackshud__lights" role="group" aria-label="Light switches by the door">
+        <p class="micro"><span data-l="en">Switches by the door</span><span data-l="zh">门边的开关</span></p>
+        <div class="stackshud__rockers">
+          {[0, 1, 2, 3].map((i) => (
+            <button type="button" data-row={i} aria-pressed="false"><b>{i + 1}</b><span data-l="en">{['Door', 'Formal', 'Routine', 'Reading'][i]}</span><span data-l="zh">{['门口', '正式', '例行', '阅档'][i]}</span></button>
+          ))}
+        </div>
+      </div>
+    </div>
+    <p class="stackshud__callout micro" id="stacks-callout" aria-hidden="true" data-no-i18n></p>
+    <aside class="stackshud__slip" id="stacks-slip" hidden data-no-i18n></aside>
+  </section>
 
   <!-- ===================== LINK ROOM ===================== -->
   <section class="wallhud" id="wallhud" aria-label="Link analysis">

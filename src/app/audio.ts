@@ -174,7 +174,53 @@ export function audioOut(): { ctx: AudioContext; bus: GainNode; noise: AudioBuff
   return { ctx, bus: sfxBus, noise: noiseBuf };
 }
 
+/* ---------- Rain on the windows: soft hiss with a patter on top ---------- */
+let rainGain: GainNode | null = null;
+let rainWanted = false;
+function startRain() {
+  if (!ctx || rainGain) return;
+  rainGain = ctx.createGain();
+  rainGain.gain.value = 0;
+  rainGain.connect(ambBus);
+  const hiss = ctx.createBufferSource();
+  hiss.buffer = noiseBuf;
+  hiss.loop = true;
+  hiss.playbackRate.value = 1.3;
+  const hp = ctx.createBiquadFilter();
+  hp.type = 'bandpass';
+  hp.frequency.value = 2600;
+  hp.Q.value = 0.35;
+  const hg = ctx.createGain();
+  hg.gain.value = 0.32;
+  hiss.connect(hp).connect(hg).connect(rainGain);
+  hiss.start();
+  const low = ctx.createBufferSource();
+  low.buffer = noiseBuf;
+  low.loop = true;
+  low.playbackRate.value = 0.6;
+  const lp = ctx.createBiquadFilter();
+  lp.type = 'lowpass';
+  lp.frequency.value = 380;
+  const lg = ctx.createGain();
+  lg.gain.value = 0.35;
+  low.connect(lp).connect(lg).connect(rainGain);
+  low.start(0, 0.7);
+}
+
 export const audio = {
+  /** Rain against the louvres, while the room is on screen on a wet day. */
+  rain(on: boolean) {
+    rainWanted = on;
+    if (!ctx) return;
+    if (on) startRain();
+    rainGain?.gain.setTargetAtTime(on ? 0.55 : 0, ctx.currentTime, on ? 1.5 : 0.6);
+  },
+  /** A wall switch: a hard plastic snap. */
+  rocker() {
+    if (!live()) return;
+    noise(0.03, { type: 'highpass', f0: 3200, vol: 0.5, attack: 0.001 });
+    tone(180, 0.05, { type: 'square', vol: 0.05, to: 90 });
+  },
   /** Must be called from a user gesture. */
   unlock() {
     if (!ensure() || !ctx) return;
@@ -192,6 +238,7 @@ export const audio = {
       window.speechSynthesis?.cancel();
     }
     master.gain.setTargetAtTime(on ? 0.9 : 0, ctx.currentTime, on ? 0.6 : 0.15);
+    if (on && rainWanted) this.rain(true);
   },
   theme(night: boolean) {
     if (!ctx || !droneGain) return;

@@ -1,0 +1,368 @@
+/**
+ * The archive stacks as a cutaway model on the page, under the same long lens
+ * as the library and the office. The camera moves between the whole room and
+ * its corners; clicking a group of formal cabinets pushes in on it, and the
+ * controller then hands over to the drawers themselves.
+ *
+ * Light: four rows of pendants on four switches by the door, three desk lamps
+ * with pull chains, daylight through the louvres (none on a wet day), the
+ * street lamp outside at night. At night only the lamps that are on light the
+ * room; everything else sinks into the dark.
+ */
+import * as THREE from 'three';
+import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
+import { Spring, SpringV3, damp } from '../spring';
+import { reducedMotion } from '../prefs';
+import { islandNow } from '../island';
+import { StacksRoom, AR, WINDOWS, type StacksCategory } from './room';
+import { setStacksAniso } from './textures';
+
+export type StacksZone = 'overview' | 'formal' | 'routine' | 'reading' | 'counter' | 'door';
+export const STACKS_ZONES: StacksZone[] = ['overview', 'formal', 'routine', 'reading', 'counter', 'door'];
+
+export interface StacksEvents {
+  zone(z: StacksZone): void;
+  hover(key: string | null): void;
+  /** A group of formal cabinets clicked. */
+  cabinet(ci: number): void;
+  bank(bi: number): void;
+  rocker(i: number): void;
+  desk(i: number): void;
+  index(): void;
+  tray(): void;
+  safe(): void;
+  dehumidifier(): void;
+}
+
+interface View {
+  at: THREE.Vector3;
+  dir: THREE.Vector3;
+  w: number;
+  h: number;
+}
+
+interface Look {
+  hemi: number;
+  sun: number;
+  env: number;
+  street: number;
+  night: number;
+  /** Pendant and desk-lamp strength when on. */
+  pendant: number;
+  desk: number;
+}
+const LOOKS: Record<'day' | 'night', Look> = {
+  day: { hemi: 0.75, sun: 3.6, env: 0.35, street: 0, night: 0, pendant: 3, desk: 1.5 },
+  night: { hemi: 0.05, sun: 0, env: 0.035, street: 6, night: 1, pendant: 34, desk: 9 },
+};
+
+const UP = new THREE.Vector3(0, 1, 0);
+
+export class StacksScene {
+  private renderer: THREE.WebGLRenderer;
+  private scene = new THREE.Scene();
+  private camera = new THREE.PerspectiveCamera(19, 1, 0.1, 200);
+  private hemi = new THREE.HemisphereLight(0xfff6e8, 0x8a8070, 1);
+  private sun = new THREE.DirectionalLight(0xfff1d8, 3);
+  readonly room: StacksRoom;
+
+  private zoneNow: StacksZone = 'overview';
+  /** Pushing in on a group of cabinets, before the drawers take over. */
+  private push: number | null = null;
+  private view: { at: SpringV3; dir: SpringV3; dist: Spring };
+  private parallax = new THREE.Vector2();
+  private pointer = new THREE.Vector2(9, 9);
+  private raycaster = new THREE.Raycaster();
+  private hoverKey = '';
+
+  private look: Look = { ...LOOKS.day };
+  private lookTarget = LOOKS.day;
+  private rain = false;
+  private rainK = 0;
+  private rows = [false, false, false, false];
+  private rowLevel = [0, 0, 0, 0];
+  private flicker = [0, 0, 0, 0];
+  private desks = [false, false, false];
+  private deskLevel = [0, 0, 0];
+  private reduce = reducedMotion();
+  private last = performance.now();
+  private t0 = performance.now();
+  private running = true;
+  private raf = 0;
+
+  constructor(private host: HTMLElement, private canvas: HTMLCanvasElement, cats: StacksCategory[], opts: { today: string; reading?: { title: string; file: string } }, private on: StacksEvents) {
+    this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true, powerPreference: 'high-performance' });
+    this.renderer.setClearColor(0x000000, 0);
+    this.renderer.outputColorSpace = THREE.SRGBColorSpace;
+    this.renderer.toneMapping = THREE.NoToneMapping;
+    this.renderer.shadowMap.enabled = true;
+    this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    setStacksAniso(Math.min(8, this.renderer.capabilities.getMaxAnisotropy()));
+    const pmrem = new THREE.PMREMGenerator(this.renderer);
+    this.scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+    pmrem.dispose();
+
+    this.room = new StacksRoom(cats, opts);
+    this.scene.add(this.room.group);
+
+    // Shadows from the lamps where they matter most: the formal cabinets, the
+    // reading table, the desk. Phones get fewer.
+    const lite = matchMedia('(pointer: coarse)').matches;
+    this.room.pendants.forEach((p, i) => (p.light.castShadow = lite ? p.row === 1 && i === 0 : p.row === 1 || p.row === 3));
+    this.room.desks.forEach((d, i) => (d.light.castShadow = i === 0));
+
+    this.sun.position.set(-4, 9, 6);
+    this.sun.castShadow = true;
+    this.sun.shadow.mapSize.set(lite ? 2048 : 4096, lite ? 2048 : 4096);
+    this.sun.shadow.bias = -0.0003;
+    this.sun.shadow.normalBias = 0.02;
+    Object.assign(this.sun.shadow.camera, { left: -9, right: 9, top: 9, bottom: -9, near: 0.5, far: 30 });
+    this.sun.shadow.camera.updateProjectionMatrix();
+    this.scene.add(this.hemi, this.sun, this.sun.target);
+
+    const v = this.viewOf('overview');
+    this.view = { at: new SpringV3(v.at.clone(), 2.6), dir: new SpringV3(v.dir.clone(), 2.6), dist: new Spring(60, 2.6) };
+    this.bind();
+    this.resize();
+    this.view.dist.set(this.fit(v));
+    this.loop();
+  }
+
+  /* ---------------- views ---------------- */
+  private viewOf(z: StacksZone): View {
+    if (this.push !== null) {
+      const c = this.room.catCentre[this.push] ?? new THREE.Vector3();
+      return { at: c.clone().add(new THREE.Vector3(0.1, 0.05, 0)), dir: new THREE.Vector3(1, 0.42, 0.12).normalize(), w: 1.5, h: 1.5 };
+    }
+    switch (z) {
+      case 'formal':
+        return { at: new THREE.Vector3(AR.x0 + 0.6, 0.95, -0.9), dir: new THREE.Vector3(1, 0.5, 0.42).normalize(), w: 5.4, h: 2.4 };
+      case 'routine':
+        return { at: new THREE.Vector3(-0.2, 1.0, -1.7), dir: new THREE.Vector3(2, 3.2, 7).normalize(), w: 4.8, h: 3.0 };
+      case 'reading':
+        return { at: new THREE.Vector3(3.5, 1.0, -2.5), dir: new THREE.Vector3(3, 5, 7).normalize(), w: 3.6, h: 2.4 };
+      case 'counter':
+        return { at: new THREE.Vector3(3.6, 1.0, 1.7), dir: new THREE.Vector3(3, 4, 8).normalize(), w: 3.6, h: 2.2 };
+      case 'door':
+        return { at: new THREE.Vector3(-4.0, 1.2, 2.2), dir: new THREE.Vector3(6, 3.2, 4).normalize(), w: 3.8, h: 2.6 };
+      default:
+        return { at: new THREE.Vector3(0.2, 0.9, 0.2), dir: new THREE.Vector3(7.2, 8.6, 12).normalize(), w: 13.2, h: 8.8 };
+    }
+  }
+
+  private fit(v: View) {
+    const tan = Math.tan(THREE.MathUtils.degToRad(this.camera.fov / 2));
+    const portrait = this.camera.aspect < 0.85;
+    const fw = portrait ? 0.96 : 0.68, fh = portrait ? 0.5 : 0.8;
+    return Math.max(v.h / (fh * 2 * tan), v.w / (fw * 2 * tan * this.camera.aspect));
+  }
+
+  goZone(z: StacksZone) {
+    if (z === this.zoneNow) return;
+    this.zoneNow = z;
+    this.on.zone(z);
+  }
+
+  get zone() {
+    return this.zoneNow;
+  }
+
+  /** Push in on a group of cabinets; the lamp over them comes on for it. */
+  pushIn(ci: number) {
+    this.push = ci;
+  }
+
+  /** Back out to where the visitor stood. */
+  pullOut() {
+    this.push = null;
+  }
+
+  setTheme(theme: 'day' | 'night', instant = false) {
+    this.lookTarget = LOOKS[theme];
+    if (instant) this.look = { ...LOOKS[theme] };
+    this.room.setWeather(this.rain, theme === 'night', this.rh);
+  }
+
+  private rh = 70;
+  setWeather(rain: boolean, rh: number) {
+    this.rain = rain;
+    this.rainK = rain ? 1 : 0;
+    this.rh = rh;
+    this.room.setWeather(rain, this.lookTarget === LOOKS.night, rh);
+  }
+
+  /** A row of pendants on or off. A bulb coming on catches a moment before it holds. */
+  setRow(i: number, on: boolean, instant = false) {
+    if (this.rows[i] === on && !instant) return;
+    this.rows[i] = on;
+    this.room.setRocker(i, on);
+    if (instant) this.rowLevel[i] = on ? 1 : 0;
+    else if (on && !this.reduce) this.flicker[i] = 0.42;
+  }
+
+  setDesk(i: number, on: boolean, instant = false) {
+    this.desks[i] = on;
+    if (instant) this.deskLevel[i] = on ? 1 : 0;
+  }
+
+  /** Stop drawing while the drawers are on screen. */
+  pause() {
+    this.running = false;
+  }
+
+  resume() {
+    if (this.running) return;
+    this.running = true;
+    this.last = performance.now();
+    this.resize();
+  }
+
+  /* ---------------- frame ---------------- */
+  private loop() {
+    const step = () => {
+      this.raf = requestAnimationFrame(step);
+      if (this.running && !document.hidden) this.frame();
+    };
+    step();
+  }
+
+  private frame() {
+    const now = performance.now();
+    const dt = Math.min((now - this.last) / 1000, 0.1);
+    this.last = now;
+    const t = (now - this.t0) / 1000;
+    const k = damp(2.2, dt);
+    const L = this.look, T = this.lookTarget;
+    for (const key of Object.keys(L) as (keyof Look)[]) L[key] += (T[key] - L[key]) * k;
+    this.rainK += ((this.rain ? 1 : 0) - this.rainK) * k;
+    const r = this.room;
+    const day = 1 - L.night;
+    const wet = this.rainK;
+
+    // the sky: grey and soft on a wet day, warmer towards evening
+    const hour = islandNow().hours + islandNow().minutes / 60;
+    const dusk = Math.max(0, Math.min(1, (hour - 16.5) / 2.5));
+    this.hemi.intensity = L.hemi * (1 - wet * 0.2);
+    this.sun.intensity = L.sun * (1 - wet * 0.4);
+    this.sun.visible = this.sun.intensity > 0.05;
+    this.sun.color.set('#fff1d8').lerp(new THREE.Color('#dfe6ee'), wet).lerp(new THREE.Color('#ffc890'), dusk * (1 - wet) * 0.7);
+    this.scene.environmentIntensity = L.env * (1 - wet * 0.2);
+    r.street.intensity = L.street;
+    r.street.visible = L.street > 0.1;
+    r.paperShadow.opacity = 0.3 + L.night * 0.3;
+    const patch = new THREE.Color('#fff3d6').lerp(new THREE.Color('#ffb46a'), dusk);
+    r.sunPatches.forEach((m, i) => {
+      m.material.opacity = day * (0.22 - wet * 0.17);
+      m.material.color.copy(patch);
+      // the patches creep across the floor with the sun
+      m.position.x = Math.min(AR.x1 - 0.85, WINDOWS[i] + 0.55 + (Math.min(19, Math.max(7, hour)) - 13) * 0.08);
+    });
+    r.exitMat.emissiveIntensity = 0.3 + L.night * 0.9;
+
+    // lamps
+    for (let i = 0; i < 4; i++) {
+      let want = this.rows[i] || (this.push !== null && i === 1) ? 1 : 0;
+      if (this.flicker[i] > 0) {
+        this.flicker[i] -= dt;
+        want = Math.sin(this.flicker[i] * 70) > 0.1 ? 1 : 0.15;
+        this.rowLevel[i] = want;
+      } else this.rowLevel[i] += (want - this.rowLevel[i]) * Math.min(1, dt * (want ? 10 : 6));
+    }
+    for (const p of r.pendants) {
+      const lv = this.rowLevel[p.row];
+      p.light.intensity = L.pendant * lv;
+      p.light.visible = p.light.intensity > 0.01;
+      p.fill.intensity = lv * (0.4 + L.night * 0.25);
+      p.bulb.emissiveIntensity = 0.05 + lv * (0.6 + L.night * 1.9);
+      p.glass.emissiveIntensity = 0.02 + lv * (0.15 + L.night * 0.75);
+    }
+    r.desks.forEach((d, i) => {
+      this.deskLevel[i] += ((this.desks[i] ? 1 : 0) - this.deskLevel[i]) * Math.min(1, dt * 9);
+      d.light.intensity = L.desk * this.deskLevel[i] * (i === 2 ? 0.7 : 1);
+      d.light.visible = d.light.intensity > 0.01;
+      d.inner.emissiveIntensity = 0.05 + this.deskLevel[i] * (0.4 + L.night * 0.8);
+    });
+    r.pictureLight.intensity = this.rowLevel[0] * (0.6 + L.night * 2.4);
+    r.pictureLight.visible = r.pictureLight.intensity > 0.01;
+
+    const it = islandNow();
+    r.tick(t, dt, { h: it.hours, m: it.minutes, s: it.seconds + it.ms / 1000 }, this.reduce ? 0 : 1);
+
+    // camera
+    const target = this.viewOf(this.zoneNow);
+    this.view.at.setTarget(target.at);
+    this.view.dir.setTarget(target.dir);
+    this.view.dist.target = this.fit(target);
+    const at = this.view.at.update(dt);
+    const dir = this.view.dir.update(dt).clone().normalize();
+    const dist = this.view.dist.update(dt);
+    this.parallax.lerp(this.push !== null ? new THREE.Vector2() : this.pointer.clone().clampScalar(-1, 1), damp(2, dt));
+    const right = new THREE.Vector3().crossVectors(UP, dir).normalize();
+    const tan = Math.tan(THREE.MathUtils.degToRad(this.camera.fov / 2));
+    const visW = 2 * dist * tan * this.camera.aspect;
+    const portrait = this.camera.aspect < 0.85;
+    // the head column sits on the left: the subject sits right of it
+    const look = at.clone().addScaledVector(right, portrait || this.push !== null ? 0 : -visW * 0.12);
+    if (portrait) look.addScaledVector(UP, 2 * dist * tan * 0.07);
+    const camDir = dir.clone().applyQuaternion(new THREE.Quaternion().setFromAxisAngle(UP, this.parallax.x * 0.02));
+    camDir.y -= this.parallax.y * 0.012;
+    this.camera.position.copy(look).addScaledVector(camDir.normalize(), dist);
+    this.camera.lookAt(look);
+    this.camera.updateMatrixWorld();
+
+    this.renderer.render(this.scene, this.camera);
+  }
+
+  /* ---------------- input ---------------- */
+  private pick(x: number, y: number): Record<string, unknown> | null {
+    const rect = this.canvas.getBoundingClientRect();
+    this.raycaster.setFromCamera(new THREE.Vector2(((x - rect.left) / rect.width) * 2 - 1, -((y - rect.top) / rect.height) * 2 + 1), this.camera);
+    const hit = this.raycaster.intersectObjects(this.room.hits, false)[0];
+    return hit ? hit.object.userData : null;
+  }
+
+  private bind() {
+    const c = this.canvas;
+    this.host.addEventListener('pointermove', (e) => {
+      if (!this.running || this.push !== null) return;
+      const r = c.getBoundingClientRect();
+      this.pointer.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
+      if (e.target !== c) return;
+      const p = this.pick(e.clientX, e.clientY);
+      const key = (p?.key as string | undefined) ?? '';
+      if (key === this.hoverKey) return;
+      this.hoverKey = key;
+      c.style.cursor = key ? 'pointer' : 'default';
+      this.on.hover(key || null);
+    });
+    c.addEventListener('click', (e) => {
+      if (!this.running || this.push !== null) return;
+      const p = this.pick(e.clientX, e.clientY);
+      if (!p) return;
+      if (typeof p.cat === 'number') this.on.cabinet(p.cat);
+      else if (typeof p.bank === 'number') this.on.bank(p.bank);
+      else if (typeof p.rocker === 'number') this.on.rocker(p.rocker);
+      else if (typeof p.desk === 'number') this.on.desk(p.desk);
+      else if (p.index) this.on.index();
+      else if (p.tray) this.on.tray();
+      else if (p.safe) this.on.safe();
+      else if (p.dehumidifier) this.on.dehumidifier();
+      else if (p.zone) this.goZone(p.zone as StacksZone);
+    });
+    new ResizeObserver(() => this.resize()).observe(c);
+  }
+
+  private resize() {
+    const w = this.canvas.clientWidth, h = this.canvas.clientHeight;
+    if (!w || !h) return;
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.75));
+    this.renderer.setSize(w, h, false);
+    this.camera.fov = w / h < 0.85 ? 30 : 19;
+    this.camera.aspect = w / h;
+    this.camera.updateProjectionMatrix();
+  }
+
+  dispose() {
+    cancelAnimationFrame(this.raf);
+  }
+}

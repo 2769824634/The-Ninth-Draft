@@ -105,6 +105,29 @@
 .archive[data-clr='conf'] .dossier__paper { --clr: #1f4fa3; }
 .archive[data-clr='restr'] .dossier__paper { --clr: #4f5f3e; }
 .archive[data-clr='draft'] .dossier__paper { --clr: #5c5952; }
+
+/* The lamp over the paper runs colder as the clearance goes up: a tungsten
+   bulb for the declassified, the tube light for top secret. The light is a
+   wash over the sheet and a pool where the lamp stands; at night the rest of
+   the sheet falls off into shadow. */
+@property --lamp { syntax: '<color>'; inherits: true; initial-value: #ffbe6e; }
+@property --lamp-glow { syntax: '<percentage>'; inherits: true; initial-value: 10%; }
+@property --lamp-wash { syntax: '<percentage>'; inherits: true; initial-value: 5%; }
+@property --lamp-dark { syntax: '<percentage>'; inherits: true; initial-value: 0%; }
+.dossier__paper {
+  --lamp: #ffbe6e;
+  background:
+    radial-gradient(ellipse 80% 60% at 22% -8%, color-mix(in srgb, var(--lamp) var(--lamp-glow), transparent), transparent 70%),
+    radial-gradient(ellipse 120% 90% at 30% 10%, transparent 55%, color-mix(in srgb, #2a2118 var(--lamp-dark), transparent)),
+    linear-gradient(color-mix(in srgb, var(--lamp) var(--lamp-wash), transparent), color-mix(in srgb, var(--lamp) var(--lamp-wash), transparent)),
+    var(--bg);
+  transition: background-color 500ms var(--ease), border-color 600ms var(--ease), --lamp 1400ms var(--ease), --lamp-glow 1400ms var(--ease), --lamp-wash 1400ms var(--ease), --lamp-dark 1400ms var(--ease);
+}
+[data-theme='night'] .dossier__paper { --lamp-glow: 34%; --lamp-wash: 12%; --lamp-dark: 16%; }
+.archive[data-clr='restr'] .dossier__paper { --lamp: #ffd29a; }
+.archive[data-clr='conf'] .dossier__paper { --lamp: #fff1dc; }
+.archive[data-clr='secret'] .dossier__paper { --lamp: #dfe7ff; }
+.archive[data-clr='top'] .dossier__paper { --lamp: #c4d6ff; }
 /* Earlier drafts under it: an edge of paper for each, up to three */
 .dossier[data-sheets='1'] .dossier__paper { box-shadow: 5px 6px 0 -1px #d6cdb9, 5px 6px 0 0 rgb(0 0 0 / .1), 0 24px 48px -28px rgb(0 0 0 / .55); }
 .dossier[data-sheets='2'] .dossier__paper { box-shadow: 5px 6px 0 -1px #d6cdb9, 5px 6px 0 0 rgb(0 0 0 / .1), 10px 12px 0 -1px #cbc1aa, 10px 12px 0 0 rgb(0 0 0 / .1), 0 24px 48px -28px rgb(0 0 0 / .55); }

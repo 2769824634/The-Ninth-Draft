@@ -1,0 +1,199 @@
+/* ==========================================================================
+   The stacks: the archive room you walk into before the drawers.
+   One layer fades into the other: the room goes back to paper, the drawers
+   come up out of it. Nothing cuts.
+   ========================================================================== */
+.stacks {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  z-index: 0;
+  touch-action: manipulation;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 900ms var(--ease), visibility 0s linear 900ms;
+}
+.archive[data-room='archive'][data-layer='stacks'] .stacks {
+  opacity: 1;
+  visibility: visible;
+  transition: opacity 900ms var(--ease) 120ms, visibility 0s;
+}
+.archive .stage { transition: opacity 900ms var(--ease); }
+.archive[data-layer='stacks'] .stage { opacity: 0; pointer-events: none; }
+
+/* the drawers' furniture waits until the drawers are on screen */
+.archive[data-layer='stacks'] :is(.filecard, .index-sel, .rail, .inspect, .dossier, .watermark, .orbits, .veil) {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.tostacks {
+  z-index: 5;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity var(--t-2) var(--ease), visibility 0s linear var(--t-2);
+}
+.archive[data-room='archive'][data-layer='drawers'][data-view='browse'] .tostacks {
+  opacity: 1;
+  visibility: visible;
+  transition: opacity 600ms var(--ease) 500ms, visibility 0s;
+}
+
+[data-lang='en'] .stackshud [data-l='zh'],
+[data-lang='zh'] .stackshud [data-l='en'] { display: none !important; }
+
+.stackshud {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  pointer-events: none;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 500ms var(--ease), visibility 0s linear 500ms;
+}
+.archive[data-room='archive'][data-layer='stacks'] .stackshud {
+  opacity: 1;
+  visibility: visible;
+  transition: opacity 700ms var(--ease) 300ms, visibility 0s;
+}
+.archive[data-layer='stacks'][data-pushing] .stackshud { opacity: 0; }
+.stackshud > * { pointer-events: auto; }
+
+.stackshud__head {
+  position: absolute;
+  top: 11.5rem;
+  left: var(--edge);
+  width: 17.5rem;
+  max-height: calc(100% - 15.5rem);
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  scrollbar-width: none;
+}
+.stackshud__kicker { margin: 0 0 .7rem; color: var(--ink-3); }
+.stackshud__title {
+  margin: 0;
+  font-family: var(--f-display);
+  font-weight: 800;
+  font-stretch: 125%;
+  font-size: clamp(2rem, 3.4vw, 3rem);
+  line-height: .95;
+  text-transform: uppercase;
+  letter-spacing: -.01em;
+}
+.stackshud__title::after { content: ''; display: block; width: 2.2rem; height: 3px; margin-top: 1rem; background: var(--accent); }
+.stackshud__stats { margin: .8rem 0 1.4rem; color: var(--ink-3); }
+.stackshud__zones, .stackshud__cats { display: grid; gap: .1rem; }
+.stackshud__zones button, .stackshud__cats button {
+  display: grid;
+  grid-template-columns: 2.4rem 1fr auto;
+  align-items: baseline;
+  gap: .4rem;
+  width: 100%;
+  padding: .32rem 0;
+  border: 0;
+  background: none;
+  color: var(--ink-2);
+  font: 500 .82rem/1.25 var(--f-sans);
+  text-align: left;
+  cursor: pointer;
+  transition: color var(--t-1), padding var(--t-2) var(--ease);
+}
+.stackshud__zones button i, .stackshud__cats button i { font: 500 .62rem/1.4 var(--f-mono); font-style: normal; color: var(--ink-3); letter-spacing: .04em; }
+.stackshud__zones button:hover, .stackshud__cats button:hover { color: var(--ink); padding-left: .3rem; }
+.stackshud__zones button[aria-pressed='true'] { color: var(--ink); }
+.stackshud__zones button[aria-pressed='true'] i { color: var(--accent); }
+.stackshud__zones button[aria-pressed='true'] span::after { content: ' —'; color: var(--accent); }
+.stackshud__cats, .stackshud__lights { margin-top: 1.2rem; padding-top: .8rem; border-top: 1px solid var(--line); }
+.stackshud__cats p, .stackshud__lights p { margin: 0 0 .4rem; color: var(--ink-3); }
+.stackshud__cats button b { font-weight: 500; color: var(--ink-3); }
+.stackshud__cats button i { color: var(--accent); }
+
+/* the four switches, as on the plate by the door */
+.stackshud__rockers { display: grid; grid-template-columns: repeat(4, 1fr); gap: .35rem; }
+.stackshud__rockers button {
+  display: grid;
+  justify-items: center;
+  gap: .25rem;
+  padding: .45rem 0 .4rem;
+  border: 1px solid var(--line);
+  background: color-mix(in srgb, var(--bg) 70%, transparent);
+  color: var(--ink-3);
+  font: 500 .64rem/1.2 var(--f-sans);
+  cursor: pointer;
+  transition: color var(--t-1), border-color var(--t-1), background var(--t-2);
+}
+.stackshud__rockers button b {
+  display: block;
+  width: .9rem;
+  height: 1.3rem;
+  border: 1px solid currentColor;
+  border-radius: 2px;
+  font: 600 .58rem/1.3rem var(--f-mono);
+  background: linear-gradient(180deg, transparent 50%, color-mix(in srgb, currentColor 22%, transparent) 50%);
+  transition: background var(--t-2);
+}
+.stackshud__rockers button[aria-pressed='true'] { color: var(--ink); border-color: var(--ink-3); }
+.stackshud__rockers button[aria-pressed='true'] b { background: linear-gradient(180deg, color-mix(in srgb, #f2c46b 70%, transparent) 50%, transparent 50%); }
+
+.stackshud__callout {
+  position: absolute;
+  left: 50%;
+  bottom: 4.6rem;
+  margin: 0;
+  padding: .45rem .8rem;
+  background: var(--ink);
+  color: var(--bg);
+  transform: translate(-50%, .4rem);
+  opacity: 0;
+  pointer-events: none;
+  white-space: nowrap;
+  clip-path: polygon(0 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 0 100%);
+  transition: opacity var(--t-2) var(--ease), transform var(--t-2) var(--ease);
+}
+.stackshud__callout.is-on { opacity: 1; transform: translate(-50%, 0); }
+
+/* a slip laid on the room: today's arrivals, a closed cabinet, the strong room */
+.stackshud__slip {
+  position: absolute;
+  right: var(--edge);
+  bottom: 5.4rem;
+  width: min(21rem, calc(100vw - 2rem));
+  padding: 1rem 1.1rem 1.1rem;
+  background: #f1ece0;
+  color: #1d1b17;
+  box-shadow: 4px 5px 0 -1px #d6cdb9, 0 18px 40px -22px rgb(0 0 0 / .6);
+  transform: rotate(-.6deg);
+  font: 400 .86rem/1.5 var(--f-serif, serif);
+}
+.stackshud__slip h3 { margin: 0 0 .5rem; font: 700 .7rem/1.3 var(--f-mono); letter-spacing: .08em; text-transform: uppercase; color: #b8352b; }
+.stackshud__slip p { margin: .3rem 0; }
+.stackshud__slip ul { margin: .4rem 0 0; padding: 0; list-style: none; }
+.stackshud__slip li + li { margin-top: .25rem; }
+.stackshud__slip button { padding: 0; border: 0; background: none; color: inherit; font: inherit; text-align: left; text-decoration: underline; text-underline-offset: 2px; cursor: pointer; }
+.stackshud__slip .x { position: absolute; top: .5rem; right: .7rem; text-decoration: none; font: 500 .9rem/1 var(--f-mono); }
+
+@media (max-width: 900px) {
+  .stackshud__head { top: 7.6rem; left: 1rem; right: 1rem; width: auto; max-height: none; overflow: visible; }
+  .stackshud__kicker { display: none; }
+  .stackshud__title { font-size: 1.6rem; }
+  .stackshud__title::after { margin-top: .5rem; }
+  .stackshud__stats { margin: .5rem 0 .6rem; }
+  .stackshud__zones { display: flex; gap: .9rem; overflow-x: auto; scrollbar-width: none; }
+  .stackshud__zones button { display: block; width: auto; white-space: nowrap; padding: .2rem 0; }
+  .stackshud__zones button i { display: none; }
+  .stackshud__zones button[aria-pressed='true'] span::after { content: ''; }
+  .stackshud__zones button[aria-pressed='true'] { border-bottom: 2px solid var(--accent); }
+  .stackshud__cats { position: fixed; left: 1rem; right: 1rem; bottom: 7.6rem; display: flex; gap: .4rem; margin: 0; padding: 0; border: 0; }
+  .stackshud__cats p { display: none; }
+  .stackshud__cats button { flex: 1; display: block; padding: .5rem .4rem; border: 1px solid var(--ink-3); background: var(--bg); text-align: center; }
+  .stackshud__cats button i, .stackshud__cats button b { display: none; }
+  .stackshud__lights { position: fixed; left: 1rem; right: 1rem; bottom: 3.6rem; margin: 0; padding: 0; border: 0; }
+  .stackshud__lights p { display: none; }
+  .stackshud__rockers button { grid-auto-flow: column; padding: .3rem 0; }
+  .stackshud__callout { bottom: auto; top: 48%; }
+  .stackshud__slip { bottom: 11.4rem; right: 1rem; }
+}

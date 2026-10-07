@@ -14,7 +14,7 @@ import { Dossier } from './ui/dossier';
 import { Archivist } from './ui/archivist';
 import { quirks } from './ui/quirks';
 import { fileNo, loadVisitor } from './visitor/store';
-import { clearanceKey, INK } from './clearance';
+import { clearanceKey } from './clearance';
 import { Search } from './ui/search';
 import { boot } from './ui/boot';
 import { Roller, decode, esc, swapText } from './ui/text';
@@ -22,6 +22,7 @@ import { audio } from './audio';
 import { prefs, reducedMotion } from './prefs';
 import { applyRecords, isZh, lang, markDocument, onLang, setLang, t, translateDom, type Lang } from './i18n';
 import { canvasFontsReady } from './scene/textures';
+import { Stacks } from './archive/stacks';
 
 export function start() {
   const data: ArchiveData = JSON.parse(document.getElementById('archive-data')!.textContent!);
@@ -52,6 +53,9 @@ export function start() {
   translateDom(root);
 
   const byCat = categories.map((c) => records.filter((r) => r.category === c.id));
+  function fromPathEarly() {
+    return /records\/[^/]+\/?$/.test(location.pathname);
+  }
   let col = Math.max(0, byCat.findIndex((list) => list.length > 0));
   const sel = categories.map(() => 0);
   let view: 'browse' | 'detail' = 'browse';
@@ -74,7 +78,7 @@ export function start() {
   const setClearance = (stamp: string) => {
     const key = clearanceKey(stamp);
     root.dataset.clr = key;
-    stage?.setClearance(INK[key]);
+    stage?.setClearance(key);
   };
 
   // Flicking through files too fast earns a remark
@@ -94,6 +98,7 @@ export function start() {
     document.querySelectorAll<HTMLButtonElement>('[data-theme-set]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.themeSet === t)));
     stage?.setTheme(t);
     wall?.setTheme(t);
+    stacks?.setTheme(t);
     audio.theme(t === 'night');
     if (!silent) {
       audio.click();
@@ -124,6 +129,58 @@ export function start() {
     console.error('[archive] WebGL unavailable', err);
     root.classList.add('no-webgl');
   }
+  /* ---------------- the stacks: the room you walk into ---------------- */
+  // A record's own address, the link wall, or #drawers go straight to the drawers.
+  let layer: 'stacks' | 'drawers' = data.initial || fromPathEarly() || data.room === 'wall' || location.hash === '#drawers' ? 'drawers' : 'stacks';
+  root.dataset.layer = layer;
+  let stacks: Stacks | null = null;
+  const makeStacks = () =>
+    (stacks ??= new Stacks(root, categories, records, prefs.get('theme'), voice, {
+      enter: (ci) => enterDrawers(ci),
+      open: (rec) => openRecord(rec),
+      search: () => search.show(),
+    }));
+  if (layer === 'stacks') makeStacks();
+
+  /** Push in on a group of cabinets; the room goes back to paper and the drawers come up. */
+  function enterDrawers(ci: number, instant = false) {
+    if (layer === 'drawers') {
+      if (ci !== col) select(ci, sel[ci]);
+      return;
+    }
+    const swap = () => {
+      layer = 'drawers';
+      delete root.dataset.pushing;
+      root.dataset.layer = 'drawers';
+      stage?.resume();
+      stacks?.hide();
+      select(ci, sel[ci]);
+      audio.drawer();
+      if (location.hash !== '#drawers') history.replaceState(history.state, '', `${location.pathname}#drawers`);
+    };
+    if (instant || reducedMotion()) return swap();
+    root.dataset.pushing = '';
+    stacks?.pushIn(ci);
+    audio.tune();
+    voice.say('stacks.push', {}, false);
+    window.setTimeout(swap, 720);
+  }
+
+  /** Back out of the drawers into the room. */
+  function leaveDrawers() {
+    if (layer === 'stacks' || roomTarget === 'wall') return;
+    if (view === 'detail') closeRecord();
+    layer = 'stacks';
+    makeStacks().show();
+    root.dataset.layer = 'stacks';
+    audio.drawer();
+    audio.sputnik(false);
+    if (location.hash === '#drawers') history.replaceState(history.state, '', location.pathname);
+    window.setTimeout(() => {
+      if (layer === 'stacks') stage?.pause();
+    }, reducedMotion() ? 0 : 950);
+  }
+
   applyTheme(prefs.get('theme'), true);
   applySound();
 
@@ -225,6 +282,7 @@ export function start() {
     }
     const ci = categories.findIndex((c) => c.id === rec.category);
     const i = byCat[ci].indexOf(rec);
+    if (layer === 'stacks') enterDrawers(ci, true);
     if (ci !== col || i !== sel[ci]) {
       col = ci;
       sel[ci] = i;
@@ -405,6 +463,11 @@ export function start() {
     markRoom();
     const swap = () => {
       if (view === 'detail') closeRecord(false);
+      if (layer === 'stacks') {
+        layer = 'drawers';
+        root.dataset.layer = 'drawers';
+        stacks?.hide();
+      }
       ensureWall();
       stage?.pause();
       wall?.start();
@@ -505,6 +568,7 @@ export function start() {
       wallCount();
       renderHud(true);
       dossier.relang();
+      stacks?.relang();
       $('btn-back').querySelector('span')!.textContent = backLabel();
       if (view === 'detail' && current) document.title = t('{file} · {title} — The Ninth Draft', { file: current.file, title: current.title });
       else document.title = t(roomTarget === 'wall' ? 'Link analysis — The Ninth Draft' : 'The Ninth Draft — Archive');
@@ -572,8 +636,10 @@ export function start() {
     e.preventDefault();
     if (search.isOpen) search.close();
     if (roomTarget === 'wall') leaveWall(null);
-    else closeRecord();
+    else if (view === 'detail') closeRecord();
+    else leaveDrawers();
   };
+  $('to-stacks').addEventListener('click', () => leaveDrawers());
   document.querySelector('[data-nav="home"]')!.addEventListener('click', goHome);
   $('nav-archive').addEventListener('click', goHome);
 
@@ -603,8 +669,15 @@ export function start() {
       else if (e.key === 'l' || e.key === 'L') setLang(isZh() ? 'en' : 'zh');
       return;
     }
+    if (layer === 'stacks' && view === 'browse') {
+      if (stacks?.key(e)) e.preventDefault();
+      else if (e.key === 'n' || e.key === 'N') applyTheme(prefs.get('theme') === 'day' ? 'night' : 'day');
+      else if (e.key === 'l' || e.key === 'L') setLang(isZh() ? 'en' : 'zh');
+      return;
+    }
     if (view === 'browse') {
-      if (e.key === 'ArrowDown') { e.preventDefault(); move(1); }
+      if (e.key === 'Escape' || e.key === 'Backspace') { e.preventDefault(); leaveDrawers(); }
+      else if (e.key === 'ArrowDown') { e.preventDefault(); move(1); }
       else if (e.key === 'ArrowUp') { e.preventDefault(); move(-1); }
       else if (e.key === 'ArrowRight') { e.preventDefault(); switchCol(1); }
       else if (e.key === 'ArrowLeft') { e.preventDefault(); switchCol(-1); }
@@ -654,6 +727,10 @@ export function start() {
   stage?.focus(col, sel[col]);
   renderHud(true);
   stage?.start();
+  if (layer === 'stacks') {
+    stage?.pause();
+    makeStacks().show();
+  }
   // In Chinese, the folders were typed before their glyphs arrived: retype them
   const allZh = () => records.map((r) => [r.title, r.subtitle, r.place, r.summary, ...r.fields.map((f) => f.label + f.value)].join('')).join('');
   if (isZh()) void canvasFontsReady(allZh()).then(() => {
@@ -698,7 +775,8 @@ export function start() {
     }
     if (!seen) system.say('boot', true);
     if (data.room === 'wall') enterWall(null, false, true);
-    else audio.sputnik(categories[col].id === 'programs');
+    else if (layer === 'drawers') audio.sputnik(categories[col].id === 'programs');
+    else setTimeout(() => layer === 'stacks' && makeStacks().enterVoice(), 9000);
     if (initial) setTimeout(() => openRecord(initial, false), 350);
   };
 
