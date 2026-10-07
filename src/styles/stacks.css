@@ -1,7 +1,7 @@
 /* ==========================================================================
-   The stacks: the archive room you walk into before the drawers.
-   One layer fades into the other: the room goes back to paper, the drawers
-   come up out of it. Nothing cuts.
+   The stacks: the archive room. One room, read in: the cabinets open where
+   they stand and the paper opens over them. Nothing cuts, and nothing takes
+   the room away while a file is being read.
    ========================================================================== */
 .stacks {
   position: absolute;
@@ -15,31 +15,10 @@
   visibility: hidden;
   transition: opacity 900ms var(--ease), visibility 0s linear 900ms;
 }
-.archive[data-room='archive'][data-layer='stacks'] .stacks {
+.archive[data-room='archive'] .stacks {
   opacity: 1;
   visibility: visible;
   transition: opacity 900ms var(--ease) 120ms, visibility 0s;
-}
-.archive .stage { transition: opacity 900ms var(--ease); }
-.archive[data-layer='stacks'] .stage { opacity: 0; pointer-events: none; }
-
-/* the drawers' furniture waits until the drawers are on screen */
-.archive[data-layer='stacks'] :is(.filecard, .index-sel, .rail, .inspect, .dossier, .watermark, .orbits, .veil) {
-  opacity: 0;
-  visibility: hidden;
-  pointer-events: none;
-}
-
-.tostacks {
-  z-index: 5;
-  opacity: 0;
-  visibility: hidden;
-  transition: opacity var(--t-2) var(--ease), visibility 0s linear var(--t-2);
-}
-.archive[data-room='archive'][data-layer='drawers'][data-view='browse'] .tostacks {
-  opacity: 1;
-  visibility: visible;
-  transition: opacity 600ms var(--ease) 500ms, visibility 0s;
 }
 
 [data-lang='en'] .stackshud [data-l='zh'],
@@ -54,12 +33,24 @@
   visibility: hidden;
   transition: opacity 500ms var(--ease), visibility 0s linear 500ms;
 }
-.archive[data-room='archive'][data-layer='stacks'] .stackshud {
+.archive[data-room='archive'] .stackshud {
   opacity: 1;
   visibility: visible;
   transition: opacity 700ms var(--ease) 300ms, visibility 0s;
 }
-.archive[data-layer='stacks'][data-pushing] .stackshud { opacity: 0; }
+/* reading: the room's own column steps back, the drawer panel stays put */
+.archive[data-view='detail'] .stackshud :is(.stackshud__head, .stackshud__callout, .stackshud__choice, .stackshud__slip, .icards) {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity 240ms var(--ease), visibility 0s linear 240ms;
+}
+.archive[data-view='detail'] .stackshud__drawer {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity 240ms var(--ease), visibility 0s linear 240ms;
+}
 .stackshud > * { pointer-events: auto; }
 
 .stackshud__head {
@@ -196,4 +187,288 @@
   .stackshud__rockers button { grid-auto-flow: column; padding: .3rem 0; }
   .stackshud__callout { bottom: auto; top: 48%; }
   .stackshud__slip { bottom: 11.4rem; right: 1rem; }
+}
+
+/* ==========================================================================
+   What the room answers with: the drawer that is out, the file half out of
+   it, the reading table, and the card index by the door.
+   ========================================================================== */
+.stackshud__desks { display: grid; gap: .1rem; margin-top: .5rem; }
+.stackshud__desks button {
+  display: grid;
+  grid-template-columns: 1rem 1fr;
+  align-items: center;
+  gap: .45rem;
+  width: 100%;
+  padding: .26rem 0;
+  border: 0;
+  background: none;
+  color: var(--ink-3);
+  font: 500 .74rem/1.2 var(--f-sans);
+  text-align: left;
+  cursor: pointer;
+  transition: color var(--t-1);
+}
+.stackshud__desks button i {
+  width: .62rem;
+  height: .62rem;
+  margin-left: .2rem;
+  border: 1px solid currentColor;
+  border-radius: 50%;
+  transition: background var(--t-2), box-shadow var(--t-2);
+}
+.stackshud__desks button:hover { color: var(--ink); }
+.stackshud__desks button[aria-pressed='true'] { color: var(--ink); }
+.stackshud__desks button[aria-pressed='true'] i { background: #f2c46b; box-shadow: 0 0 .5rem #f2c46b88; }
+
+.stackshud__panel { margin-top: 1.2rem; padding-top: .8rem; border-top: 1px solid var(--line); }
+.stackshud__panel > p:first-child { margin: 0 0 .4rem; color: var(--ink-3); }
+.stackshud__tableempty { margin: 0; color: var(--ink-3); font-size: .74rem; line-height: 1.45; }
+.stackshud__cardsbtn {
+  margin-top: 1rem;
+  padding: .4rem 0 0;
+  border: 0;
+  border-top: 1px solid var(--line);
+  background: none;
+  color: var(--ink-2);
+  font: 500 .78rem/1.3 var(--f-sans);
+  text-align: left;
+  cursor: pointer;
+  transition: color var(--t-1);
+}
+.stackshud__cardsbtn:hover { color: var(--accent); }
+
+/* a list of file spines: in a drawer, or lying on the table */
+.stackshud__files { margin: 0; padding: 0; list-style: none; display: grid; gap: .05rem; }
+.stackshud__files li { display: flex; align-items: baseline; gap: .3rem; }
+.stackshud__files li > button:first-child {
+  flex: 1;
+  display: grid;
+  grid-template-columns: auto auto 1fr auto;
+  align-items: baseline;
+  gap: .45rem;
+  min-width: 0;
+  padding: .3rem .3rem .3rem 0;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  background: none;
+  color: var(--ink-2);
+  font: 500 .8rem/1.3 var(--f-sans);
+  text-align: left;
+  cursor: pointer;
+  transition: color var(--t-1), padding var(--t-2) var(--ease), background var(--t-2);
+}
+.stackshud__files i { font: 500 .62rem/1.4 var(--f-mono); font-style: normal; color: var(--ink-3); }
+.stackshud__files b { font-family: var(--f-mono); font-weight: 600; font-size: .74rem; letter-spacing: .02em; }
+.stackshud__files span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink-3); }
+.stackshud__files em { font-style: normal; font: 600 .58rem/1.4 var(--f-mono); letter-spacing: .06em; text-transform: uppercase; color: var(--clr-ink, var(--ink-3)); }
+.stackshud__files li > button:first-child:hover { color: var(--ink); padding-left: .3rem; }
+.stackshud__files li > button:first-child[aria-pressed='true'] { color: var(--ink); background: color-mix(in srgb, var(--accent) 10%, transparent); padding-left: .3rem; }
+.stackshud__files li.is-out b, .stackshud__files li.is-out span { color: var(--ink-3); text-decoration: line-through; text-decoration-color: var(--accent); }
+.stackshud__files li.is-empty { padding: .4rem 0; color: var(--ink-3); font-size: .76rem; }
+.stackshud__ret, .stackshud__retall {
+  padding: 0 0 0 .2rem;
+  border: 0;
+  background: none;
+  color: var(--ink-3);
+  font: 500 .66rem/1.3 var(--f-sans);
+  cursor: pointer;
+  transition: color var(--t-1);
+}
+.stackshud__ret:hover, .stackshud__retall:hover { color: var(--accent); }
+.stackshud__retall { margin-top: .5rem; text-decoration: underline; text-underline-offset: 2px; }
+.clr-top { --clr-ink: #b3271c; }
+.clr-secret { --clr-ink: #a8720b; }
+.clr-conf { --clr-ink: #2f66c4; }
+.clr-restr { --clr-ink: #5f7049; }
+
+/* the drawer that is out: its files, over on the right of the room */
+.stackshud__drawer {
+  position: absolute;
+  right: var(--edge);
+  top: 11.5rem;
+  width: min(23rem, calc(100vw - 2rem));
+  max-height: calc(100% - 17rem);
+  overflow-y: auto;
+  scrollbar-width: none;
+  padding: 1rem 1.1rem 1.1rem;
+  background: color-mix(in srgb, var(--bg) 92%, transparent);
+  border-top: 3px solid var(--accent);
+  box-shadow: 0 24px 48px -32px rgb(0 0 0 / .5);
+}
+.stackshud__drawer[hidden] { display: none; }
+.stackshud__drawer > p:first-child { margin: 0 0 .2rem; color: var(--ink-3); }
+.stackshud__dname {
+  margin: 0 0 .7rem;
+  font-family: var(--f-display);
+  font-weight: 800;
+  font-stretch: 118%;
+  font-size: 1.5rem;
+  line-height: 1;
+  text-transform: uppercase;
+}
+.stackshud__dnav { display: flex; align-items: center; gap: .4rem; margin-top: .8rem; }
+.stackshud__dnav button {
+  padding: .3rem .5rem;
+  border: 1px solid var(--line);
+  background: none;
+  color: var(--ink-2);
+  font: 500 .72rem/1.2 var(--f-sans);
+  cursor: pointer;
+  transition: color var(--t-1), border-color var(--t-1);
+}
+.stackshud__dnav button:nth-child(2) { flex: 1; }
+.stackshud__dnav button:hover { color: var(--ink); border-color: var(--ink-3); }
+.stackshud__totable {
+  margin-top: .7rem;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  font: 500 .74rem/1.3 var(--f-sans);
+  text-align: left;
+  cursor: pointer;
+}
+
+/* the file half out of the drawer: read it here, or carry it */
+.stackshud__choice {
+  position: absolute;
+  left: 50%;
+  bottom: 7.6rem;
+  width: min(27rem, calc(100vw - 2rem));
+  padding: .9rem 1rem 1rem;
+  background: #f1ece0;
+  color: #1d1b17;
+  transform: translateX(-50%);
+  box-shadow: 4px 5px 0 -1px #d6cdb9, 0 20px 44px -24px rgb(0 0 0 / .6);
+}
+.stackshud__choice[hidden] { display: none; }
+.stackshud__choicehead { display: flex; align-items: baseline; gap: .5rem; margin: 0 0 .7rem; font: 400 .84rem/1.4 var(--f-serif, serif); }
+.stackshud__choicehead b { font-family: var(--f-mono); font-size: .76rem; }
+.stackshud__choicehead span { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.stackshud__choicehead em { font-style: normal; font: 600 .58rem/1.4 var(--f-mono); letter-spacing: .06em; color: var(--clr-ink, #1d1b17); }
+.stackshud__choicebtns { display: flex; gap: .4rem; }
+.stackshud__choicebtns button {
+  flex: 1;
+  padding: .5rem .3rem;
+  border: 1px solid rgb(29 27 23 / .35);
+  background: none;
+  color: inherit;
+  font: 500 .76rem/1.2 var(--f-sans);
+  cursor: pointer;
+  transition: background var(--t-2), border-color var(--t-1);
+}
+.stackshud__choicebtns button:first-child { background: #1d1b17; border-color: #1d1b17; color: #f1ece0; }
+.stackshud__choicebtns button:hover { border-color: #b8352b; }
+.stackshud__choicebtns button:disabled { opacity: .4; cursor: not-allowed; }
+.stackshud__choicebtns .kbd { margin-left: .3rem; opacity: .7; }
+.stackshud__choicenote { margin: .6rem 0 0; font: 400 .74rem/1.45 var(--f-serif, serif); color: rgb(29 27 23 / .7); }
+
+/* ---------- the card index ---------- */
+.icards {
+  position: absolute;
+  inset: 0;
+  z-index: 6;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  gap: 1rem;
+  padding: 7.4rem var(--edge) 3.4rem;
+  background: color-mix(in srgb, var(--bg) 88%, transparent);
+  backdrop-filter: blur(2px);
+}
+.icards[hidden] { display: none; }
+.icards__top { display: flex; align-items: center; gap: .8rem; flex-wrap: wrap; }
+.icards__top .micro { color: var(--ink-3); }
+.icards__sort { display: flex; gap: .3rem; margin-left: auto; }
+.icards__sort button, .icards__x {
+  padding: .3rem .6rem;
+  border: 1px solid var(--line);
+  background: none;
+  color: var(--ink-3);
+  font: 500 .72rem/1.2 var(--f-sans);
+  cursor: pointer;
+  transition: color var(--t-1), border-color var(--t-1);
+}
+.icards__sort button[aria-pressed='true'] { color: var(--ink); border-color: var(--ink-3); }
+.icards__sort button:hover, .icards__x:hover { color: var(--ink); border-color: var(--ink-3); }
+.icards__tray { position: relative; display: grid; place-items: start center; perspective: 900px; }
+.icards__edge {
+  position: absolute;
+  top: calc(var(--i) * .7rem);
+  width: min(30rem, 100%);
+  padding: .3rem .9rem;
+  background: #e7e0cf;
+  color: rgb(29 27 23 / .45);
+  font: 500 .64rem/1.2 var(--f-mono);
+  box-shadow: 0 1px 0 rgb(0 0 0 / .08);
+  transform: scale(calc(1 - var(--i) * .015));
+}
+.icards__now { width: min(30rem, 100%); }
+.icard {
+  position: relative;
+  padding: 1.4rem 1.6rem 1.5rem;
+  background: #f3ecdd;
+  color: #1d1b17;
+  box-shadow: 0 1px 0 rgb(0 0 0 / .06), 0 22px 44px -26px rgb(0 0 0 / .55);
+  /* a ruled card, with a punch hole at the bottom */
+  background-image: repeating-linear-gradient(transparent 0 1.55rem, rgb(29 27 23 / .07) 1.55rem 1.6rem);
+}
+.icard::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: .4rem;
+  width: .5rem;
+  height: .5rem;
+  margin-left: -.25rem;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--bg) 85%, #1d1b17);
+}
+.icard--guide { background: #e2d7b8; display: grid; gap: .4rem; min-height: 7rem; }
+.icard__tab {
+  display: inline-block;
+  padding: .3rem .8rem;
+  background: #1d1b17;
+  color: #f1ece0;
+  font: 700 .82rem/1.3 var(--f-mono);
+  letter-spacing: .04em;
+  clip-path: polygon(0 0, calc(100% - 9px) 0, 100% 9px, 100% 100%, 0 100%);
+}
+.icard__gsub { margin: 0; font: 400 .8rem/1.4 var(--f-serif, serif); color: rgb(29 27 23 / .65); }
+.icard__no { margin: 0; font: 700 1.5rem/1 var(--f-mono); letter-spacing: .02em; color: var(--clr-ink, #1d1b17); }
+.icard__title { margin: .4rem 0 0; font: 400 1.1rem/1.35 var(--f-serif, serif); }
+.icard__sub { margin: .2rem 0 0; font: 400 .84rem/1.4 var(--f-serif, serif); color: rgb(29 27 23 / .65); }
+.icard__rows { margin: .9rem 0 0; display: grid; gap: .1rem; }
+.icard__rows div { display: grid; grid-template-columns: 6.5rem 1fr; gap: .5rem; }
+.icard__rows dt { margin: 0; font: 500 .66rem/1.6 var(--f-mono); letter-spacing: .06em; text-transform: uppercase; color: rgb(29 27 23 / .5); }
+.icard__rows dd { margin: 0; font: 400 .84rem/1.6 var(--f-serif, serif); }
+.icard__mark { margin: .9rem 0 0; font: 500 .68rem/1.4 var(--f-mono); color: #b8352b; }
+.icard__go {
+  margin-top: .8rem;
+  padding: .4rem .8rem;
+  border: 1px solid rgb(29 27 23 / .35);
+  background: none;
+  color: inherit;
+  font: 500 .76rem/1.2 var(--f-sans);
+  cursor: pointer;
+  transition: background var(--t-2);
+}
+.icard__go:hover { background: #1d1b17; color: #f1ece0; }
+.icards__nav { display: flex; align-items: center; justify-content: center; gap: 1rem; }
+.icards__nav button {
+  width: 2.4rem;
+  padding: .3rem 0;
+  border: 1px solid var(--line);
+  background: none;
+  color: var(--ink-2);
+  cursor: pointer;
+}
+.icards__nav button:disabled { opacity: .3; cursor: not-allowed; }
+.icards__nav .micro { color: var(--ink-3); font-variant-numeric: tabular-nums; }
+
+@media (max-width: 900px) {
+  .stackshud__desks, .stackshud__panel, .stackshud__cardsbtn { display: none; }
+  .stackshud__drawer { top: auto; bottom: 11rem; left: 1rem; right: 1rem; width: auto; max-height: 52vh; }
+  .stackshud__choice { bottom: 3.4rem; }
+  .icards { padding: 6.4rem 1rem 2.4rem; }
 }

@@ -50,8 +50,14 @@
 /* ---------- The sheet ---------- */
 /* The file lies on the desk as one sheet of paper, centred, read top to bottom.
    The room stays behind it, dimmed; the folder it came out of is still there. */
-.inspect { background: color-mix(in srgb, var(--bg) 62%, transparent); }
-.archive[data-view='detail'] :is(.inspect__no, .watermark, .foot) { opacity: 0; visibility: hidden; }
+/* the room shows through: the veil behind does the dimming */
+.archive[data-view='detail'] :is(.inspect__no, .watermark, .foot__coords, .foot__year, .foot__clock, .foot__mark) { opacity: 0; visibility: hidden; }
+/* the footer line would run under the sheet's own Previous / Next, so it waits */
+.archive[data-view='detail'] .voice { opacity: 0; visibility: hidden; }
+/* the second file covers that corner: the draft tabs step aside for it */
+.archive:has(.companion:not([hidden])) .sheaf { opacity: 0; visibility: hidden; }
+/* the sheet slides left to make room, so the way back shrinks to its arrow */
+.archive:has(.companion:not([hidden])) .back span:not(.kbd) { display: none; }
 
 .dossier {
   --w: min(47rem, calc(100vw - 2 * var(--edge) - 18rem));
@@ -558,4 +564,90 @@ a.cite:hover, a.cite:focus-visible { color: var(--accent); text-decoration-style
 .dossier__title[data-category='personnel'] { font-stretch: 116%; font-size: 2.6rem; }
 @media (max-width: 900px), (max-aspect-ratio: 1/1) {
   .dossier__title[data-category='personnel'] { font-size: 1.8rem; }
+}
+
+/* ==========================================================================
+   Reading in the room: what else is on the table, the file alongside, and
+   the line that says the lamps are off.
+   ========================================================================== */
+/* With the lamps off the sheet is read by what comes through the louvres:
+   the moon is thin and cold, the street lamp orange and lower still. */
+/* Lamps off: the page is lit by whatever comes through the louvres, and the
+   clearance colour temperature gives way to the moon or to the sodium outside. */
+.archive[data-light='moon'] .dossier__paper { --lamp: #a9bce8; --lamp-glow: 26%; --lamp-wash: 13%; --lamp-dark: 42%; --bg: #c3c6c3; }
+.archive[data-light='street'] .dossier__paper { --lamp: #ff9a33; --lamp-glow: 28%; --lamp-wash: 15%; --lamp-dark: 44%; --bg: #d0c3a8; }
+.dossier__light { margin: .5rem 0 .6rem; color: #8a6a2f; font-family: var(--f-mono); font-size: .66rem; letter-spacing: .04em; }
+.archive[data-light='moon'] .dossier__light { color: #4a5a86; }
+.dossier__light[hidden] { display: none; }
+
+/* the strip under the sheet: the other files lying on the table */
+.ds-table {
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: .3rem;
+  flex-wrap: wrap;
+  margin-top: .5rem;
+  padding: .4rem .6rem;
+  background: color-mix(in srgb, var(--bg) 85%, transparent);
+  border-top: 1px solid var(--line);
+}
+.ds-table[hidden] { display: none; }
+.ds-table .micro { margin-right: .3rem; color: var(--ink-3); }
+.ds-table button {
+  padding: .22rem .5rem;
+  border: 1px solid var(--line);
+  background: none;
+  color: var(--ink-2);
+  font: 600 .68rem/1.2 var(--f-mono);
+  cursor: pointer;
+  transition: color var(--t-1), border-color var(--t-1), background var(--t-2);
+}
+.ds-table button:hover { color: var(--ink); border-color: var(--ink-3); }
+.ds-table__side { font-family: var(--f-sans) !important; font-weight: 500 !important; }
+.ds-table__side[aria-pressed='true'] { background: var(--ink); border-color: var(--ink); color: var(--bg); }
+
+/* the second file, laid alongside: narrower, turned a little, as on a table */
+.companion {
+  position: absolute;
+  z-index: 5;
+  top: 8.8rem;
+  bottom: 1.4rem;
+  right: var(--edge);
+  width: min(26rem, 34vw);
+  display: flex;
+  flex-direction: column;
+  transform: rotate(.5deg);
+}
+.companion[hidden] { display: none; }
+.companion__bar {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  padding: .3rem .6rem;
+  background: var(--ink);
+  color: var(--bg);
+}
+.companion__bar span { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.companion__bar button { padding: 0; border: 0; background: none; color: inherit; font: inherit; cursor: pointer; text-decoration: underline; text-underline-offset: 2px; }
+.companion__bar button:last-child { text-decoration: none; font-size: .9rem; line-height: 1; }
+.companion__paper {
+  flex: 1;
+  overflow-y: auto;
+  scrollbar-width: none;
+  padding: 1.4rem 1.6rem 2rem;
+  border-top: 0;
+}
+.companion__paper .dossier__title { font-size: 1.5rem; }
+.companion[data-clr='top'] .companion__paper { --clr: #b3271c; --lamp: #c4d6ff; }
+.companion[data-clr='secret'] .companion__paper { --clr: #a8720b; --lamp: #dfe7ff; }
+.companion[data-clr='conf'] .companion__paper { --clr: #1f4fa3; --lamp: #fff1dc; }
+.companion[data-clr='restr'] .companion__paper { --clr: #4f5f3e; --lamp: #ffd29a; }
+
+/* with a file alongside, the sheet being read gives way to it */
+.archive:has(.companion:not([hidden])) .dossier { --w: min(38rem, calc(100vw - 2 * var(--edge) - 30rem)); left: calc(var(--edge) + 7rem); }
+
+@media (max-width: 1100px) {
+  .companion { position: fixed; inset: auto 0 0 0; width: auto; top: 55%; transform: none; }
+  .archive:has(.companion:not([hidden])) .dossier { --w: min(47rem, calc(100vw - 2rem)); left: calc(50% - var(--w) / 2); bottom: 46%; }
 }

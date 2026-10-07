@@ -14,7 +14,7 @@
   cursor: grab;
 }
 .archive[data-room='wall'] .wall { visibility: visible; }
-.archive[data-room='wall'] .stage { visibility: hidden; }
+.archive[data-room='wall'] .stacks { visibility: hidden; }
 .archive[data-room='wall'].is-hovering .wall { cursor: pointer; }
 .archive[data-room='wall'].is-dragging .wall { cursor: grabbing; }
 

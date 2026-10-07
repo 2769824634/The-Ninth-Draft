@@ -97,8 +97,24 @@ function plain(html: string) {
 
 const CITE = /\b([PER])-(\d{4})\b/g;
 
+/** Set a fragment of a record's text as it reads in the final: struck, added and blacked-out passages, notes. */
+export function asFiled(el: HTMLElement) {
+  el.querySelectorAll<HTMLElement>('.rv').forEach((s) => {
+    const now = stateAt(s, 9);
+    s.classList.toggle('is-gone', now.gone);
+    s.classList.toggle('is-redacted', now.redacted);
+  });
+  el.querySelectorAll<HTMLElement>('.rv-note').forEach((s) => s.classList.toggle('is-gone', !inRange(s.dataset.note, 9)));
+  showDraft(el, 9);
+}
+
 export interface DossierHooks {
+  /** A file named in the text, taken up from its slip: walk over and take it out. */
   go(rec: ArchiveRecord): void;
+  /** Where a named file is now, for its slip; and whether it is on the table with this one. */
+  place(rec: ArchiveRecord): { where: string; onTable: boolean };
+  /** Lay a file on the table beside this one. */
+  pair(rec: ArchiveRecord): void;
   wall(rec: ArchiveRecord): void;
   draft(rec: ArchiveRecord, info: DraftInfo, byUser: boolean): void;
   reveal(): void;
@@ -144,7 +160,7 @@ export class Dossier {
         e.preventDefault();
         const rec = this.records.find((x) => x.file === go.dataset.go);
         this.closeSlip();
-        if (rec) this.hooks.go(rec);
+        if (rec) (go.dataset.pair ? this.hooks.pair : this.hooks.go)(rec);
         return;
       }
       const r = t.closest('.redact, .rv.is-redacted');
@@ -470,6 +486,7 @@ export class Dossier {
     const cat = this.categories.find((c) => c.id === r.category);
     const where = [longDate(r.date), r.place].filter(Boolean).join(' · ');
     const sum = plain(r.summary);
+    const place = this.hooks.place(r);
     this.slip.innerHTML = `
       <div class="cite-slip__head micro"><b>${esc(r.file)}</b><span>${esc(t(cat?.label ?? ''))}</span><span class="cite-slip__stamp">${esc(r.stamp)}</span>
         <button type="button" class="cite-slip__x" data-slip-close aria-label="${esc(t('Close'))}">×</button></div>
@@ -477,7 +494,8 @@ export class Dossier {
       ${r.subtitle ? `<p class="cite-slip__sub">${esc(r.subtitle)}</p>` : ''}
       ${where ? `<p class="cite-slip__where micro">${esc(where)}</p>` : ''}
       <p class="cite-slip__sum">${esc(sum.length > 220 ? `${sum.slice(0, 210).replace(/\s+\S*$/, '')}…` : sum)}</p>
-      <a class="cite-slip__go" href="${this.base}records/${r.slug}/" data-go="${esc(r.file)}">${esc(t('Open the file'))} →</a>`;
+      <p class="cite-slip__shelf micro">${esc(place.where)}</p>
+      <a class="cite-slip__go" href="${this.base}records/${r.slug}/" data-go="${esc(r.file)}"${place.onTable ? ' data-pair="1"' : ''}>${esc(place.onTable ? (isZh() ? '在桌上 · 摆到旁边对照' : 'On the table · lay it alongside') : isZh() ? '去柜子拿' : 'Go and take it out')} →</a>`;
     this.slip.hidden = false;
     // beside the mark on wide screens, along the bottom on phones (CSS)
     const box = this.el.getBoundingClientRect(), m = a.getBoundingClientRect();

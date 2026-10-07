@@ -20,3 +20,16 @@ export const INK: Record<ClearanceKey, string> = {
   declass: '#1d1b17',
   draft: '#5c5952',
 };
+
+/**
+ * The colour of the lamp a file is read under: a tungsten bulb for the
+ * declassified, colder up the scale, the tube light for top secret.
+ */
+export const LAMP_K: Record<ClearanceKey, string> = {
+  declass: '#ffc98a',
+  draft: '#ffc98a',
+  restr: '#ffdcae',
+  conf: '#fff0dc',
+  secret: '#eef1ff',
+  top: '#d2defc',
+};

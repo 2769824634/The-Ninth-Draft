@@ -38,18 +38,10 @@ const stackZones = [
 const links = new Set(records.flatMap((r) => r.related.filter((f) => records.some((x) => x.file === f)).map((f) => [r.file, f].sort().join('|')))).size;
 ---
 
-<div class="archive" id="archive" data-view="browse" data-boot="on" data-room={room} data-layer="stacks">
-  <canvas class="stage" id="stage" aria-hidden="true"></canvas>
+<div class="archive" id="archive" data-view="browse" data-boot="on" data-room={room} data-readat="drawer">
   <canvas class="wall" id="wall" aria-hidden="true"></canvas>
   <canvas class="stacks" id="stacks" aria-hidden="true"></canvas>
   <div class="veil" aria-hidden="true"></div>
-
-  <!-- Orbital drafting lines: the quiet space-age layer -->
-  <svg class="orbits" viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
-    <ellipse cx="1180" cy="430" rx="620" ry="210" transform="rotate(-14 1180 430)" />
-    <ellipse cx="1180" cy="430" rx="460" ry="150" transform="rotate(-14 1180 430)" />
-    <circle cx="1180" cy="430" r="2.5" class="orbits__dot" />
-  </svg>
 
   <!-- ===================== HUD ===================== -->
   <header class="brand">
@@ -92,61 +84,6 @@ const links = new Set(records.flatMap((r) => r.related.filter((f) => records.som
     </button>
   </nav>
 
-  <!-- Browse: file panel -->
-  <section class="filecard" id="filecard" aria-live="polite">
-    <div class="filecard__crumb micro"><span>Archive</span><span>/</span><span id="fc-category">Personnel</span></div>
-    <h1 class="filecard__no"><span class="filecard__no-lbl">File no.</span> <span id="fc-file" class="swap">P-0001</span></h1>
-    <div class="filecard__rule"><i></i><span class="micro">Reference area</span></div>
-    <div class="filecard__body">
-      <p class="filecard__title" id="fc-title"></p>
-      <p class="filecard__sub" id="fc-sub"></p>
-      <button class="filecard__open" id="fc-open" type="button">
-        <span>Access file</span>
-        <svg viewBox="0 0 24 12" aria-hidden="true"><path d="M0 6h22M17 1l5 5-5 5" /></svg>
-      </button>
-    </div>
-    <div class="filecard__meta">
-      <span class="stamp-chip" id="fc-stamp">Declassified</span>
-      <span class="micro" id="fc-date"></span>
-    </div>
-  </section>
-
-  <section class="index-sel">
-    <div class="micro">Index / select</div>
-    <div class="index-sel__nums">
-      <span class="roller" id="roll-cur" aria-label="Selected position"></span>
-      <span class="index-sel__slash">/</span>
-      <span class="index-sel__total" id="roll-total">00</span>
-    </div>
-  </section>
-
-  <section class="rail">
-    <div class="rail__ruler">
-      <button type="button" class="rail__arrow" data-step="-1" aria-label="Previous file">
-        <svg viewBox="0 0 12 18" aria-hidden="true"><path d="M6 17V1M1 6l5-5 5 5" /></svg>
-      </button>
-      <div class="ruler" id="ruler" aria-hidden="true"></div>
-      <button type="button" class="rail__arrow" data-step="1" aria-label="Next file">
-        <svg viewBox="0 0 12 18" aria-hidden="true"><path d="M6 1v16M1 12l5 5 5-5" /></svg>
-      </button>
-    </div>
-    <div class="rail__col">
-      <button type="button" class="rail__arrow rail__arrow--h" data-col="-1" aria-label="Previous drawer">
-        <svg viewBox="0 0 18 12" aria-hidden="true"><path d="M17 6H1M6 1 1 6l5 5" /></svg>
-      </button>
-      <div class="rail__colinfo">
-        <span class="micro"><span>Drawer</span> <span id="col-no">01</span> / 0{CATEGORIES.length}</span>
-        <span class="rail__colname" id="col-name">Personnel</span>
-      </div>
-      <button type="button" class="rail__arrow rail__arrow--h" data-col="1" aria-label="Next drawer">
-        <svg viewBox="0 0 18 12" aria-hidden="true"><path d="M1 6h16M12 1l5 5-5 5" /></svg>
-      </button>
-    </div>
-    <div class="rail__hints micro">
-      <span>← → Drawer</span><span>/</span><span>↑ ↓ File</span><span>/</span><span>Enter Open</span>
-    </div>
-  </section>
-
   <!-- SYSTEM: the archive's machine voice, cold and occasional -->
   <div class="sysmsg" id="sysmsg" role="status" aria-live="polite">
     <span class="sysmsg__tag">System</span>
@@ -162,12 +99,6 @@ const links = new Set(records.flatMap((r) => r.related.filter((f) => records.som
     <span class="foot__mark"><b>Gerimis</b> <span>Records Office</span><i></i></span>
   </footer>
 
-  <!-- Back out of the drawers into the room -->
-  <button class="back tostacks" id="to-stacks" type="button">
-    <svg viewBox="0 0 24 12" aria-hidden="true"><path d="M24 6H2M7 1 2 6l5 5" /></svg>
-    <span>Back to the stacks</span><span class="kbd">Esc</span>
-  </button>
-
   <!-- ===================== DOSSIER ===================== -->
   <aside class="inspect" aria-hidden="true">
     <button class="back" id="btn-back" type="button">
@@ -177,7 +108,6 @@ const links = new Set(records.flatMap((r) => r.related.filter((f) => records.som
     <div class="inspect__no">
       <span class="inspect__big" id="in-no">No.0001</span>
       <span class="micro" id="in-cat">Personnel / Internal archive</span>
-      <span class="inspect__drag micro">Drag to inspect <svg viewBox="0 0 18 8" aria-hidden="true"><path d="M1 4h16M4 1 1 4l3 3M14 1l3 3-3 3" /></svg></span>
     </div>
   </aside>
 
@@ -208,10 +138,23 @@ const links = new Set(records.flatMap((r) => r.related.filter((f) => records.som
             <button type="button" data-row={i} aria-pressed="false"><b>{i + 1}</b><span data-l="en">{['Door', 'Formal', 'Routine', 'Reading'][i]}</span><span data-l="zh">{['门口', '正式', '例行', '阅档'][i]}</span></button>
           ))}
         </div>
+        <div class="stackshud__desks">
+          {[0, 1, 2].map((i) => (
+            <button type="button" data-desk={i} aria-pressed="false"><i></i><span data-l="en">{['Reading lamp 1', 'Reading lamp 2', 'Intake lamp'][i]}</span><span data-l="zh">{['阅档台灯 1', '阅档台灯 2', '入库台灯'][i]}</span></button>
+          ))}
+        </div>
       </div>
+      <div class="stackshud__panel" id="stacks-table"></div>
+      <button type="button" class="stackshud__cardsbtn" id="stacks-cards-btn"><span data-l="en">Card index</span><span data-l="zh">索引卡</span> →</button>
     </div>
+    <!-- the drawer that is out, and what hangs in it -->
+    <aside class="stackshud__drawer" id="stacks-drawer" hidden data-no-i18n></aside>
+    <!-- a file half out: read it here, or carry it to the table -->
+    <aside class="stackshud__choice" id="stacks-choice" hidden data-no-i18n></aside>
     <p class="stackshud__callout micro" id="stacks-callout" aria-hidden="true" data-no-i18n></p>
     <aside class="stackshud__slip" id="stacks-slip" hidden data-no-i18n></aside>
+    <!-- the card index drawer by the door, flipped through one card at a time -->
+    <section class="icards" id="stacks-cards" hidden data-no-i18n aria-label="Card index"></section>
   </section>
 
   <!-- ===================== LINK ROOM ===================== -->
@@ -285,6 +228,7 @@ const links = new Set(records.flatMap((r) => r.related.filter((f) => records.som
         </div>
         <div class="dossier__crumbs micro"><span id="ds-file">File P-0001</span><span class="barcode" id="ds-barcode" aria-hidden="true"></span></div>
         <p class="dossier__old micro" id="ds-old" hidden></p>
+      <p class="dossier__light micro" id="ds-light" hidden data-no-i18n></p>
         <h2 class="dossier__title" id="ds-title"></h2>
         <p class="dossier__sub" id="ds-sub"></p>
         <button type="button" class="mystamp-btn micro" id="ds-mystamp" aria-label="Put your own stamp on this file"><span>Stamp</span></button>
@@ -298,12 +242,17 @@ const links = new Set(records.flatMap((r) => r.related.filter((f) => records.som
       <p class="dossier__see" id="ds-see"></p>
     </div>
     <div class="cite-slip" id="ds-slip" role="dialog" aria-label="File reference" hidden></div>
+    <!-- what else is lying on the reading table -->
+    <div class="ds-table" id="ds-table" hidden data-no-i18n></div>
     <footer class="dossier__foot">
       <button type="button" class="dossier__step" data-dstep="-1"><svg viewBox="0 0 24 12" aria-hidden="true"><path d="M24 6H2M7 1 2 6l5 5" /></svg><span>Previous</span></button>
       <span class="micro" id="ds-count">01 / 04</span>
       <button type="button" class="dossier__step" data-dstep="1"><span>Next</span><svg viewBox="0 0 24 12" aria-hidden="true"><path d="M0 6h22M17 1l5 5-5 5" /></svg></button>
     </footer>
   </article>
+
+  <!-- The second file on the table, laid alongside -->
+  <aside class="companion" id="companion" aria-hidden="true" hidden data-no-i18n></aside>
 
   <!-- ===================== SEARCH ===================== -->
   <div class="search" id="search" role="dialog" aria-modal="true" aria-label="Search the archive" hidden>

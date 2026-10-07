@@ -6,8 +6,13 @@
  *
  * Light: four rows of pendants on four switches by the door, three desk lamps
  * with pull chains, daylight through the louvres (none on a wet day), the
- * street lamp outside at night. At night only the lamps that are on light the
- * room; everything else sinks into the dark.
+ * sodium street lamp outside at night and, on clear nights with the moon up,
+ * moonlight. At night only the lamps that are on light the room; everything
+ * else sinks into the dark.
+ *
+ * The formal cabinets open where they stand: a drawer slides out with its
+ * files hanging in it, a file lifts out, and files taken to the reading table
+ * lie there face up.
  */
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
@@ -25,6 +30,10 @@ export interface StacksEvents {
   hover(key: string | null): void;
   /** A group of formal cabinets clicked. */
   cabinet(ci: number): void;
+  /** A hanging file in an open drawer clicked. */
+  file(file: string): void;
+  /** A file lying on the reading table clicked. */
+  tableFile(file: string): void;
   bank(bi: number): void;
   rocker(i: number): void;
   desk(i: number): void;
@@ -67,8 +76,11 @@ export class StacksScene {
   readonly room: StacksRoom;
 
   private zoneNow: StacksZone = 'overview';
-  /** Pushing in on a group of cabinets, before the drawers take over. */
+  /** The formal group the camera is up close to, and the drawer pulled out there. */
   private push: number | null = null;
+  private drawer: { ci: number; d: number } | null = null;
+  /** Moonlight through the louvres tonight, 0–1. */
+  private moonK = 0;
   private view: { at: SpringV3; dir: SpringV3; dist: Spring };
   private parallax = new THREE.Vector2();
   private pointer = new THREE.Vector2(9, 9);
@@ -90,7 +102,7 @@ export class StacksScene {
   private running = true;
   private raf = 0;
 
-  constructor(private host: HTMLElement, private canvas: HTMLCanvasElement, cats: StacksCategory[], opts: { today: string; reading?: { title: string; file: string } }, private on: StacksEvents) {
+  constructor(private host: HTMLElement, private canvas: HTMLCanvasElement, cats: StacksCategory[], opts: { today: string }, private on: StacksEvents) {
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true, powerPreference: 'high-performance' });
     this.renderer.setClearColor(0x000000, 0);
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -130,6 +142,11 @@ export class StacksScene {
 
   /* ---------------- views ---------------- */
   private viewOf(z: StacksZone): View {
+    if (this.drawer) {
+      // over the open drawer, looking down into it from the front
+      const f = this.room.drawerFront(this.drawer.ci, this.drawer.d);
+      return { at: f, dir: new THREE.Vector3(1, 1.15, 0.2).normalize(), w: 0.95, h: 0.8 };
+    }
     if (this.push !== null) {
       const c = this.room.catCentre[this.push] ?? new THREE.Vector3();
       return { at: c.clone().add(new THREE.Vector3(0.1, 0.05, 0)), dir: new THREE.Vector3(1, 0.42, 0.12).normalize(), w: 1.5, h: 1.5 };
@@ -158,6 +175,7 @@ export class StacksScene {
   }
 
   goZone(z: StacksZone) {
+    if (this.drawer) this.closeDrawer();
     if (z === this.zoneNow) return;
     this.zoneNow = z;
     this.on.zone(z);
@@ -167,14 +185,33 @@ export class StacksScene {
     return this.zoneNow;
   }
 
-  /** Push in on a group of cabinets; the lamp over them comes on for it. */
-  pushIn(ci: number) {
+  /** Walk up to a group of formal cabinets and pull drawer `d` out. */
+  openDrawer(ci: number, d: number) {
+    if (this.drawer && (this.drawer.ci !== ci || this.drawer.d !== d)) this.room.setDrawer(this.drawer.ci, this.drawer.d, false);
     this.push = ci;
+    this.drawer = { ci, d };
+    this.room.setDrawer(ci, d, true);
+    if (this.zoneNow !== 'formal') {
+      this.zoneNow = 'formal';
+      this.on.zone('formal');
+    }
   }
 
-  /** Back out to where the visitor stood. */
-  pullOut() {
+  /** Push the drawer home and step back from the cabinets. */
+  closeDrawer() {
+    if (this.drawer) this.room.setDrawer(this.drawer.ci, this.drawer.d, false);
+    this.room.dropAll();
+    this.drawer = null;
     this.push = null;
+  }
+
+  get openAt() {
+    return this.drawer;
+  }
+
+  /** Tonight's moon through the louvres, 0–1 (0 = only the street lamp). */
+  setMoon(k: number) {
+    this.moonK = k;
   }
 
   setTheme(theme: 'day' | 'night', instant = false) {
@@ -247,13 +284,19 @@ export class StacksScene {
     this.sun.visible = this.sun.intensity > 0.05;
     this.sun.color.set('#fff1d8').lerp(new THREE.Color('#dfe6ee'), wet).lerp(new THREE.Color('#ffc890'), dusk * (1 - wet) * 0.7);
     this.scene.environmentIntensity = L.env * (1 - wet * 0.2);
-    r.street.intensity = L.street;
-    r.street.visible = L.street > 0.1;
+    // outside at night: the sodium lamp always, the moon when it is up and the sky is clear
+    const moon = this.moonK * L.night;
+    r.street.intensity = L.street * (this.moonK > 0.18 ? 0.5 : 1);
+    r.street.visible = r.street.intensity > 0.1;
+    r.moon.intensity = moon * 0.9;
+    r.moon.visible = r.moon.intensity > 0.01;
     r.paperShadow.opacity = 0.3 + L.night * 0.3;
     const patch = new THREE.Color('#fff3d6').lerp(new THREE.Color('#ffb46a'), dusk);
+    const nightPatch = new THREE.Color('#ff9a3c').lerp(new THREE.Color('#9fb2e6'), Math.min(1, this.moonK * 1.6));
     r.sunPatches.forEach((m, i) => {
-      m.material.opacity = day * (0.22 - wet * 0.17);
-      m.material.color.copy(patch);
+      const dayOp = day * (0.22 - wet * 0.17), nightOp = L.night * (0.07 + this.moonK * 0.12) * (1 - wet * 0.4);
+      m.material.opacity = dayOp + nightOp;
+      m.material.color.copy(patch).lerp(nightPatch, nightOp / Math.max(1e-4, dayOp + nightOp));
       // the patches creep across the floor with the sun
       m.position.x = Math.min(AR.x1 - 0.85, WINDOWS[i] + 0.55 + (Math.min(19, Math.max(7, hour)) - 13) * 0.08);
     });
@@ -261,7 +304,7 @@ export class StacksScene {
 
     // lamps
     for (let i = 0; i < 4; i++) {
-      let want = this.rows[i] || (this.push !== null && i === 1) ? 1 : 0;
+      let want = this.rows[i] ? 1 : 0;
       if (this.flicker[i] > 0) {
         this.flicker[i] -= dt;
         want = Math.sin(this.flicker[i] * 70) > 0.1 ? 1 : 0.15;
@@ -293,6 +336,12 @@ export class StacksScene {
     this.view.at.setTarget(target.at);
     this.view.dir.setTarget(target.dir);
     this.view.dist.target = this.fit(target);
+    // with reduced motion on, the camera is simply where it is going
+    if (this.reduce) {
+      this.view.at.jump(target.at);
+      this.view.dir.jump(target.dir);
+      this.view.dist.set(this.fit(target));
+    }
     const at = this.view.at.update(dt);
     const dir = this.view.dir.update(dt).clone().normalize();
     const dist = this.view.dist.update(dt);
@@ -317,14 +366,19 @@ export class StacksScene {
   private pick(x: number, y: number): Record<string, unknown> | null {
     const rect = this.canvas.getBoundingClientRect();
     this.raycaster.setFromCamera(new THREE.Vector2(((x - rect.left) / rect.width) * 2 - 1, -((y - rect.top) / rect.height) * 2 + 1), this.camera);
-    const hit = this.raycaster.intersectObjects(this.room.hits, false)[0];
+    // up close at a drawer, only its files answer; a file is found only in a drawer that is out
+    const hit = this.raycaster.intersectObjects(this.room.hits, false).find((h) => {
+      const f = h.object.userData.file as string | undefined;
+      if (this.drawer) return !!f && this.room.fileReachable(f);
+      return !f;
+    });
     return hit ? hit.object.userData : null;
   }
 
   private bind() {
     const c = this.canvas;
     this.host.addEventListener('pointermove', (e) => {
-      if (!this.running || this.push !== null) return;
+      if (!this.running) return;
       const r = c.getBoundingClientRect();
       this.pointer.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
       if (e.target !== c) return;
@@ -336,10 +390,12 @@ export class StacksScene {
       this.on.hover(key || null);
     });
     c.addEventListener('click', (e) => {
-      if (!this.running || this.push !== null) return;
+      if (!this.running) return;
       const p = this.pick(e.clientX, e.clientY);
       if (!p) return;
-      if (typeof p.cat === 'number') this.on.cabinet(p.cat);
+      if (typeof p.file === 'string') this.on.file(p.file);
+      else if (typeof p.table === 'string') this.on.tableFile(p.table);
+      else if (typeof p.cat === 'number') this.on.cabinet(p.cat);
       else if (typeof p.bank === 'number') this.on.bank(p.bank);
       else if (typeof p.rocker === 'number') this.on.rocker(p.rocker);
       else if (typeof p.desk === 'number') this.on.desk(p.desk);

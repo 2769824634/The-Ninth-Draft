@@ -400,6 +400,22 @@
     "push": [
       "Mind the drawer, it sticks halfway.",
       "Pull it out, the runners are greased. Mostly."
+    ],
+    "table": [
+      "On the table, then. Mind the second lamp, the chain's gone short.",
+      "Laid out on the table. That's what it's for, whatever the trolley thinks."
+    ],
+    "more": [
+      "Two at a time is how people find things. Four is how people lose afternoons.",
+      "Spread them out. Nobody's waiting for the table."
+    ],
+    "full": [
+      "Six on the table. That's the lot; any more and you're reading the tablecloth.",
+      "Table's full. Put one back and the next one fits."
+    ],
+    "cleared": [
+      "All back in their drawers. The table looks wrong empty, but there it is.",
+      "Filed away again. I'll pretend I checked the numbers."
     ]
   }
 }

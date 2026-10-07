@@ -1,9 +1,13 @@
 /**
  * Archive controller: state, routing, keyboard, HUD.
- * The Stage renders; this file decides what is selected and what is open.
+ *
+ * There is one archive room and you read in it. Walking in, you are standing
+ * in the stacks; a formal cabinet opens where it stands, a file comes half
+ * out of its drawer, and it is read at the drawer or carried to the reading
+ * table, where up to six lie side by side. The paper opens over the room; the
+ * room never changes while you read.
  */
 import type { ArchiveData, ArchiveRecord } from './types';
-import { Stage } from './scene/stage';
 import { Wall } from './scene/wall';
 import { Iris } from './ui/iris';
 import { hms, isFiled, islandDateLabel, islandNow, visitorClock } from './island';
@@ -17,12 +21,13 @@ import { fileNo, loadVisitor } from './visitor/store';
 import { clearanceKey } from './clearance';
 import { Search } from './ui/search';
 import { boot } from './ui/boot';
-import { Roller, decode, esc, swapText } from './ui/text';
+import { decode, esc } from './ui/text';
 import { audio } from './audio';
 import { prefs, reducedMotion } from './prefs';
 import { applyRecords, isZh, lang, markDocument, onLang, setLang, t, translateDom, type Lang } from './i18n';
 import { canvasFontsReady } from './scene/textures';
-import { Stacks } from './archive/stacks';
+import { Stacks, TABLE_MAX, type ReadAt } from './archive/stacks';
+import { Companion } from './archive/companion';
 
 export function start() {
   const data: ArchiveData = JSON.parse(document.getElementById('archive-data')!.textContent!);
@@ -52,14 +57,10 @@ export function start() {
   applyRecords(records);
   translateDom(root);
 
-  const byCat = categories.map((c) => records.filter((r) => r.category === c.id));
-  function fromPathEarly() {
-    return /records\/[^/]+\/?$/.test(location.pathname);
-  }
-  let col = Math.max(0, byCat.findIndex((list) => list.length > 0));
-  const sel = categories.map(() => 0);
   let view: 'browse' | 'detail' = 'browse';
   let current: ArchiveRecord | null = null;
+  /** Where the open file is being read: at its drawer, or at the table. */
+  let readAt: ReadAt = 'drawer';
   // The room on screen, or the one an iris in flight is heading to
   let roomTarget: 'archive' | 'wall' = 'archive';
   root.dataset.room = 'archive';
@@ -74,35 +75,24 @@ export function start() {
   const system = new System();
   quirks(root, voice, system);
 
-  /** Paint the whole interface in a clearance colour. */
-  const setClearance = (stamp: string) => {
-    const key = clearanceKey(stamp);
-    root.dataset.clr = key;
-    stage?.setClearance(key);
-  };
-
-  // Flicking through files too fast earns a remark
-  let rushCount = 0;
-  let rushT = 0;
-  const rush = () => {
-    rushCount++;
-    window.clearTimeout(rushT);
-    rushT = window.setTimeout(() => (rushCount = 0), 1600);
-    if (rushCount === 9) voice.say('rush');
+  /** Paint the whole interface in a clearance colour, and the lamps over the paper with it. */
+  const setClearance = (stamp: string | null) => {
+    root.dataset.clr = clearanceKey(stamp ?? 'DECLASSIFIED');
+    stacks?.tint(stamp ? readAt : null, stamp);
   };
 
   /* ---------------- theme & sound ---------------- */
-  const applyTheme = (t: 'day' | 'night', silent = false) => {
-    prefs.set('theme', t);
-    document.documentElement.dataset.theme = t;
-    document.querySelectorAll<HTMLButtonElement>('[data-theme-set]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.themeSet === t)));
-    stage?.setTheme(t);
-    wall?.setTheme(t);
-    stacks?.setTheme(t);
-    audio.theme(t === 'night');
+  const applyTheme = (th: 'day' | 'night', silent = false) => {
+    prefs.set('theme', th);
+    document.documentElement.dataset.theme = th;
+    document.querySelectorAll<HTMLButtonElement>('[data-theme-set]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.themeSet === th)));
+    wall?.setTheme(th);
+    stacks?.setTheme(th);
+    markLight();
+    audio.theme(th === 'night');
     if (!silent) {
       audio.click();
-      voice.say(t);
+      voice.say(th);
     }
   };
   const applySound = () => {
@@ -112,200 +102,81 @@ export function start() {
     audio.apply();
   };
 
-  /* ---------------- stage ---------------- */
-  let stage: Stage | null = null;
-  try {
-    stage = new Stage($('stage') as HTMLCanvasElement, data, {
-      hover: () => {},
-      pick: (rec) => {
-        const ci = categories.findIndex((c) => c.id === rec.category);
-        const i = byCat[ci].indexOf(rec);
-        if (ci === col && i === sel[ci]) openRecord(rec);
-        else select(ci, i);
-      },
-      scrub: (step) => step && move(step),
-    });
-  } catch (err) {
-    console.error('[archive] WebGL unavailable', err);
-    root.classList.add('no-webgl');
-  }
-  /* ---------------- the stacks: the room you walk into ---------------- */
-  // A record's own address, the link wall, or #drawers go straight to the drawers.
-  let layer: 'stacks' | 'drawers' = data.initial || fromPathEarly() || data.room === 'wall' || location.hash === '#drawers' ? 'drawers' : 'stacks';
-  root.dataset.layer = layer;
-  let stacks: Stacks | null = null;
-  const makeStacks = () =>
-    (stacks ??= new Stacks(root, categories, records, prefs.get('theme'), voice, {
-      enter: (ci) => enterDrawers(ci),
-      open: (rec) => openRecord(rec),
-      search: () => search.show(),
-    }));
-  if (layer === 'stacks') makeStacks();
-
-  /** Push in on a group of cabinets; the room goes back to paper and the drawers come up. */
-  function enterDrawers(ci: number, instant = false) {
-    if (layer === 'drawers') {
-      if (ci !== col) select(ci, sel[ci]);
-      return;
-    }
-    const swap = () => {
-      layer = 'drawers';
-      delete root.dataset.pushing;
-      root.dataset.layer = 'drawers';
-      stage?.resume();
-      stacks?.hide();
-      select(ci, sel[ci]);
-      audio.drawer();
-      if (location.hash !== '#drawers') history.replaceState(history.state, '', `${location.pathname}#drawers`);
-    };
-    if (instant || reducedMotion()) return swap();
-    root.dataset.pushing = '';
-    stacks?.pushIn(ci);
-    audio.tune();
-    voice.say('stacks.push', {}, false);
-    window.setTimeout(swap, 720);
+  /**
+   * What is lighting the paper: the windows by day, the lamp over the place
+   * when it is on, else the moon or the street lamp outside. The sheet is
+   * read by it, so the reader can see the room has gone dark around them.
+   */
+  function markLight() {
+    const paper = $('ds-scroll');
+    if (!stacks) return;
+    const by = stacks.paperLight(readAt);
+    root.dataset.light = by;
+    const zh = isZh();
+    const note = $('ds-light');
+    note.textContent = view === 'detail' && by !== 'day' && by !== 'lamp'
+      ? by === 'moon'
+        ? zh ? '灯关着。这页是月光照的。' : 'The lamps are off. You are reading this by the moon.'
+        : zh ? '灯关着。这页是窗外路灯照的。' : 'The lamps are off. You are reading this by the street lamp.'
+      : '';
+    note.hidden = !note.textContent;
+    void paper;
   }
 
-  /** Back out of the drawers into the room. */
-  function leaveDrawers() {
-    if (layer === 'stacks' || roomTarget === 'wall') return;
-    if (view === 'detail') closeRecord();
-    layer = 'stacks';
-    makeStacks().show();
-    root.dataset.layer = 'stacks';
-    audio.drawer();
-    audio.sputnik(false);
-    if (location.hash === '#drawers') history.replaceState(history.state, '', location.pathname);
-    window.setTimeout(() => {
-      if (layer === 'stacks') stage?.pause();
-    }, reducedMotion() ? 0 : 950);
-  }
+  /* ---------------- the stacks: the one room ---------------- */
+  const stacks = new Stacks(root, categories, records, prefs.get('theme'), voice, {
+    read: (rec, at) => openRecord(rec, at),
+    drawer: (ci) => {
+      if (categories[ci].id === 'programs' && chapter.show()) {
+        audio.stamp();
+        voice.say('chapter');
+      } else voice.say(`drawer.${categories[ci].id}`, {}, false);
+      audio.sputnik(categories[ci].id === 'programs');
+    },
+    lights: () => {
+      markLight();
+      if (current) setClearance(current.stamp);
+    },
+    search: () => search.show(),
+  });
 
   applyTheme(prefs.get('theme'), true);
   applySound();
 
-  /* ---------------- HUD ---------------- */
-  const roller = new Roller($('roll-cur'), 2);
-  const ruler = $('ruler');
-
-  function buildRuler() {
-    const n = byCat[col].length;
-    ruler.innerHTML = '';
-    for (let i = 0; i < n; i++) {
-      const t = document.createElement('i');
-      t.className = 'ruler__tick';
-      t.style.left = `${n === 1 ? 50 : (i / (n - 1)) * 100}%`;
-      ruler.appendChild(t);
-    }
-    const cur = document.createElement('i');
-    cur.className = 'ruler__cursor';
-    ruler.appendChild(cur);
-  }
-
-  function renderHud(colChanged = false) {
-    const list = byCat[col];
-    const rec = list[sel[col]];
-    const cat = categories[col];
-    if (colChanged) {
-      buildRuler();
-      swapText($('col-name'), t(cat.label));
-      $('col-no').textContent = String(col + 1).padStart(2, '0');
-      swapText($('fc-category'), t(cat.label));
-    }
-    $('roll-total').textContent = String(list.length).padStart(2, '0');
-    roller.set(list.length ? sel[col] + 1 : 0);
-    const cur = ruler.querySelector<HTMLElement>('.ruler__cursor');
-    if (cur) cur.style.left = `${list.length <= 1 ? 50 : (sel[col] / (list.length - 1)) * 100}%`;
-
-    if (rec) {
-      swapText($('fc-file'), rec.file);
-      decode($('fc-title'), rec.title, 520);
-      $('fc-sub').textContent = rec.subtitle ?? '';
-      $('fc-stamp').textContent = rec.stamp;
-      $('fc-date').textContent = rec.date ?? '';
-      ($('fc-open') as HTMLButtonElement).disabled = false;
-      setClearance(rec.stamp);
-    } else {
-      setClearance('DECLASSIFIED');
-      swapText($('fc-file'), `${cat.code}-0000`);
-      $('fc-title').textContent = t('Drawer empty');
-      $('fc-sub').textContent = t('Nothing filed yet. Whatever happened here has not been written down.');
-      $('fc-stamp').textContent = '—';
-      $('fc-date').textContent = '';
-      ($('fc-open') as HTMLButtonElement).disabled = true;
-    }
-  }
-
-  function select(ci: number, i: number) {
-    const colChanged = ci !== col;
-    const n = byCat[ci].length;
-    col = ci;
-    sel[ci] = n ? Math.max(0, Math.min(n - 1, i)) : 0;
-    stage?.focus(col, sel[col]);
-    renderHud(colChanged);
-    audio.sputnik(categories[col].id === 'programs');
-    if (colChanged) {
-      audio.drawer();
-      audio.tune();
-      if (categories[col].id === 'programs' && n && chapter.show()) {
-        audio.stamp();
-        voice.say('chapter');
-      } else if (n) voice.say(`drawer.${categories[col].id}`);
-      else voice.say('emptyDrawer');
-    } else {
-      audio.flick();
-      rush();
-    }
-  }
-
-  function move(step: number) {
-    if (view !== 'browse') return;
-    const n = byCat[col].length;
-    if (!n) return;
-    const next = Math.max(0, Math.min(n - 1, sel[col] + step));
-    if (next !== sel[col]) select(col, next);
-  }
-
-  function switchCol(step: number) {
-    if (view !== 'browse') return;
-    const n = categories.length;
-    select((col + step + n) % n, sel[(col + step + n) % n]);
-  }
-
   /* ---------------- routing ---------------- */
   const recordUrl = (r: ArchiveRecord) => `${base}records/${r.slug}/`;
 
-  function openRecord(rec: ArchiveRecord, push = true) {
+  /** Open a file as paper over the room, read where it was taken out. */
+  function openRecord(rec: ArchiveRecord, at: ReadAt = 'drawer', push = true) {
     if (roomTarget === 'wall') {
       leaveWall(rec, push);
       return;
     }
-    const ci = categories.findIndex((c) => c.id === rec.category);
-    const i = byCat[ci].indexOf(rec);
-    if (layer === 'stacks') enterDrawers(ci, true);
-    if (ci !== col || i !== sel[ci]) {
-      col = ci;
-      sel[ci] = i;
-      stage?.focus(col, i);
-      renderHud(true);
-    }
     const already = view === 'detail';
     view = 'detail';
     current = rec;
+    readAt = at;
     root.dataset.view = 'detail';
+    root.dataset.readat = at;
+    companion.hide();
     $('dossier').setAttribute('aria-hidden', 'false');
-    document.querySelector('.inspect')!.setAttribute('aria-hidden', 'false');
-    dossier.fill(rec, { index: i, total: byCat[ci].length });
+    const ci = categories.findIndex((c) => c.id === rec.category);
+    const list = records.filter((r) => r.category === rec.category);
+    dossier.fill(rec, { index: list.indexOf(rec), total: list.length });
+    setClearance(rec.stamp);
+    markLight();
+    markTable();
     $('btn-back').querySelector('span')!.textContent = backLabel();
     const notes = dossier.noteSpan();
     retrieve.run(
-      t('Drawer {drawer} · Folder {folder} · {file}', { drawer: String(ci + 1).padStart(2, '0'), folder: String(i + 1).padStart(2, '0'), file: rec.file }),
+      at === 'table'
+        ? t('Reading table · {file}', { file: rec.file })
+        : t('Drawer {drawer} · Folder {folder} · {file}', { drawer: String(ci + 1).padStart(2, '0'), folder: String(list.indexOf(rec) + 1).padStart(2, '0'), file: rec.file }),
       notes
         ? voice.pick('retrieve.notes', { drafts: notes })
         : voice.pick(`retrieve.${rec.category}`, { file: rec.file, title: rec.title }) ?? voice.pick('retrieve.any', { file: rec.file }),
       (p) => dossier.reveal(p),
     );
-    stage?.inspect(rec);
     audio.open();
     audio.sputnik(rec.category === 'programs');
     voice.say(`open.${rec.stamp}`, { file: rec.file, title: rec.title });
@@ -327,8 +198,8 @@ export function start() {
     return f;
   })();
   const backLabel = () => {
-    const room = returnTo?.slice(base.length).split('/')[0] ?? '';
-    return t(ROOMS[room] ?? 'Archive overview');
+    if (returnTo) return t(ROOMS[returnTo.slice(base.length).split('/')[0] ?? ''] ?? 'Back to the stacks');
+    return t(readAt === 'table' ? 'Back to the table' : 'Back to the drawer');
   };
   if (location.search) history.replaceState(history.state, '', location.pathname + location.hash);
 
@@ -342,28 +213,34 @@ export function start() {
       return;
     }
     view = 'browse';
+    const was = current;
     current = null;
     root.dataset.view = 'browse';
+    delete root.dataset.light;
     $('dossier').setAttribute('aria-hidden', 'true');
-    document.querySelector('.inspect')!.setAttribute('aria-hidden', 'true');
     dossier.reset();
+    companion.hide();
     retrieve.cancel();
-    restoreCover();
-    stage?.release();
+    setClearance(null);
     audio.close();
-    const back = byCat[col][sel[col]];
-    if (back) setClearance(back.stamp);
-    audio.sputnik(categories[col].id === 'programs');
+    // the file goes back in its drawer; one on the table stays on the table
+    if (was && readAt === 'drawer') stacks.putBack(false);
     document.title = t('The Ninth Draft — Archive');
     if (push) history.pushState({}, '', base);
   }
 
+  /** The next or previous file in the same category, in the same place. */
   function stepRecord(d: number) {
     if (!current) return;
-    const list = byCat[col];
-    const i = list.indexOf(current);
-    const next = list[(i + d + list.length) % list.length];
-    if (next && next !== current) openRecord(next);
+    if (readAt === 'table') {
+      const on = stacks.onTable;
+      if (on.length < 2) return;
+      const next = on[(on.indexOf(current) + d + on.length) % on.length];
+      if (next && next !== current) openRecord(next, 'table');
+      return;
+    }
+    const next = stacks.neighbour(current, d);
+    if (next !== current) stacks.fetch(next, true);
   }
 
   const fromPath = () => {
@@ -377,8 +254,56 @@ export function start() {
     if (isWallPath()) return enterWall(null, false);
     const rec = fromPath();
     if (roomTarget === 'wall') leaveWall(rec, false);
-    else if (rec) openRecord(rec, false);
+    else if (rec) stacks.fetch(rec, true);
     else closeRecord(false);
+  });
+
+  /* ---------------- the file alongside ---------------- */
+  const companion = new Companion({
+    swap: (rec) => {
+      companion.hide();
+      openRecord(rec, 'table');
+    },
+    close: () => {
+      companion.hide();
+      markTable();
+    },
+  });
+
+  /** The strip of what else is on the table, under the sheet. */
+  function markTable() {
+    const el = $('ds-table');
+    const on = stacks.onTable.filter((r) => r !== current);
+    if (readAt !== 'table' || !on.length) {
+      el.hidden = true;
+      el.innerHTML = '';
+      return;
+    }
+    const zh = isZh();
+    el.innerHTML = `<span class="micro">${zh ? `桌上还有 ${on.length} 份` : `${on.length} more on the table`}</span>${on
+      .map((r) => `<button type="button" data-open="${esc(r.file)}">${esc(r.file)}</button><button type="button" class="ds-table__side" data-side="${esc(r.file)}" aria-pressed="${companion.rec === r}">${zh ? '并排' : 'Alongside'}</button>`)
+      .join('')}`;
+    el.hidden = false;
+  }
+
+  $('ds-table').addEventListener('click', (e) => {
+    const el = e.target as HTMLElement;
+    const open = el.closest<HTMLElement>('[data-open]')?.dataset.open;
+    if (open) {
+      const rec = records.find((r) => r.file === open);
+      if (rec) openRecord(rec, 'table');
+      return;
+    }
+    const side = el.closest<HTMLElement>('[data-side]')?.dataset.side;
+    if (!side) return;
+    const rec = records.find((r) => r.file === side);
+    if (!rec) return;
+    if (companion.rec === rec) companion.hide();
+    else {
+      companion.show(rec);
+      audio.paper();
+    }
+    markTable();
   });
 
   /* ---------------- link wall (room 02) ---------------- */
@@ -406,8 +331,7 @@ export function start() {
             note.file.textContent = idleNote();
             note.title.textContent = '';
             note.linked.textContent = '';
-            const back = byCat[col][sel[col]];
-            setClearance(back?.stamp ?? 'DECLASSIFIED');
+            setClearance(null);
             return;
           }
           setClearance(rec.stamp);
@@ -463,13 +387,8 @@ export function start() {
     markRoom();
     const swap = () => {
       if (view === 'detail') closeRecord(false);
-      if (layer === 'stacks') {
-        layer = 'drawers';
-        root.dataset.layer = 'drawers';
-        stacks?.hide();
-      }
+      stacks.hide();
       ensureWall();
-      stage?.pause();
       wall?.start();
       root.dataset.room = 'wall';
       if (focusFile) wall?.focus(focusFile, true);
@@ -492,34 +411,30 @@ export function start() {
     if (!rec) voice.say('wall.leave');
     void iris.run(() => {
       wall?.stop();
-      stage?.resume();
+      stacks.show();
       boardCoords = null;
       tick();
       root.dataset.room = 'archive';
       document.title = t('The Ninth Draft — Archive');
-      const back = byCat[col][sel[col]];
-      setClearance(back?.stamp ?? 'DECLASSIFIED');
-      audio.sputnik(categories[col].id === 'programs');
-      if (rec) openRecord(rec, push);
+      setClearance(null);
+      if (rec) stacks.fetch(rec, true);
       else if (push) history.pushState({}, '', base);
     });
   }
 
   let lastDraftVoice = 9;
-  // The folder whose cover is showing an earlier draft's stamp
-  let restamped: ArchiveRecord | null = null;
-  const restoreCover = () => {
-    if (restamped) stage?.setCoverStamp(restamped, restamped.stamp);
-    restamped = null;
-  };
   const dossier = new Dossier(records, categories, base, {
-    go: (r) => openRecord(r),
+    go: (r) => stacks.fetch(r, true),
+    place: (r) => ({ where: stacks.shelfMark(r), onTable: stacks.isOnTable(r) }),
+    pair: (r) => {
+      if (readAt !== 'table') return openRecord(r, 'table');
+      companion.show(r);
+      markTable();
+      audio.paper();
+    },
     wall: (r) => enterWall(r.file),
     draft: (rec, info, byUser) => {
       setClearance(info.stamp);
-      if (restamped !== rec) restoreCover();
-      stage?.setCoverStamp(rec, info.stamp);
-      restamped = rec;
       if (!byUser) return;
       if (info.n <= 3 && lastDraftVoice > 3) {
         voice.say('draftEarly', { draft: String(info.n).padStart(2, '0') });
@@ -533,9 +448,8 @@ export function start() {
       system.maybe('reveal', 0.35);
     },
   });
-  const search = new Search(records, categories, base, (r) => openRecord(r), () => voice.say('searchEmpty', {}, false));
+  const search = new Search(records, categories, base, (r) => stacks.fetch(r, true), () => voice.say('searchEmpty', {}, false));
 
-  /* ---------------- language ---------------- */
   /* ---------------- the visitor's own file ---------------- */
   const markMe = () => {
     const v = loadVisitor();
@@ -547,6 +461,7 @@ export function start() {
   };
   markMe();
 
+  /* ---------------- language ---------------- */
   const langBtn = document.getElementById('btn-lang') as HTMLButtonElement;
   const markLang = () => langBtn.setAttribute('data-now', lang());
   markLang();
@@ -556,7 +471,7 @@ export function start() {
     audio.click();
     audio.tune();
     // Text dips out, changes, comes back: never a hard cut
-    const fading = reducedMotion() ? [] : [...root.querySelectorAll<HTMLElement>('.brand, .tools, .filecard, .index-sel, .rail__colinfo, .rail__hints, .voice, .dossier, .inspect, .wallhud__head, .wallhud__note, .wallhud__hints')];
+    const fading = reducedMotion() ? [] : [...root.querySelectorAll<HTMLElement>('.brand, .tools, .voice, .dossier, .companion, .stackshud__head, .stackshud__drawer, .wallhud__head, .wallhud__note, .wallhud__hints')];
     const outs = fading.map((el) => el.animate([{ filter: 'none' }, { filter: 'opacity(0) blur(2px)' }], { duration: 170, easing: 'ease-in', fill: 'forwards' }));
     const fonts = l === 'zh' ? canvasFontsReady(records.map((r) => `${r.title}${r.zh?.title ?? ''}${r.zh?.subtitle ?? ''}${r.zh?.summary ?? ''}${r.zh?.place ?? ''}${r.zh?.fields.map((f) => f.label + f.value).join('') ?? ''}`).join('')) : Promise.resolve();
     window.clearTimeout(relangT);
@@ -566,9 +481,11 @@ export function start() {
       applySound();
       markMe();
       wallCount();
-      renderHud(true);
       dossier.relang();
-      stacks?.relang();
+      stacks.relang();
+      if (companion.rec) companion.show(companion.rec);
+      markTable();
+      markLight();
       $('btn-back').querySelector('span')!.textContent = backLabel();
       if (view === 'detail' && current) document.title = t('{file} · {title} — The Ninth Draft', { file: current.file, title: current.title });
       else document.title = t(roomTarget === 'wall' ? 'Link analysis — The Ninth Draft' : 'The Ninth Draft — Archive');
@@ -584,19 +501,13 @@ export function start() {
         el.animate([{ filter: 'opacity(0) blur(2px)' }, { filter: 'none' }], { duration: 320, easing: 'ease-out' });
       });
       voice.say(l === 'zh' ? 'lang.zh' : 'lang.en');
-      // Paper in the room is retyped once the Chinese glyphs are in
       await fonts;
-      stage?.relabel();
       wall?.relabel();
     }, reducedMotion() ? 0 : 180);
   });
   langBtn.addEventListener('click', () => setLang(isZh() ? 'en' : 'zh'));
 
   /* ---------------- controls ---------------- */
-  $('fc-open').addEventListener('click', () => {
-    const rec = byCat[col][sel[col]];
-    if (rec) openRecord(rec);
-  });
   $('btn-back').addEventListener('click', () => closeRecord());
   $('nav-links').addEventListener('click', (e) => {
     if (e.metaKey || e.ctrlKey) return;
@@ -628,8 +539,6 @@ export function start() {
   document.querySelectorAll<HTMLButtonElement>('[data-theme-set]').forEach((b) =>
     b.addEventListener('click', () => applyTheme(b.dataset.themeSet as 'day' | 'night')),
   );
-  document.querySelectorAll<HTMLButtonElement>('[data-step]').forEach((b) => b.addEventListener('click', () => move(Number(b.dataset.step))));
-  document.querySelectorAll<HTMLButtonElement>('[data-col]').forEach((b) => b.addEventListener('click', () => switchCol(Number(b.dataset.col))));
   document.querySelectorAll<HTMLButtonElement>('[data-dstep]').forEach((b) => b.addEventListener('click', () => stepRecord(Number(b.dataset.dstep))));
   const goHome = (e: Event) => {
     if ((e as MouseEvent).metaKey || (e as MouseEvent).ctrlKey) return;
@@ -637,9 +546,8 @@ export function start() {
     if (search.isOpen) search.close();
     if (roomTarget === 'wall') leaveWall(null);
     else if (view === 'detail') closeRecord();
-    else leaveDrawers();
+    else stacks.closeCabinet();
   };
-  $('to-stacks').addEventListener('click', () => leaveDrawers());
   document.querySelector('[data-nav="home"]')!.addEventListener('click', goHome);
   $('nav-archive').addEventListener('click', goHome);
 
@@ -669,42 +577,31 @@ export function start() {
       else if (e.key === 'l' || e.key === 'L') setLang(isZh() ? 'en' : 'zh');
       return;
     }
-    if (layer === 'stacks' && view === 'browse') {
-      if (stacks?.key(e)) e.preventDefault();
+    if (view === 'browse') {
+      // the room has the keyboard: corners, drawers, the files in them
+      if (stacks.key(e)) e.preventDefault();
       else if (e.key === 'n' || e.key === 'N') applyTheme(prefs.get('theme') === 'day' ? 'night' : 'day');
       else if (e.key === 'l' || e.key === 'L') setLang(isZh() ? 'en' : 'zh');
       return;
     }
-    if (view === 'browse') {
-      if (e.key === 'Escape' || e.key === 'Backspace') { e.preventDefault(); leaveDrawers(); }
-      else if (e.key === 'ArrowDown') { e.preventDefault(); move(1); }
-      else if (e.key === 'ArrowUp') { e.preventDefault(); move(-1); }
-      else if (e.key === 'ArrowRight') { e.preventDefault(); switchCol(1); }
-      else if (e.key === 'ArrowLeft') { e.preventDefault(); switchCol(-1); }
-      else if (e.key === 'Enter') {
-        const rec = byCat[col][sel[col]];
-        if (rec) openRecord(rec);
+    if (e.key === 'Escape' && dossier.slipOpen) { e.preventDefault(); dossier.closeSlip(); }
+    else if (e.key === 'Escape' || e.key === 'Backspace') { e.preventDefault(); closeRecord(); }
+    else if (e.key === 'ArrowRight') { e.preventDefault(); stepRecord(1); }
+    else if (e.key === 'ArrowLeft') { e.preventDefault(); stepRecord(-1); }
+    else if (['1', '2', '3'].includes(e.key)) dossier.jump(Number(e.key));
+    else if (e.key === '[') dossier.stepDraft(-1);
+    else if (e.key === ']') dossier.stepDraft(1);
+    else if (e.key === 't' || e.key === 'T') {
+      // take the file being read at its drawer over to the table
+      if (readAt === 'drawer' && current && stacks.onTable.length < TABLE_MAX) {
+        const rec = current;
+        stacks.toTable(rec);
+        openRecord(rec, 'table', false);
       }
-    } else {
-      if (e.key === 'Escape' && dossier.slipOpen) { e.preventDefault(); dossier.closeSlip(); }
-      else if (e.key === 'Escape' || e.key === 'Backspace') { e.preventDefault(); closeRecord(); }
-      else if (e.key === 'ArrowRight') { e.preventDefault(); stepRecord(1); }
-      else if (e.key === 'ArrowLeft') { e.preventDefault(); stepRecord(-1); }
-      else if (['1', '2', '3'].includes(e.key)) dossier.jump(Number(e.key));
-      else if (e.key === '[') dossier.stepDraft(-1);
-      else if (e.key === ']') dossier.stepDraft(1);
     }
     if (e.key === 'n' || e.key === 'N') applyTheme(prefs.get('theme') === 'day' ? 'night' : 'day');
     if (e.key === 'l' || e.key === 'L') setLang(isZh() ? 'en' : 'zh');
   });
-
-  // Touch: horizontal swipe switches drawers
-  let sx = 0, sy = 0;
-  $('stage').addEventListener('touchstart', (e) => { sx = e.touches[0].clientX; sy = e.touches[0].clientY; }, { passive: true });
-  $('stage').addEventListener('touchend', (e) => {
-    const dx = e.changedTouches[0].clientX - sx, dy = e.changedTouches[0].clientY - sy;
-    if (view === 'browse' && Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 1.4) switchCol(dx < 0 ? 1 : -1);
-  }, { passive: true });
 
   /* ---------------- clock & coordinates ---------------- */
   const yearEl = $('year');
@@ -724,19 +621,8 @@ export function start() {
   setInterval(tick, 1000);
 
   /* ---------------- start ---------------- */
-  stage?.focus(col, sel[col]);
-  renderHud(true);
-  stage?.start();
-  if (layer === 'stacks') {
-    stage?.pause();
-    makeStacks().show();
-  }
-  // In Chinese, the folders were typed before their glyphs arrived: retype them
-  const allZh = () => records.map((r) => [r.title, r.subtitle, r.place, r.summary, ...r.fields.map((f) => f.label + f.value)].join('')).join('');
-  if (isZh()) void canvasFontsReady(allZh()).then(() => {
-    stage?.relabel();
-    wall?.relabel();
-  });
+  stacks.show();
+  decode($('stacks-stats'), $('stacks-stats').textContent ?? '', 400);
 
   const initial = data.initial ? records.find((r) => r.file === data.initial) : fromPath();
   const fontsReady = document.fonts?.ready ?? Promise.resolve();
@@ -750,6 +636,11 @@ export function start() {
     if (location.hash === '#index') {
       history.replaceState(history.state, '', location.pathname);
       setTimeout(() => search.show(), 500);
+    }
+    // the old address of the floating drawers: the formal cabinets, where they stand now
+    if (location.hash === '#drawers') {
+      history.replaceState(history.state, '', location.pathname);
+      setTimeout(() => stacks.openCabinet(0), 500);
     }
     let visits = 0;
     try {
@@ -775,9 +666,8 @@ export function start() {
     }
     if (!seen) system.say('boot', true);
     if (data.room === 'wall') enterWall(null, false, true);
-    else if (layer === 'drawers') audio.sputnik(categories[col].id === 'programs');
-    else setTimeout(() => layer === 'stacks' && makeStacks().enterVoice(), 9000);
-    if (initial) setTimeout(() => openRecord(initial, false), 350);
+    else if (initial) setTimeout(() => stacks.fetch(initial, true), 350);
+    else setTimeout(() => view === 'browse' && stacks.enterVoice(), 9000);
   };
 
   if (seen) {

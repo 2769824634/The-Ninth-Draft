@@ -15,12 +15,14 @@
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 import {
-  INK, KU, DIN, DINB, RED, caseFront, clockFace, contactShadow, drawerCard, envelopeTops, hygroFace, louvreLight, mapSheet, panelling, plate, rng, runner, sheet, teakFloor, windowView, woodTex,
+  INK, KU, DIN, DINB, RED, clockFace, contactShadow, drawerCard, envelopeTops, fileTab, hygroFace, louvreLight, mapSheet, panelling, plate, rng, runner, teakFloor, windowView, woodTex,
 } from './textures';
 
 export const AR = { x0: -5.6, x1: 5.6, z0: -3.6, z1: 3.6, h: 3.4, wall: 0.22, slab: 0.24 };
 const CAB = { w: 0.47, d: 0.62, h: 1.32, n: 4 };
 const DADO = 1.6;
+/** How far a drawer comes out when it is pulled. */
+const DRAWER_OUT = 0.5;
 export const WINDOWS = [-2.4, 0.0, 2.4, 4.5];
 const WINX = WINDOWS;
 
@@ -67,7 +69,14 @@ export class StacksRoom {
   readonly hits: THREE.Object3D[] = [];
   /** Where each formal group of cabinets stands, for the camera. */
   readonly catCentre: THREE.Vector3[] = [];
-  readonly street = new THREE.SpotLight('#9fb8ff', 0, 14, 0.5, 0.8, 1.2);
+  /** The street lamp outside: sodium, orange, as every lamp-post on the island in 1999. */
+  readonly street = new THREE.SpotLight('#ffb35c', 0, 14, 0.5, 0.8, 1.2);
+  /** Moonlight through the louvres, on the nights the moon is up and the sky is clear. */
+  readonly moon = new THREE.DirectionalLight('#c3d0f2', 0);
+  /** The formal cabinets, by category: each group's cabinets, door end first. */
+  readonly formalCabs: THREE.Group[][] = [];
+  /** Files laid on the reading table sit in here. */
+  readonly tableTop = new THREE.Group();
   readonly pictureLight = new THREE.SpotLight('#ffd9a8', 0, 2.2, 0.9, 0.7, 1.4);
   readonly paperShadow: THREE.MeshBasicMaterial;
   readonly sunPatches: THREE.Mesh<THREE.PlaneGeometry, THREE.MeshBasicMaterial>[] = [];
@@ -110,7 +119,7 @@ export class StacksRoom {
   private rainNow = false;
   private nightNow = false;
 
-  constructor(cats: StacksCategory[], opts: { today: string; reading?: { title: string; file: string } }) {
+  constructor(cats: StacksCategory[], opts: { today: string }) {
     this.shell();
     WINX.forEach((x) => this.louvreWindow(x));
     this.formal(cats);
@@ -119,7 +128,7 @@ export class StacksRoom {
     this.door();
     this.counter(opts.today);
     this.cardIndex();
-    this.readingTable(opts.reading);
+    this.readingTable();
     this.odds();
     this.heavy();
     this.weatherBits();
@@ -136,6 +145,9 @@ export class StacksRoom {
     this.street.position.set(1, 3.0, AR.z0 - 2.5);
     this.street.target.position.set(1, 0, 0.5);
     this.group.add(this.street, this.street.target);
+    this.moon.position.set(0.5, 8, AR.z0 - 6);
+    this.moon.target.position.set(1.2, 0, 0.6);
+    this.group.add(this.moon, this.moon.target);
   }
 
   /* ---------------- helpers ---------------- */
@@ -175,6 +187,11 @@ export class StacksRoom {
     m.receiveShadow = true;
     p.add(m);
     return m;
+  }
+
+  private unhit(o: THREE.Object3D) {
+    const i = this.hits.indexOf(o);
+    if (i >= 0) this.hits.splice(i, 1);
   }
 
   /** An invisible box the pointer can hit. */
@@ -261,11 +278,15 @@ export class StacksRoom {
     this.rbox(g, w, h - 0.05, d, 0.012, 0, 0.05 + (h - 0.05) / 2, -d / 2, M.steel);
     this.box(g, w - 0.04, 0.05, d - 0.06, 0, 0.025, -d / 2, M.steelDark);
     const dh = (h - 0.08) / n;
+    const drawers: THREE.Group[] = [];
+    g.userData.drawers = drawers;
     for (let i = 0; i < n; i++) {
       const pull = pulls[i] || 0;
       const dg = new THREE.Group();
       dg.position.set(0, 0.08 + i * dh, pull);
+      dg.userData.dh = dh;
       g.add(dg);
+      drawers.push(dg);
       this.rbox(dg, w - 0.03, dh - 0.016, 0.022, 0.006, 0, dh / 2, 0.011, M.steel);
       this.box(dg, 0.16, 0.014, 0.016, 0, dh * 0.42, 0.034, M.chrome);
       this.box(dg, 0.11, 0.064, 0.006, 0, dh * 0.72, 0.024, M.brass, false);
@@ -294,8 +315,9 @@ export class StacksRoom {
       const z0 = cz;
       const n = COUNTS[ci] ?? 2;
       for (let k = 0; k < n; k++) {
-        const pulls = ci === 1 && k === 2 ? [0, 0, 0, 0.32] : ci === 0 && k === 1 ? [0, 0.12, 0, 0] : ci === 2 && k === 0 ? [0, 0, 0.2, 0] : [];
-        this.cabinet(AR.x0 + 0.03 + CAB.d, cz + CAB.w / 2, Math.PI / 2, (i) => [c.zh, c.en, `${c.code} · ${String(k + 1).padStart(2, '0')}-${4 - i}`], pulls, (g, h) => {
+        // the top drawer of the first cabinet in each group is the category's drawer: Drawer 01, 02, 03
+        const label = (i: number): [string, string, string] => (k === 0 && i === CAB.n - 1 ? [c.zh, c.en, `DRAWER ${String(ci + 1).padStart(2, '0')} · ${c.code}`] : [c.zh, c.en, `${c.code} · ${String(k + 1).padStart(2, '0')}-${4 - i}`]);
+        const cab = this.cabinet(AR.x0 + 0.03 + CAB.d, cz + CAB.w / 2, Math.PI / 2, label, [], (g, h) => {
           if (ci === 0 && k === 2) {
             // a money plant on top
             this.cyl(g, 0.07, 0.055, 0.12, 0, h + 0.06, -0.3, M.pot);
@@ -318,6 +340,7 @@ export class StacksRoom {
             g.add(dome);
           }
         });
+        (this.formalCabs[ci] ??= []).push(cab);
         cz += CAB.w + 0.004;
       }
       const mid = (z0 + cz) / 2;
@@ -685,7 +708,7 @@ export class StacksRoom {
   }
 
   /* ---------------- 03 · the reading table under the windows ---------------- */
-  private readingTable(reading?: { title: string; file: string }) {
+  private readingTable() {
     const M = this.M;
     const rt = new THREE.Group();
     rt.position.set(3.65, 0, -2.45);
@@ -694,30 +717,20 @@ export class StacksRoom {
     this.rbox(rt, 2.0, 0.08, 0.7, 0.005, 0, 0.68, 0, M.wood);
     for (const [sx, sz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) this.cyl(rt, 0.03, 0.022, 0.7, sx * 0.98, 0.35, sz * 0.36, M.wood, 12);
     for (const sx of [-0.55, 0.55]) this.rbox(rt, 0.55, 0.008, 0.4, 0.004, sx, 0.768, 0.12, std({ color: '#3d4a3e', roughness: 0.6 }));
-    const ce = new THREE.Mesh(new THREE.PlaneGeometry(0.21, 0.297), std({ map: caseFront(reading?.title ?? '', reading?.file ?? ''), roughness: 0.9 }));
-    ce.rotation.set(-Math.PI / 2, 0, 0.18);
-    ce.position.set(-0.6, 0.775, 0.1);
-    ce.receiveShadow = true;
-    rt.add(ce);
-    ['事件报告', '司机行车记录', '车票'].forEach((t, i) => {
-      const sh = new THREE.Mesh(new THREE.PlaneGeometry(0.21, 0.297), std({ map: sheet(40 + i, t, i === 0), roughness: 0.9 }));
-      sh.rotation.set(-Math.PI / 2, 0, -0.1 + i * 0.16);
-      sh.position.set(-0.32 + i * 0.12, 0.774 + i * 0.001, 0.12 - i * 0.03);
-      sh.receiveShadow = true;
-      rt.add(sh);
-    });
-    this.cyl(rt, 0.004, 0.004, 0.17, -0.15, 0.78, -0.12, std({ color: '#d8b13a' }), 8).rotation.set(0, 0, Math.PI / 2);
+    // a pencil and a glass by the far lamp; the rest of the top is for files
+    this.cyl(rt, 0.004, 0.004, 0.17, 0.72, 0.776, -0.36, std({ color: '#d8b13a' }), 8).rotation.set(0, 0.4, Math.PI / 2);
     const mag = new THREE.Mesh(new THREE.TorusGeometry(0.04, 0.005, 8, 24), M.brass);
     mag.rotation.x = Math.PI / 2;
-    mag.position.set(0.1, 0.78, 0.18);
+    mag.position.set(0.55, 0.778, -0.35);
     rt.add(mag);
+    rt.add(this.tableTop);
     this.deskLamp(rt, -0.98, 0.765, -0.28, 0.4, 0);
     this.deskLamp(rt, 0.98, 0.765, -0.28, -0.4, 1);
     this.chair(rt, -0.55, 0.72, Math.PI);
     this.chair(rt, 0.55, 0.72, Math.PI);
     this.chair(rt, -0.55, -0.72, 0);
     this.chair(rt, 0.55, -0.72, 0);
-    this.hit({ zone: 'reading', key: 'zone:reading' }, 2.3, 0.9, 1.0, 3.65, 0.45, -2.45);
+    this.hit({ zone: 'reading', key: 'zone:reading' }, 2.3, 0.72, 1.0, 3.65, 0.36, -2.45);
     // a standing fan, turning
     const sf = new THREE.Group();
     sf.position.set(5.2, 0, -1.3);
@@ -893,6 +906,204 @@ export class StacksRoom {
     }
   }
 
+  /* ---------------- formal drawers: opened, with the files hanging in them ---------------- */
+  /** How far each drawer is out, and where it is going. */
+  private pulls = new Map<THREE.Group, { at: number; to: number }>();
+  private hanging = new Map<string, { g: THREE.Group; at: number; to: number; hit: THREE.Mesh }>();
+  private tabMaps = new Map<string, THREE.Texture>();
+  private outMap: THREE.Texture | null = null;
+
+  /** A category's drawers in reading order: each cabinet top to bottom, door end first. */
+  drawersOf(ci: number) {
+    return (this.formalCabs[ci] ?? []).flatMap((c) => [...(c.userData.drawers as THREE.Group[])].reverse());
+  }
+
+  /** Where the front of a drawer is when it is pulled out, in the room. */
+  drawerFront(ci: number, d: number) {
+    const dg = this.drawersOf(ci)[d];
+    if (!dg) return new THREE.Vector3();
+    dg.updateWorldMatrix(true, false);
+    const p = new THREE.Vector3(0, (dg.userData.dh as number) * 0.6, DRAWER_OUT - dg.position.z - 0.18);
+    return dg.localToWorld(p);
+  }
+
+  /**
+   * Hang a drawer's files in it. Files out on the reading table leave a red
+   * OUT card in their place.
+   */
+  fillDrawer(ci: number, d: number, items: { file: string; stamp: string; category: string; out: boolean }[]) {
+    const dg = this.drawersOf(ci)[d];
+    if (!dg) return;
+    const M = this.M;
+    const old = dg.getObjectByName('inner');
+    if (old) {
+      old.traverse((o) => {
+        const k = o.userData.file as string | undefined;
+        if (k && o.userData.hitFor) {
+          this.unhit(o);
+          this.hanging.delete(k);
+        }
+      });
+      dg.remove(old);
+    }
+    const inner = new THREE.Group();
+    inner.name = 'inner';
+    dg.add(inner);
+    const dh = dg.userData.dh as number;
+    const L = CAB.d - 0.06, iw = CAB.w - 0.06;
+    this.box(inner, iw, 0.008, L, 0, 0.012, -L / 2, M.steelDark, false);
+    for (const sx of [-1, 1]) {
+      this.box(inner, 0.008, dh * 0.8, L, sx * (CAB.w / 2 - 0.035), dh * 0.4, -L / 2, M.steel, false);
+      this.box(inner, 0.006, 0.006, L, sx * (iw / 2 - 0.012), dh * 0.82, -L / 2, M.chrome, false);
+    }
+    this.box(inner, iw, dh * 0.8, 0.008, 0, dh * 0.4, -L, M.steel, false);
+    const n = Math.max(1, items.length);
+    const step = Math.min(0.04, (L - 0.1) / n);
+    const fw = iw - 0.03, fh = dh * 0.72;
+    const top = dh * 0.82;
+    const mats: Record<string, THREE.Material> = { personnel: M.manila, events: M.kraft, programs: std({ color: '#9aa197', roughness: 0.85 }) };
+    const secret = std({ color: '#8f5a3c', roughness: 0.9 });
+    const red = std({ color: '#b4302a', roughness: 0.6 });
+    items.forEach((it, i) => {
+      const z = -0.07 - i * step;
+      const g = new THREE.Group();
+      g.position.set(0, 0, z);
+      inner.add(g);
+      if (it.out) {
+        // the OUT card stands where the file was
+        this.outMap ??= plate([[`700 52px ${DINB}`, 'OUT', 20, 62], [`700 30px ${KU}`, '借出 · 阅档桌', 20, 108, '#f4ecd8']], 256, 128, '#9a2a22', '#f4ecd8');
+        const card = new THREE.Mesh(new THREE.PlaneGeometry(0.12, 0.06), std({ map: this.outMap, roughness: 0.7 }));
+        card.position.set(-0.08, top + 0.03, 0);
+        g.add(card);
+        this.box(g, 0.13, fh * 0.9, 0.003, -0.08, top - fh * 0.45 + 0.02, -0.002, red, false);
+        return;
+      }
+      this.box(g, iw - 0.004, 0.004, 0.004, 0, top, 0, M.steelDark, false);
+      this.box(g, fw, fh, 0.008 + (i % 3) * 0.002, 0, top - fh / 2 - 0.006, 0, it.stamp === 'TOP SECRET' ? secret : mats[it.category] ?? M.manila);
+      if (it.stamp === 'TOP SECRET') {
+        // a string-and-washer fastening, as on the envelope
+        this.cyl(g, 0.012, 0.012, 0.004, fw / 2 - 0.05, top - 0.05, 0.007, red, 14).rotation.x = Math.PI / 2;
+        this.box(g, 0.002, 0.07, 0.002, fw / 2 - 0.05, top - 0.09, 0.009, std({ color: '#e8dcc0' }), false);
+      }
+      if (!this.tabMaps.has(it.file)) this.tabMaps.set(it.file, fileTab(it.file, it.stamp));
+      const tab = new THREE.Mesh(new THREE.PlaneGeometry(0.095, 0.036), std({ map: this.tabMaps.get(it.file)!, roughness: 0.6 }));
+      tab.position.set([-0.13, -0.04, 0.05, 0.14][i % 4], top + 0.016, 0.003);
+      tab.rotation.x = -0.35;
+      g.add(tab);
+      const hit = new THREE.Mesh(BOX, new THREE.MeshBasicMaterial({ visible: false }));
+      hit.scale.set(fw, fh + 0.06, Math.max(0.03, step));
+      hit.position.set(0, top - fh / 2 + 0.02, 0);
+      hit.userData = { file: it.file, key: `file:${it.file}`, hitFor: true };
+      g.add(hit);
+      this.hits.push(hit);
+      this.hanging.set(it.file, { g, at: 0, to: 0, hit });
+    });
+  }
+
+  /** Pull a drawer out (or push it home). */
+  setDrawer(ci: number, d: number, open: boolean) {
+    const dg = this.drawersOf(ci)[d];
+    if (!dg) return;
+    const p = this.pulls.get(dg) ?? { at: dg.position.z, to: 0 };
+    p.to = open ? DRAWER_OUT : 0;
+    this.pulls.set(dg, p);
+  }
+
+  /** Lift a hanging file: a little on hover, half out when taken. */
+  liftFile(file: string, amount: number) {
+    const h = this.hanging.get(file);
+    if (h) h.to = amount;
+  }
+
+  dropAll() {
+    for (const h of this.hanging.values()) h.to = 0;
+  }
+
+  /** Is the pointer allowed to find this file: only in a drawer that is out. */
+  fileReachable(file: string) {
+    const h = this.hanging.get(file);
+    const dg = h?.g.parent?.parent as THREE.Group | undefined;
+    return !!dg && (this.pulls.get(dg)?.at ?? 0) > DRAWER_OUT * 0.6;
+  }
+
+  /* ---------------- the reading table ---------------- */
+  private covers = new Map<string, { g: THREE.Group; hit: THREE.Mesh; map: THREE.Texture }>();
+  /** Where a file lies on the table: x, z, turn. */
+  static readonly SLOTS: [number, number, number][] = [[-0.62, 0.17, -0.05], [0.0, 0.19, 0.03], [0.62, 0.17, 0.06], [-0.6, -0.16, 0.08], [0.02, -0.15, -0.04], [0.6, -0.17, -0.07]];
+
+  /** Lay these files on the table, in this order; the rest go. */
+  setTable(items: { file: string; category: string; map: () => THREE.Texture }[]) {
+    const keep = new Set(items.map((i) => i.file));
+    for (const [f, c] of this.covers) {
+      if (keep.has(f)) continue;
+      this.tableTop.remove(c.g);
+      this.unhit(c.hit);
+      c.map.dispose();
+      this.covers.delete(f);
+    }
+    const M = this.M;
+    items.forEach((it, i) => {
+      const [x, z, r] = StacksRoom.SLOTS[i] ?? StacksRoom.SLOTS[0];
+      let c = this.covers.get(it.file);
+      if (!c) {
+        const g = new THREE.Group();
+        const body = it.category === 'events' ? M.kraft : it.category === 'programs' ? std({ color: '#9aa197', roughness: 0.85 }) : M.manila;
+        this.rbox(g, 0.235, 0.012, 0.32, 0.003, 0, 0.006, 0, body);
+        const map = it.map();
+        const face = new THREE.Mesh(new THREE.PlaneGeometry(0.23, 0.315), std({ map, roughness: 0.85 }));
+        face.rotation.x = -Math.PI / 2;
+        face.position.y = 0.0125;
+        face.receiveShadow = true;
+        g.add(face);
+        const hit = new THREE.Mesh(BOX, new THREE.MeshBasicMaterial({ visible: false }));
+        hit.scale.set(0.25, 0.06, 0.33);
+        hit.position.y = 0.02;
+        hit.userData = { table: it.file, key: `table:${it.file}` };
+        g.add(hit);
+        this.hits.push(hit);
+        this.tableTop.add(g);
+        c = { g, hit, map };
+        this.covers.set(it.file, c);
+      }
+      c.g.position.set(x, 0.772 + i * 0.0015, z);
+      c.g.rotation.y = r;
+    });
+  }
+
+  /** The middle of the table top, in the room. */
+  tableCentre() {
+    return new THREE.Vector3(3.65, 0.78, -2.45);
+  }
+
+  /* ---------------- lamp colour: the light on the paper follows the clearance ---------------- */
+  private baseCol = new Map<THREE.Light, THREE.Color>();
+  /** Tint the lamps over a reading place: 'cabinet' (row 2) or 'table' (row 4 over it and the two desk lamps). */
+  tint(spot: 'cabinet' | 'table' | null, color: string | null) {
+    const lights: THREE.Light[] = [];
+    this.pendants.forEach((p) => {
+      if ((spot === 'cabinet' && p.row === 1) || (spot === 'table' && p.row === 3 && p.at.z < 0)) lights.push(p.light, p.fill);
+    });
+    if (spot === 'table') lights.push(this.desks[0].light, this.desks[1].light);
+    for (const [l, c] of this.baseCol) if (!lights.includes(l)) l.color.copy(c);
+    for (const l of lights) {
+      if (!this.baseCol.has(l)) this.baseCol.set(l, l.color.clone());
+      if (color) l.color.set(color);
+      else l.color.copy(this.baseCol.get(l)!);
+    }
+  }
+
+  private tickDrawers(dt: number) {
+    const k = Math.min(1, dt * 7);
+    for (const [dg, p] of this.pulls) {
+      p.at += (p.to - p.at) * k;
+      dg.position.z = p.at;
+    }
+    for (const h of this.hanging.values()) {
+      h.at += (h.to - h.at) * Math.min(1, dt * 9);
+      h.g.position.y = h.at * 0.2;
+    }
+  }
+
   /* ---------------- state ---------------- */
   setWeather(rain: boolean, night: boolean, rh: number) {
     if (rain === this.rainNow && night === this.nightNow && this.hygro?.userData.rh === rh) return;
@@ -937,6 +1148,7 @@ export class StacksRoom {
       this.clockHands.h.rotation.z = -(((h % 12) + m / 60) / 12) * Math.PI * 2;
     }
     if (this.fanBlades) this.fanBlades.rotation.z -= dt * 14 * fan;
+    this.tickDrawers(dt);
     void t;
   }
 }
