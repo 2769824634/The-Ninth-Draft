@@ -330,37 +330,6 @@ textarea.f-input { font-family: var(--f-serif); font-size: 1.05rem; resize: vert
    Map
    ========================================================================== */
 .map { display: grid; grid-template-columns: minmax(0, 1fr) 19rem; gap: 2.4rem; align-items: start; margin-top: 2rem; }
-.map__frame { position: relative; border: 1px solid var(--ink); background: var(--bg); overflow: hidden; }
-.map__svg { display: block; width: 100%; height: auto; }
-.map__grid line { stroke: var(--line); stroke-width: 1; }
-.map__grid text { fill: var(--ink-3); font-family: var(--f-mono); font-size: 11px; letter-spacing: .08em; }
-.map__sea { fill: none; stroke: var(--ink-3); stroke-width: 1; stroke-dasharray: 3 5; }
-.map__land { fill: color-mix(in srgb, var(--ink) 6%, var(--bg)); stroke: var(--ink); stroke-width: 1.4; stroke-linejoin: round; }
-.map__isle { stroke-width: 1.1; }
-.map__old { fill: none; stroke: var(--accent); stroke-width: 1; stroke-dasharray: 2 4; opacity: .55; }
-.map__d { cursor: pointer; outline: none; }
-.map__hit { fill: transparent; stroke: none; }
-.map__scan { pointer-events: none; }
-.map__mark { fill: var(--bg); stroke: var(--ink); stroke-width: 1.2; transition: fill var(--t-1) var(--ease), stroke var(--t-1) var(--ease); }
-.map__d.is-open .map__mark { stroke: var(--ink-3); stroke-dasharray: 2 2; }
-.map__d.is-unsurveyed .map__mark { fill: none; stroke: var(--ink-3); stroke-dasharray: 1.5 2; }
-.map__d .map__pin { fill: var(--ink); stroke: none; }
-.map__d text { fill: var(--ink); font-family: var(--f-mono); font-size: 12px; letter-spacing: .08em; text-transform: uppercase; paint-order: stroke; stroke: var(--bg); stroke-width: 4px; stroke-linejoin: round; pointer-events: none; }
-.map__grid text { paint-order: stroke; stroke: var(--bg); stroke-width: 4px; }
-.map__d .map__zh { font-family: var(--f-display); font-size: 14px; letter-spacing: .06em; }
-.map__name { opacity: 0; transition: opacity var(--t-1) var(--ease); }
-.map__d.is-major .map__name, .map__d:hover .map__name, .map__d:focus-visible .map__name, .map__d.is-on .map__name, .map__d.is-home .map__name { opacity: 1; }
-.map__d.is-unsurveyed .map__name { fill: var(--ink-3); }
-.map__d .map__n { fill: var(--accent); font-size: 9px; letter-spacing: 0; stroke-width: 3px; }
-.map__d.is-axis .map__mark { stroke-width: 2; }
-.map__d.is-major .map__name { font-weight: 600; }
-.map__d:hover .map__mark, .map__d:focus-visible .map__mark, .map__d.is-on .map__mark { fill: color-mix(in srgb, var(--accent) 20%, var(--bg)); stroke: var(--accent); stroke-dasharray: none; }
-.map__d.is-on .map__name { fill: var(--accent); }
-.map__d.is-home .map__mark { stroke: var(--accent); stroke-width: 2.2; }
-.map__home { fill: var(--accent); font-family: var(--f-mono); font-size: 11px; letter-spacing: .12em; }
-.map__home-ring { fill: none; stroke: var(--accent); stroke-width: 1; stroke-dasharray: 3 3; animation: map-ring 6s linear infinite; transform-box: fill-box; transform-origin: center; }
-@keyframes map-ring { to { transform: rotate(360deg); } }
-.map__coord { position: absolute; left: .8rem; bottom: .6rem; }
 
 .map__list { display: grid; gap: .4rem; margin: 0; padding: 0 .3rem 0 0; list-style: none; max-height: min(80vh, 46rem); overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; }
 .map__grp { list-style: none; }
@@ -454,6 +423,7 @@ textarea.f-input { font-family: var(--f-serif); font-size: 1.05rem; resize: vert
 .steps li.is-on { background: var(--accent); }
 .wiz { margin-top: .9rem; }
 .wiz__panel { margin-top: 1.4rem; min-height: 8.5rem; }
+.wiz__panel.is-short { min-height: 0; }
 .wiz .f-qlabel { font-size: 1.2rem; margin-bottom: .8rem; }
 .q__n { font-family: var(--f-mono); font-weight: 500; font-size: .7rem; margin-right: .6rem; color: var(--ink-3); }
 .choice { display: grid; gap: .6rem; }
@@ -463,10 +433,25 @@ textarea.f-input { font-family: var(--f-serif); font-size: 1.05rem; resize: vert
 .choice__o.is-on { border-color: var(--ink); background: color-mix(in srgb, var(--ink) 6%, transparent); }
 .choice__o.is-on i { background: var(--accent); border-color: var(--accent); color: #fff; }
 .wiz__map { margin-top: 1rem; }
-.wiz__map .map__frame { margin: 0; }
+.wiz__regions { display: grid; grid-template-columns: repeat(5, 1fr); margin: 0 0 .9rem; }
+.wiz__reg { display: grid; grid-template-columns: auto 1fr; align-items: baseline; gap: .1rem .45rem; padding: .5rem .6rem .45rem; margin-left: -1px; border: 1px solid var(--ink); background: transparent; color: var(--ink); font-family: var(--f-mono); font-size: .74rem; letter-spacing: .1em; text-transform: uppercase; text-align: left; cursor: pointer; transition: background var(--t-1) var(--ease), color var(--t-1) var(--ease); }
+.wiz__reg:first-child { margin-left: 0; }
+[data-lang='zh'] .wiz__reg { font-family: var(--f-sans); font-size: .9rem; letter-spacing: .04em; }
+.wiz__reg i { font-style: normal; color: var(--ink-3); font-size: .62rem; grid-row: span 2; }
+.wiz__reg small { color: var(--ink-3); letter-spacing: .1em; }
+.wiz__reg small::after { content: ' districts'; }
+[data-lang='zh'] .wiz__reg small::after { content: ' 个区'; }
+.wiz__reg:hover { background: color-mix(in srgb, var(--ink) 6%, transparent); }
+.wiz__reg.is-on { background: var(--ink); color: var(--bg); }
+.wiz__reg.is-on i, .wiz__reg.is-on small { color: color-mix(in srgb, var(--bg) 65%, transparent); }
+.wiz__region[hidden], .wiz__hint[hidden] { display: none; }
+.wiz__hint { margin: 0; }
+@media (max-width: 700px) {
+  .wiz__regions { grid-template-columns: repeat(3, 1fr); }
+  .wiz__reg { margin-top: -1px; }
+}
 .wiz__blurb { margin: .8rem 0 0; font-family: var(--f-serif); font-size: 1rem; color: var(--ink-2); min-height: 3em; }
 .wiz__blurb b { font-family: var(--f-display); text-transform: uppercase; margin-right: .4rem; color: var(--ink); }
-.wiz__map .map__d.is-home .map__mark { fill: color-mix(in srgb, var(--accent) 30%, var(--bg)); stroke: var(--accent); stroke-width: 2.5; }
 .wiz__picks { display: grid; gap: .7rem; margin-top: 1rem; padding-top: .9rem; border-top: 1px dashed var(--line); }
 .wiz__region p { margin: 0 0 .35rem; color: var(--ink-3); letter-spacing: .2em; }
 .wiz__region > div { display: flex; flex-wrap: wrap; gap: .35rem; }
