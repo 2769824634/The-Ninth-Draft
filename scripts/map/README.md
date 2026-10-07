@@ -17,7 +17,8 @@ python3 scripts/map/build.py     # 生成下面三个文件
 | 文件 | 内容 |
 | --- | --- |
 | `public/map/base.json` | 全岛：陆地、水、绿地、工业区、主要道路、铁路、地铁站、区界 |
-| `public/map/detail.json` | 放大以后才下载：小路、水沟、组屋和座号、地名 |
+| `public/map/detail.json` | 放大以后才下载：小路、水沟、组屋（座号、街名、邮编、建成年份、层数）、地名 |
+| `public/map/index.json` | 地名索引：区、车站、地名、河、路，按字母排，带坐标和所在区 |
 | `src/data/gerimis/sheet.ts` | 简化的海岸线、各区标签位置、街道图分页（办公室墙上的地图、幻灯片、登记页的小地图用） |
 
 ## 按 1999 年改回去
@@ -30,7 +31,8 @@ python3 scripts/map/build.py     # 生成下面三个文件
 - **地铁**：只有南北线、东西线；武吉班让轻轨 11 月 6 日以前画虚线并注明开通日；东北线画成在挖。马来亚铁路还在跑，裕廊支线停用。
 - **机场跑道**：只画樟宜两条和实里达一条。
 - **未测绘**：军事用地、德光岛、巴耶利峇、登加、西部集水区留白打斜线。
-- **路名**：以总督、王室、政治人物命名的路不标名字（`UNNAMED` 名单）；地铁站名按地名录改（如 Raffles Place → Axis）。
+- **路名**：以总督、王室、政治人物命名的路不标名字（`UNNAMED` 名单）；地铁站名按地名录改（如 Raffles Place → Axis），改了名的地方的路跟着改（`STREET_RENAME`：Clementi Avenue 3 → West Coast Avenue 3，Eunos Crescent → Kampong Melayu Crescent）。
+- **门牌和邮编**：组屋街名用 OpenStreetMap 的全称，没有的照建屋局的缩写展开（BT BATOK WEST AVE 6 → Bukit Batok West Avenue 6）；街名不标的组屋，地址只写座号和区。邮编照新加坡的规矩：两位邮区 + 一位小区 + 三位座号（宏茂桥 123 座 = 560123），前三位从 OpenStreetMap 里同一条街已有的邮编学来，学不到就用最近一座的；带字母的座号和撞号的往后挪一位小区号，一座一个邮编。
 
 这些是按公开资料推断的，和真实的 1999 年一定有出入，发现了就改名单重跑。
 

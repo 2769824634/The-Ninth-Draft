@@ -33,7 +33,11 @@ const records = defineCollection({
      * a visitor's secret to a file. Keys are in src/data/gerimis/districts.ts.
      */
     district: z.enum(DISTRICT_KEYS).transform(currentDistrict).optional(),
-    /** A neighbourhood inside the district, as the gazetteer names it (optional), e.g. "Tiong Bahru". */
+    /**
+     * Where in the district (optional): an HDB block, "Blk 7" or "7 座", a street after it if the
+     * district has two, or a neighbourhood as the gazetteer names it, e.g. "Tiong Bahru". The map
+     * pins the record there (src/lib/address.ts). Without it, `place` is read the same way.
+     */
     block: z.string().optional(),
     /** Image path inside /public, e.g. "records/p-0001.jpg". */
     image: z.string().optional(),

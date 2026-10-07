@@ -4,6 +4,7 @@ import { loadRecords } from '../../lib/records';
 import { islandDay } from '../../app/island';
 import { DISTRICTS, REGIONS } from '../../app/visitor/districts';
 import StreetMap from '../../components/StreetMap.astro';
+import { addressOf } from '../../lib/address';
 
 const base = import.meta.env.BASE_URL;
 const records = await loadRecords(base);
@@ -47,11 +48,14 @@ const KIND = {
                 </button>
                 <ul>
                   {rs.length ? (
-                    rs.map((r) => (
-                      <li data-island-date={islandDay(r.date) ?? ''}>
+                    rs.map((r) => {
+                      const a = addressOf(r);
+                      return (
+                      <li data-island-date={islandDay(r.date) ?? ''} data-spot={a ? JSON.stringify({ file: r.file, title: [r.title, r.zh?.title ?? r.title], href: `${base}records/${r.slug}/`, x: a.x, y: a.y, addr: [a.en, a.zh], postcode: a.postcode }) : undefined}>
                         <a href={`${base}records/${r.slug}/`}><b>{r.file}</b><span data-l="en">{r.title}</span><span data-l="zh">{r.zh?.title ?? r.title}</span></a>
                       </li>
-                    ))
+                      );
+                    })
                   ) : null}
                   {(
                     <li class="map__empty" data-island-empty={`#map-list .map__item[data-d="${d.id}"] > ul > li[data-island-date]`}><span data-l="en">Nothing filed here yet.</span><span data-l="zh">这里还没有档案。</span></li>
@@ -67,6 +71,21 @@ const KIND = {
       {unplaced > 0 && <li class="micro" style="padding:.4rem .2rem">{unplaced} <span>not yet placed</span></li>}
     </ol>
   </div>
+
+  <section class="gaz" id="index" aria-labelledby="gaz-h">
+    <h2 class="f-sec__h" id="gaz-h"><i>A–Z</i><span><span data-l="en">Index of streets and places</span><span data-l="zh">地名索引</span></span></h2>
+    <p class="f-help">
+      <span data-l="en">The back pages of the directory: every road, station, river and neighbourhood on the sheet, A to Z, with its page and square. For a block, give its number and street, or its postcode. Choose a line and the sheet turns to it.</span>
+      <span data-l="zh">街道图最后那几十页：图上每条路、每个车站、每条河和地名，按字母排，后面是页码和格号。找组屋就写座号和路名，或者邮编。点一行，图就翻到那里。</span>
+    </p>
+    <div class="gaz__find">
+      <label class="micro" for="gaz-q"><span data-l="en">Look up</span><span data-l="zh">查找</span></label>
+      <input class="f-input" id="gaz-q" type="search" autocomplete="off" spellcheck="false" placeholder="Lorong Lew Lian · Blk 7 Serangoon · 550007" />
+    </div>
+    <nav class="gaz__abc micro" id="gaz-abc" aria-label="Letters"></nav>
+    <p class="gaz__head micro" id="gaz-head" aria-live="polite"><span data-l="en">Opening the index…</span><span data-l="zh">正在翻到索引……</span></p>
+    <ol class="gaz__list" id="gaz-list"></ol>
+  </section>
 </Flat>
 
 <script>
@@ -76,7 +95,8 @@ const KIND = {
   import { reducedMotion } from '../../app/prefs';
   import { districtName } from '../../app/visitor/districts';
   import { loadVisitor } from '../../app/visitor/store';
-  import { mountStreetMap } from '../../app/map/mount';
+  import { mountStreetMap, type RecordSpot } from '../../app/map/mount';
+  import { mountGazetteer } from '../../app/map/gazetteer';
 
   const items = [...document.querySelectorAll<HTMLLIElement>('.map__item')];
   const groups = [...document.querySelectorAll<HTMLLIElement>('.map__grp')];
@@ -87,7 +107,7 @@ const KIND = {
   };
   const v = loadVisitor();
   const wide = matchMedia('(min-width: 901px)');
-  const { base } = flat(() => sm.relang());
+  const { base } = flat(() => { sm.relang(); gaz.relang(); });
 
   // records already filed by the island's date, per district
   const pins = () => Object.fromEntries(items.map((li) => [li.dataset.d!, li.querySelectorAll('ul > li[data-island-date]:not([hidden])').length]));
@@ -108,8 +128,21 @@ const KIND = {
     base,
     home: v?.district ?? null,
     pins,
+    records: () => [...document.querySelectorAll<HTMLElement>('#map-list li[data-spot]:not([hidden])')].map((li) => JSON.parse(li.dataset.spot!) as RecordSpot),
     onPick: (id) => mark(id, true),
     idle: () => (v ? t('You live in {district}', { district: districtName(v.district, isZh()) }) : t('Drag the sheet')),
+  });
+
+  const gaz = mountGazetteer(document.getElementById('index')!, {
+    base,
+    go: (to) => {
+      if (to.district) {
+        mark(to.district, true);
+        sm.pick(to.district);
+      } else sm.goto(to.x, to.y, to.scale, { block: to.block });
+      document.getElementById('smap')!.scrollIntoView({ block: 'start', behavior: reducedMotion() ? 'auto' : 'smooth' });
+    },
+    blocks: () => sm.blocks(),
   });
 
   if (v) items.find((li) => li.dataset.d === v.district)?.querySelector<HTMLElement>('.map__you')?.removeAttribute('hidden');

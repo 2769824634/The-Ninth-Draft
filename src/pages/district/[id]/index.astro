@@ -5,6 +5,7 @@ import { loadRecords } from '../../../lib/records';
 import { islandDay } from '../../../app/island';
 import { DISTRICTS, REGIONS, pageRef, nearest, type District } from '../../../app/visitor/districts';
 import { LEGACY_DISTRICTS } from '../../../data/gerimis/legacy';
+import { addressOf } from '../../../lib/address';
 
 export function getStaticPaths() {
   return [
@@ -31,8 +32,8 @@ const KIND = {
   unsurveyed: { en: 'Not surveyed', zh: '未测绘' },
 }[d.kind];
 const near = nearest(d, 8);
-// a record filed under one of the district's neighbourhoods says so
-const blockOf = (name?: string) => (name ? d.blocks.find((b) => [b.en, b.zh].some((x) => x.toLowerCase() === name.trim().toLowerCase())) : undefined);
+// a record says where in the district it happened, down to the block when it names one
+const recs = records.map((r) => ({ r, a: addressOf(r) }));
 let n = 0;
 const sec = () => String(++n).padStart(2, '0');
 ---
@@ -83,12 +84,19 @@ const sec = () => String(++n).padStart(2, '0');
       <h2 class="f-sec__h"><i>{sec()}</i><span>Records filed here</span></h2>
       {records.length ? (
         <ul class="dist-page__recs">
-          {records.map((r) => {
-            const b = blockOf(r.block);
-            return (
-              <li data-island-date={islandDay(r.date) ?? ''}><a href={`${base}records/${r.slug}/`}><b>{r.file}</b><span data-l="en">{r.title}</span><span data-l="zh">{r.zh?.title ?? r.title}</span>{b && <small class="micro"><span data-l="en">{b.en}</span><span data-l="zh">{b.zh}</span></small>}</a></li>
-            );
-          })}
+          {recs.map(({ r, a }) => (
+            <li
+              data-island-date={islandDay(r.date) ?? ''}
+              data-spot={a ? JSON.stringify({ file: r.file, title: [r.title, r.zh?.title ?? r.title], href: `${base}records/${r.slug}/`, x: a.x, y: a.y, addr: [a.en, a.zh], postcode: a.postcode }) : undefined}
+            >
+              <a href={`${base}records/${r.slug}/`}><b>{r.file}</b><span data-l="en">{r.title}</span><span data-l="zh">{r.zh?.title ?? r.title}</span>{a && (
+                <small class="micro">
+                  <span data-l="en">{a.en}{a.postcode && ` · Gerimis ${a.postcode}`}{a.ref && ` · page ${a.ref}`}</span>
+                  <span data-l="zh">{a.zh}{a.postcode && ` · 霏微 ${a.postcode}`}{a.ref && ` · 第 ${a.ref.replace(' ', ' 页 ')}`}</span>
+                </small>
+              )}</a>
+            </li>
+          ))}
         </ul>
       ) : null}
       {(
@@ -163,7 +171,7 @@ const sec = () => String(++n).padStart(2, '0');
   import { loadVisitor } from '../../../app/visitor/store';
   import { isZh } from '../../../app/i18n';
   import { islandDate, hms } from '../../../app/island';
-  import { mountStreetMap } from '../../../app/map/mount';
+  import { mountStreetMap, type RecordSpot } from '../../../app/map/mount';
 
   const clock = document.getElementById('dclock');
   const neigh = document.getElementById('neigh');
@@ -195,6 +203,7 @@ const sec = () => String(++n).padStart(2, '0');
       base,
       home: loadVisitor()?.district ?? null,
       pins: () => ({ [id]: document.querySelectorAll('.dist-page__recs > li[data-island-date]:not([hidden])').length }),
+      records: () => [...document.querySelectorAll<HTMLElement>('.dist-page__recs > li[data-spot]:not([hidden])')].map((li) => JSON.parse(li.dataset.spot!) as RecordSpot),
     });
     live();
 
