@@ -599,6 +599,7 @@ export const DISTRICT_DATA: DistrictData[] = [
 ];
 
 export { LEGACY_DISTRICTS } from './legacy';
+import { COAST, ISLANDS } from './sheet';
 
 /** The seven districts the office keeps a clock for. */
 export const CLOCK_DISTRICTS = ['axis', 'ang-mo-kio', 'toa-payoh', 'bukit-merah', 'hougang', 'woodlands', 'serangoon'];
@@ -608,31 +609,6 @@ export const CLOCK_DISTRICTS = ['axis', 'ang-mo-kio', 'toa-payoh', 'bukit-merah'
 const K = 2150, LON0 = 103.605, LAT0 = 1.475;
 export const project = (lon: number, lat: number): [number, number] => [Math.round((lon - LON0) * K), Math.round((LAT0 - lat) * K)];
 
-/** The coast, traced by hand on the 1999 base, in degrees. */
-const COAST_DEG: [number, number][] = [
-  [103.612, 1.318], [103.618, 1.338], [103.632, 1.352], [103.648, 1.37], [103.66, 1.392], [103.676, 1.412], [103.694, 1.43], [103.708, 1.447],
-  [103.722, 1.452], [103.738, 1.446], [103.752, 1.449], [103.766, 1.452], [103.78, 1.449], [103.794, 1.453], [103.807, 1.462], [103.82, 1.47],
-  [103.832, 1.466], [103.842, 1.458], [103.853, 1.451], [103.862, 1.438], [103.873, 1.427], [103.885, 1.418], [103.898, 1.418], [103.91, 1.421],
-  [103.92, 1.411], [103.932, 1.398], [103.946, 1.389], [103.96, 1.385], [103.974, 1.383], [103.988, 1.391], [104.0, 1.386], [104.012, 1.372],
-  [104.026, 1.36], [104.028, 1.344], [104.016, 1.33], [104.0, 1.318], [103.98, 1.31], [103.958, 1.306], [103.938, 1.302], [103.918, 1.297],
-  [103.9, 1.294], [103.884, 1.29], [103.877, 1.281], [103.874, 1.27], [103.862, 1.263], [103.848, 1.266], [103.836, 1.264], [103.824, 1.268],
-  [103.81, 1.272], [103.794, 1.274], [103.778, 1.28], [103.762, 1.288], [103.746, 1.296], [103.73, 1.302], [103.712, 1.304], [103.696, 1.298],
-  [103.678, 1.294], [103.66, 1.29], [103.642, 1.292], [103.626, 1.298], [103.614, 1.306],
-];
-/** Islands, in degrees. */
-const ISLANDS_DEG: [number, number][][] = [
-  // Sentosa
-  [[103.806, 1.254], [103.818, 1.258], [103.832, 1.257], [103.845, 1.253], [103.85, 1.246], [103.84, 1.241], [103.824, 1.243], [103.81, 1.247]],
-  // Pulau Ubin
-  [[103.935, 1.412], [103.948, 1.418], [103.962, 1.42], [103.978, 1.418], [103.99, 1.412], [103.982, 1.404], [103.964, 1.401], [103.946, 1.403]],
-  // Jurong Island, half joined
-  [[103.672, 1.272], [103.69, 1.276], [103.71, 1.274], [103.722, 1.266], [103.712, 1.256], [103.692, 1.254], [103.676, 1.26]],
-  // Pulau Bukom and Semakau
-  [[103.758, 1.236], [103.77, 1.238], [103.774, 1.23], [103.762, 1.228]],
-  [[103.758, 1.212], [103.768, 1.214], [103.772, 1.2], [103.762, 1.198]],
-  // Pulau Tekong (not surveyed)
-  [[104.012, 1.418], [104.03, 1.425], [104.05, 1.418], [104.052, 1.402], [104.034, 1.396], [104.016, 1.402]],
-];
 /** The shore before the reclamation, in degrees. */
 const OLD_SHORE_DEG: [number, number][] = [
   [103.79, 1.276], [103.82, 1.271], [103.838, 1.274], [103.848, 1.281], [103.856, 1.293], [103.864, 1.3], [103.878, 1.302], [103.896, 1.305],
@@ -642,11 +618,14 @@ const OLD_SHORE_DEG: [number, number][] = [
 const path = (pts: [number, number][], close: boolean) =>
   pts.map(([lo, la], i) => `${i ? 'L' : 'M'}${project(lo, la).join(' ')}`).join('') + (close ? 'Z' : '');
 
+const ring = (pts: [number, number][]) => pts.map((p, i) => `${i ? 'L' : 'M'}${p.join(' ')}`).join('') + 'Z';
+
+/** The island on the sheet: the 1999 coast after OpenStreetMap (sheet.ts, generated), and the old shore. */
 export const SHEET = {
-  coast: path(COAST_DEG, true),
-  islands: ISLANDS_DEG.map((p) => path(p, true)),
+  coast: ring(COAST),
+  islands: ISLANDS.map(ring),
   oldShore: path(OLD_SHORE_DEG, false),
   /** The coast as points on the sheet, for the office's canvases. */
-  coastPoints: COAST_DEG.map(([lo, la]) => project(lo, la)),
-  islandPoints: ISLANDS_DEG.map((p) => p.map(([lo, la]) => project(lo, la))),
+  coastPoints: COAST,
+  islandPoints: ISLANDS,
 };

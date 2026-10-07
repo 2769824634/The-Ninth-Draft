@@ -7,6 +7,7 @@
  */
 import { CLOCK_DISTRICTS, DISTRICT_DATA, REGIONS, project, type DistrictData } from '../../data/gerimis/districts';
 import { currentDistrict } from '../../data/gerimis/legacy';
+import { LABEL, PAGE, PAGES } from '../../data/gerimis/sheet';
 
 export interface District extends DistrictData {
   x: number;
@@ -18,7 +19,8 @@ export interface District extends DistrictData {
 export type DistrictId = string;
 
 export const DISTRICTS: District[] = DISTRICT_DATA.map((d) => {
-  const [x, y] = project(d.lon, d.lat);
+  // the name sits where the street map puts it, deepest inside the district
+  const [x, y] = LABEL[d.id] ?? project(d.lon, d.lat);
   return { ...d, x, y, tz: d.tz ?? 0, left: !!d.left };
 });
 
@@ -42,8 +44,19 @@ export const districtName = (id: string, zh: boolean) => {
 const SIDE: Record<string, 't' | 'b'> = { tampines: 't', 'ang-mo-kio': 't', 'toa-payoh': 'b', changi: 'b' };
 export const labelSide = (d: District): 'l' | 'r' | 't' | 'b' => SIDE[d.id] ?? (d.left ? 'l' : 'r');
 
-/** Survey grid square on the sheet, e.g. "F-05". */
-export const gridRef = (d: Pick<District, 'x' | 'y'>) => `${'ABCDEFGHIJ'[Math.min(9, Math.max(0, Math.floor(d.x / 100)))]}-${String(Math.floor(d.y / 100) + 1).padStart(2, '0')}`;
+const PAGE_NO = new Map(PAGES.map((cell, i) => [cell, i + 1]));
+/**
+ * Street-directory reference for a point on the sheet, e.g. "112 C3": the page
+ * (numbered from the north-west, only where there is land) and the square on
+ * it (A–D across, 1–4 down). Null out at sea.
+ */
+export const pageRef = (p: Pick<District, 'x' | 'y'>) => {
+  const c = Math.floor(p.x / PAGE.w), r = Math.floor(p.y / PAGE.h);
+  const no = PAGE_NO.get(r * PAGE.cols + c);
+  if (!no || c < 0 || c >= PAGE.cols) return null;
+  const sq = 'ABCD'[Math.min(3, Math.floor(((p.x - c * PAGE.w) / PAGE.w) * 4))] + (Math.min(3, Math.floor(((p.y - r * PAGE.h) / PAGE.h) * 4)) + 1);
+  return { page: no, square: sq, text: `${no} ${sq}` };
+};
 
 /** The nearest districts on the sheet. */
 export const nearest = (d: District, n: number) =>

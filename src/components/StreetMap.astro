@@ -1,0 +1,43 @@
+---
+/**
+ * The street map: a 1999 street directory of the island you can drag and zoom
+ * (src/app/map/street.ts draws it). The page's own script mounts it with
+ * mountStreetMap (src/app/map/mount.ts).
+ */
+interface Props { id?: string; focus?: string; tall?: boolean }
+const { id = 'smap', focus, tall } = Astro.props;
+---
+
+<div class={`smap${tall ? ' smap--tall' : ''}`} id={id} data-focus={focus}>
+  <div class="smap__frame">
+    <canvas class="smap__canvas" tabindex="0" aria-label="Street map of Gerimis. Drag to move, scroll or pinch to zoom, tap a district."></canvas>
+    <p class="smap__wait micro" aria-hidden="true"><span data-l="en">Unfolding the sheet…</span><span data-l="zh">正在摊开图纸……</span></p>
+    <div class="smap__corner micro" aria-live="polite"><b data-smap-page>—</b><span data-smap-where></span></div>
+    <div class="smap__zoom">
+      <button type="button" data-z="in" aria-label="Zoom in">+</button>
+      <button type="button" data-z="out" aria-label="Zoom out">−</button>
+      <button type="button" data-z="reset" class="micro" aria-label="Whole island"><span data-l="en">Island</span><span data-l="zh">全岛</span></button>
+    </div>
+    <aside class="smap__card" hidden aria-live="polite"></aside>
+    <p class="smap__credit micro"><span data-l="en">Map data © OpenStreetMap contributors, redrawn as in 1999</span><span data-l="zh">地图参考 © OpenStreetMap 贡献者，按 1999 年重绘</span></p>
+  </div>
+  <details class="smap__key micro">
+    <summary><span data-l="en">Key</span><span data-l="zh">图例</span></summary>
+    <ul>
+      <li><i class="k-mw"></i><span data-l="en">Expressway</span><span data-l="zh">快速公路</span></li>
+      <li><i class="k-pr"></i><span data-l="en">Main road</span><span data-l="zh">主要道路</span></li>
+      <li><i class="k-rd"></i><span data-l="en">Road</span><span data-l="zh">道路</span></li>
+      <li><i class="k-ns"></i><span data-l="en">North–South line</span><span data-l="zh">南北线</span></li>
+      <li><i class="k-ew"></i><span data-l="en">East–West line</span><span data-l="zh">东西线</span></li>
+      <li><i class="k-bp"></i><span data-l="en">Bukit Panjang LRT (from 6 Nov)</span><span data-l="zh">武吉班让轻轨（11 月 6 日起）</span></li>
+      <li><i class="k-ne"></i><span data-l="en">North-East line, being dug</span><span data-l="zh">东北线，在挖</span></li>
+      <li><i class="k-ktm"></i><span data-l="en">Railway across the strait</span><span data-l="zh">对岸铁路</span></li>
+      <li><i class="k-spur"></i><span data-l="en">Jurong branch, disused</span><span data-l="zh">裕廊支线，停用</span></li>
+      <li><i class="k-hdb"></i><span data-l="en">HDB block</span><span data-l="zh">组屋</span></li>
+      <li><i class="k-bound"></i><span data-l="en">District bound</span><span data-l="zh">区界</span></li>
+      <li><i class="k-old"></i><span data-l="en">Shore before the reclamation</span><span data-l="zh">填海前的海岸</span></li>
+      <li><i class="k-blank"></i><span data-l="en">Not surveyed</span><span data-l="zh">未测绘</span></li>
+      <li><i class="k-rec"></i><span data-l="en">Records on file</span><span data-l="zh">在档档案</span></li>
+    </ul>
+  </details>
+</div>

@@ -3,7 +3,7 @@ import Flat from '../../layouts/Flat.astro';
 import { loadRecords } from '../../lib/records';
 import { islandDay } from '../../app/island';
 import { DISTRICTS, REGIONS } from '../../app/visitor/districts';
-import IslandMap from '../../components/IslandMap.astro';
+import StreetMap from '../../components/StreetMap.astro';
 
 const base = import.meta.env.BASE_URL;
 const records = await loadRecords(base);
@@ -20,15 +20,12 @@ const KIND = {
   <p class="f-kicker micro"><b>Sheet 1 / 1</b><span>Records Office · Survey Section</span></p>
   <h1 class="f-title"><span data-l="en">Gerimis</span><span data-l="zh">霏微</span></h1>
   <p class="f-lede">
-    <span data-l="en">One island, fifty-two districts, surveyed in 1999. Each record is pinned to the district it was filed in. The red dashes are the shore before the reclamation, which the Office would prefer you did not notice. Blank ground is not surveyed.</span>
-    <span data-l="zh">一座岛，五十二个区，1999 年测绘。每份档案钉在它归档的那个区。红色虚线是填海以前的海岸，署方希望你没注意到。空着的地方是未测绘。</span>
+    <span data-l="en">One island, fifty-two districts, surveyed in 1999 and bound like the street directory in every glovebox. Drag it about, pinch or scroll to go closer: the towns, then the roads by name, then the blocks one by one. Red tags are records on file. The red dashes are the shore before the reclamation, which the Office would prefer you did not notice. Hatched ground is not surveyed.</span>
+    <span data-l="zh">一座岛，五十二个区，1999 年测绘，装订得和每辆车里那本街道图一样。可以拖，可以两指或滚轮放大：先是镇，再是路名，最后一座座组屋。红色小标是在档的档案。红色虚线是填海以前的海岸，署方希望你没注意到。打斜线的地方是未测绘。</span>
   </p>
 
   <div class="map">
-    <div class="map__frame">
-      <IslandMap counts={Object.fromEntries(DISTRICTS.map((d) => [d.id, inDistrict(d.id).length]))} />
-      <span class="map__coord micro" id="map-coord">Hover a district</span>
-    </div>
+    <StreetMap id="smap" />
 
     <ol class="map__list" id="map-list">
       {REGIONS.map((g) => (
@@ -77,11 +74,10 @@ const KIND = {
   import { audio } from '../../app/audio';
   import { t, isZh } from '../../app/i18n';
   import { reducedMotion } from '../../app/prefs';
-  import { district, districtName, gridRef } from '../../app/visitor/districts';
+  import { districtName } from '../../app/visitor/districts';
   import { loadVisitor } from '../../app/visitor/store';
+  import { mountStreetMap } from '../../app/map/mount';
 
-  const svg = document.getElementById('map') as unknown as SVGSVGElement;
-  const coord = document.getElementById('map-coord')!;
   const items = [...document.querySelectorAll<HTMLLIElement>('.map__item')];
   const groups = [...document.querySelectorAll<HTMLLIElement>('.map__grp')];
   const openGroup = (g: Element | null | undefined, yes: boolean) => {
@@ -89,89 +85,46 @@ const KIND = {
     g.classList.toggle('is-open', yes);
     g.querySelector('.map__group')!.setAttribute('aria-expanded', String(yes));
   };
-  const nodes = [...svg.querySelectorAll<SVGGElement>('.map__d')];
   const v = loadVisitor();
-  let on: string | null = null;
   const wide = matchMedia('(min-width: 901px)');
+  const { base } = flat(() => sm.relang());
 
-  const grid = (id: string) => gridRef(district(id)!);
-  const idle = () => (v ? t('You live in {district}', { district: districtName(v.district, isZh()) }) : t('Hover a district'));
-  const select = (id: string | null, sound = true) => {
+  // records already filed by the island's date, per district
+  const pins = () => Object.fromEntries(items.map((li) => [li.dataset.d!, li.querySelectorAll('ul > li[data-island-date]:not([hidden])').length]));
+
+  let on: string | null = null;
+  const mark = (id: string | null, scroll: boolean) => {
     on = id;
-    nodes.forEach((n) => n.classList.toggle('is-on', n.dataset.d === id));
     items.forEach((li) => {
       const yes = li.dataset.d === id;
       li.classList.toggle('is-on', yes);
       li.querySelector('button')!.setAttribute('aria-expanded', String(yes));
       if (yes) openGroup(li.closest('.map__grp'), true);
     });
-    coord.textContent = id ? `${t('Grid')} ${grid(id)} · ${districtName(id, isZh())}` : idle();
-    if (sound && id) audio.click();
-    // the picked pin goes on top of its neighbours
-    const n = nodes.find((x) => x.dataset.d === id);
-    if (n) n.parentNode!.append(n);
-    // and its entry comes into view in the list
-    if (sound && id && wide.matches) items.find((li) => li.dataset.d === id)?.scrollIntoView({ block: 'nearest', behavior: reducedMotion() ? 'auto' : 'smooth' });
+    if (scroll && id && wide.matches) items.find((li) => li.dataset.d === id)?.scrollIntoView({ block: 'nearest', behavior: reducedMotion() ? 'auto' : 'smooth' });
   };
 
-  // The visitor's own district
-  if (v) {
-    const home = nodes.find((n) => n.dataset.d === v.district);
-    const d = district(v.district);
-    if (home && d) {
-      home.classList.add('is-home');
-      const ns = 'http://www.w3.org/2000/svg';
-      const ring = document.createElementNS(ns, 'circle');
-      ring.setAttribute('class', 'map__home-ring');
-      ring.setAttribute('cx', String(d.x));
-      ring.setAttribute('cy', String(d.y));
-      ring.setAttribute('r', '15');
-      const tag = document.createElementNS(ns, 'text');
-      tag.setAttribute('class', 'map__home');
-      tag.setAttribute('x', String(d.x));
-      const below = Number(home.querySelector('.map__name')?.getAttribute('y') ?? d.y) > d.y + 8;
-      tag.setAttribute('y', String(below ? d.y - 22 : d.y + 30));
-      tag.setAttribute('text-anchor', 'middle');
-      tag.setAttribute('id', 'map-home');
-      home.prepend(ring);
-      home.append(tag);
-    }
-    items.find((li) => li.dataset.d === v.district)?.querySelector<HTMLElement>('.map__you')?.removeAttribute('hidden');
-  }
-  // a pin with nothing on file yet carries no count
-  const counts = () => svg.querySelectorAll<SVGTextElement>('.map__n').forEach((n) => n.style.setProperty('display', /^0+$/.test(n.textContent ?? '') ? 'none' : ''));
-  const relang = () => {
-    counts();
-    const tag = document.getElementById('map-home');
-    if (tag) tag.textContent = t('YOU LIVE HERE');
-    select(on, false);
-  };
-  flat(relang);
-  relang();
-
-  nodes.forEach((n) => {
-    n.addEventListener('mouseenter', () => (coord.textContent = `${t('Grid')} ${grid(n.dataset.d!)} · ${districtName(n.dataset.d!, isZh())}`));
-    n.addEventListener('mouseleave', () => select(on, false));
-    n.addEventListener('click', () => select(n.dataset.d!));
-    n.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter' || e.key === ' ') {
-        e.preventDefault();
-        select(n.dataset.d!);
-      }
-    });
+  const sm = mountStreetMap(document.getElementById('smap')!, {
+    base,
+    home: v?.district ?? null,
+    pins,
+    onPick: (id) => mark(id, true),
+    idle: () => (v ? t('You live in {district}', { district: districtName(v.district, isZh()) }) : t('Drag the sheet')),
   });
-  items.forEach((li) => li.querySelector('button')!.addEventListener('click', () => select(on === li.dataset.d ? null : li.dataset.d!)));
-  // on a phone the list folds into its five regions; your own region stays open
+
+  if (v) items.find((li) => li.dataset.d === v.district)?.querySelector<HTMLElement>('.map__you')?.removeAttribute('hidden');
+  items.forEach((li) =>
+    li.querySelector('button')!.addEventListener('click', () => {
+      const id = on === li.dataset.d ? null : li.dataset.d!;
+      mark(id, false);
+      sm.pick(id);
+    }),
+  );
+  // on a phone the list folds into its five regions
   if (!wide.matches) groups.forEach((g) => openGroup(g, false));
   groups.forEach((g) => g.querySelector('.map__group')!.addEventListener('click', () => {
     openGroup(g, !g.classList.contains('is-open'));
     audio.click();
   }));
-  if (v) select(v.district, false);
-
-  // A survey sweep crosses the sheet now and then
-  if (!reducedMotion()) {
-    const scan = document.getElementById('map-sweep')!;
-    scan.animate([{ transform: 'translateX(0)' }, { transform: 'translateX(1160px)' }], { duration: 5200, iterations: Infinity, easing: 'linear', delay: 600, endDelay: 3800 });
-  }
+  if (v) mark(v.district, false);
 </script>
