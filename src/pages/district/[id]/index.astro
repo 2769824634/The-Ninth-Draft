@@ -1,9 +1,9 @@
 ---
 import Flat from '../../../layouts/Flat.astro';
-import DistrictSheet from '../../../components/DistrictSheet.astro';
+import StreetMap from '../../../components/StreetMap.astro';
 import { loadRecords } from '../../../lib/records';
 import { islandDay } from '../../../app/island';
-import { DISTRICTS, REGIONS, gridRef, nearest, type District } from '../../../app/visitor/districts';
+import { DISTRICTS, REGIONS, pageRef, nearest, type District } from '../../../app/visitor/districts';
 import { LEGACY_DISTRICTS } from '../../../data/gerimis/legacy';
 
 export function getStaticPaths() {
@@ -21,7 +21,8 @@ const d = DISTRICTS.find((x) => x.id === (to ?? id)) as District;
 const href = `${base}district/${d.id}/`;
 const records = (await loadRecords(base)).filter((r) => r.district === d.id);
 const offset = d.tz === 0 ? '' : d.tz > 0 ? `+${d.tz}` : `${d.tz}`;
-const grid = gridRef(d);
+const ref = pageRef(d);
+const [pageNo, square] = ref ? [ref.page, ref.square] : ['—', ''];
 const postal = String(d.postal).padStart(2, '0');
 const region = REGIONS.find((r) => r.id === d.region)!;
 const KIND = {
@@ -49,17 +50,15 @@ const sec = () => String(++n).padStart(2, '0');
   </html>
 ) : (
 <Flat title={`${d.en} — The Ninth Draft`} description={d.blurb.en} page="district">
-  <p class="f-kicker micro"><b>District file</b><span><span data-l="en">Records Office · Survey Section · Grid {grid} · Postal district {postal}</span><span data-l="zh">记录署 · 测绘科 · 方格 {grid} · 第 {postal} 邮区</span></span></p>
+  <p class="f-kicker micro"><b>District file</b><span><span data-l="en">Records Office · Survey Section · Page {pageNo} {square} · Postal district {postal}</span><span data-l="zh">记录署 · 测绘科 · 街道图第 {pageNo} 页 {square} · 第 {postal} 邮区</span></span></p>
   <h1 class="f-title"><span data-l="en">{d.en}</span><span data-l="zh">{d.zh}</span></h1>
   <p class="dist-page__sub micro"><span data-l="en">{region.en} · {KIND.en}</span><span data-l="zh">{region.zh} · {KIND.zh}</span><span data-l="zh" class="dist-page__alt">{d.en}</span></p>
   <p class="f-lede"><span data-l="en">{d.blurb.en}</span><span data-l="zh">{d.blurb.zh}</span></p>
 
   <div class="dist-page">
-    <figure class={`dist-page__sheet${d.kind === 'unsurveyed' ? ' is-blank' : ''}`}>
-      <DistrictSheet d={d} />
-      {d.kind === 'unsurveyed' && <span class="dist-page__blank micro" aria-hidden="true">NOT SURVEYED · 未测绘</span>}
-      <figcaption class="micro"><span data-l="en">Sheet 1 · Grid {grid}</span><span data-l="zh">第 1 页 · 方格 {grid}</span></figcaption>
-    </figure>
+    <div class="dist-page__map">
+      <StreetMap id="smap" focus={d.id} />
+    </div>
 
     {d.blocks.length > 0 && (
       <section class="f-sec">
@@ -164,10 +163,12 @@ const sec = () => String(++n).padStart(2, '0');
   import { loadVisitor } from '../../../app/visitor/store';
   import { isZh } from '../../../app/i18n';
   import { islandDate, hms } from '../../../app/island';
+  import { mountStreetMap } from '../../../app/map/mount';
 
   const clock = document.getElementById('dclock');
   const neigh = document.getElementById('neigh');
-  if (clock) {
+  const smap = document.getElementById('smap');
+  if (clock && smap) {
     const id = (window as unknown as { __district: string }).__district;
     const tz = Number(clock.dataset.tz);
     const original = neigh?.innerHTML ?? '';
@@ -185,7 +186,16 @@ const sec = () => String(++n).padStart(2, '0');
         ? isZh() ? `你住这里。你的邻居们对你一无所知，暂时。` : `You live here. Your neighbours know nothing about you. For now.`
         : isZh() ? `你不住这里。署里已记下你来过。` : `You do not live here. The Office has noted your visit.`;
     };
-    flat(live);
+    const { base } = flat(() => {
+      live();
+      sm.relang();
+    });
+    // the district on the street map, opened up close
+    const sm = mountStreetMap(smap, {
+      base,
+      home: loadVisitor()?.district ?? null,
+      pins: () => ({ [id]: document.querySelectorAll('.dist-page__recs > li[data-island-date]:not([hidden])').length }),
+    });
     live();
 
     // island time, with the district's own offset
