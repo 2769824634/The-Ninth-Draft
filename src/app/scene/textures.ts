@@ -768,6 +768,8 @@ export function flapTexture(seed: number) {
 /* ======================================================================
    Case envelope (events): kraft, a red printed case form, a contents list
    ====================================================================== */
+/** Every Chinese character the case envelope prints, so its fonts can be fetched before it is drawn. */
+export const CASE_GLYPHS = '久事件便保共内剪勿卷叠号名后启告回地定密序底开张录微态扣折报据收数文日期本条根案档永点照片状由电目票稿立第管级组署袋记请限霏题（）';
 export const CASE_KRAFT = '#c29d68';
 const FORM_RED = 'rgba(176, 52, 40, .9)';
 const zhNow = () => document.documentElement.lang.startsWith('zh');
@@ -783,6 +785,9 @@ export interface CaseItem {
   head: string;
   /** Number in the contents list. */
   no: number;
+  /** Which draft this is (drafts), or which attachment (index into `attachments`). */
+  draft?: number;
+  attach?: number;
   /** Paper colour: carbon copies of earlier drafts come in the form's colours. */
   paper: string;
 }
@@ -809,16 +814,18 @@ export function caseItems(rec: ArchiveRecord): CaseItem[] {
   const summary = plain(rec.summary ?? '');
   items.push({ kind: 'report', label: zh ? `事件报告（定稿）` : 'Incident report (final)', date: rec.date, head: zh ? '事件报告' : 'INCIDENT REPORT', lines: [rec.file, rec.title, summary] });
   const future = new Set(rec.drafts.filter((d) => !isFiled(d.date)).map((d) => d.n));
-  for (const d of rec.drafts.filter((d) => !future.has(d.n)).sort((a, b) => a.n - b.n)) {
+  // the drafts the reader can lift: named, under nine, their day come
+  for (const d of rec.drafts.filter((d) => rec.revised && d.n < 9 && !future.has(d.n)).sort((a, b) => a.n - b.n)) {
     const no = String(d.n).padStart(2, '0');
-    items.push({ kind: 'draft', label: zh ? `第 ${no} 稿 · ${d.label ?? ''}` : `Draft ${no} · ${d.label ?? ''}`, date: d.date, head: zh ? `第 ${no} 稿` : `DRAFT ${no}`, lines: [d.label ?? '', d.by ?? '', summary] });
+    items.push({ kind: 'draft', draft: d.n, label: zh ? `第 ${no} 稿 · ${d.label ?? ''}` : `Draft ${no} · ${d.label ?? ''}`, date: d.date, head: zh ? `第 ${no} 稿` : `DRAFT ${no}`, lines: [d.label ?? '', d.by ?? '', summary] });
   }
   if (rec.image) items.push({ kind: 'photo', label: zh ? '照片 1 张' : 'Photograph, 1', head: zh ? '照片' : 'PHOTOGRAPH', lines: [rec.imageCaption ?? ''] });
-  for (const a of rec.attachments.filter((a) => !(a.draft && future.has(a.draft)))) {
+  rec.attachments.forEach((a, k) => {
+    if (a.draft && future.has(a.draft)) return;
     const [en, cn] = KIND_NAME[a.kind];
     const name = zh ? cn : en;
-    items.push({ kind: a.kind, label: a.title ? `${name} · ${a.title}` : a.by ? `${name} · ${a.by}` : name, date: a.date, head: (a.title ?? name).toUpperCase(), lines: [plain(a.text)] });
-  }
+    items.push({ kind: a.kind, attach: k, label: a.title ? `${name} · ${a.title}` : a.by ? `${name} · ${a.by}` : name, date: a.date, head: (a.title ?? name).toUpperCase(), lines: [plain(a.text)] });
+  });
   let copy = 0;
   return items.map((it, i) => ({ ...it, no: i + 1, paper: it.kind === 'draft' ? CARBON[copy++ % CARBON.length] : ITEM_PAPER[it.kind] }));
 }

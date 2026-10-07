@@ -78,7 +78,7 @@ export class Folder {
   readonly isCase: boolean;
   private env: Envelope | null = null;
   /** Standing case envelope (events) instead of a folder. */
-  private bag: CaseBag | null = null;
+  readonly bag: CaseBag | null = null;
 
   constructor(public readonly rec: ArchiveRecord, public readonly index: number, tabSlot: number) {
     const { w, h, t, gap, tabW, tabH } = FOLDER;
@@ -114,8 +114,9 @@ export class Folder {
 
     this.coverInMat = new THREE.MeshStandardMaterial({ map: plainIn.map, roughness: 0.92 });
     if (this.isCase) {
-      this.bag = new CaseBag(this.group, rec, coverMat);
-      this.hit.push(...this.bag.hit);
+      const bag = new CaseBag(this.group, rec, coverMat);
+      (this as { bag: CaseBag }).bag = bag;
+      this.hit.push(...bag.hit);
       for (const m of this.hit) m.userData.folder = this;
       this.pos = new SpringV3(new THREE.Vector3(), 7.5);
       this.open.omega = 2.4;
@@ -223,7 +224,7 @@ export class Folder {
     this.quat.slerp(this.targetQuat, damp(this.quatOmega, dt));
     this.group.quaternion.copy(this.quat);
     const u = this.open.update(dt);
-    if (this.bag) this.bag.update(u);
+    if (this.bag) this.bag.update(u, dt);
     else if (this.env) this.env.update(u);
     // cover swings open toward the viewer around its left edge
     else this.coverPivot.rotation.y = -u * 2.72;

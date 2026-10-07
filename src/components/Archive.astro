@@ -9,6 +9,7 @@ import '../styles/overlays.css';
 import '../styles/wall.css';
 import '../styles/quirks.css';
 import '../styles/attach.css';
+import '../styles/casebag.css';
 import '../styles/system.css';
 import '../styles/zh.css';
 
@@ -165,6 +166,16 @@ const links = new Set(records.flatMap((r) => r.related.filter((f) => records.som
     </div>
   </aside>
 
+  <!-- An event's case envelope, open: what is in it, one paper at a time -->
+  <aside class="bag" id="bag" aria-hidden="true">
+    <span class="bag__where micro" id="bag-where"></span>
+    <h2 class="bag__title" id="bag-title"></h2>
+    <p class="bag__sub" id="bag-sub"></p>
+    <div class="bag__head"><b id="bag-head"></b><span class="micro" id="bag-count"></span></div>
+    <ol class="bag__list" id="bag-list"></ol>
+    <p class="bag__hint micro" id="bag-hint"></p>
+  </aside>
+
   <div class="watermark" id="watermark" aria-hidden="true">0001</div>
 
   <!-- ===================== LINK ROOM ===================== -->
@@ -238,6 +249,7 @@ const links = new Set(records.flatMap((r) => r.related.filter((f) => records.som
         </div>
         <div class="dossier__crumbs micro"><span id="ds-file">File P-0001</span><span class="barcode" id="ds-barcode" aria-hidden="true"></span></div>
         <p class="dossier__old micro" id="ds-old" hidden></p>
+        <p class="dossier__item micro" id="ds-item" hidden></p>
         <h2 class="dossier__title" id="ds-title"></h2>
         <p class="dossier__sub" id="ds-sub"></p>
         <button type="button" class="mystamp-btn micro" id="ds-mystamp" aria-label="Put your own stamp on this file"><span>Stamp</span></button>

@@ -21,7 +21,7 @@ import { Roller, decode, esc, swapText } from './ui/text';
 import { audio } from './audio';
 import { prefs, reducedMotion } from './prefs';
 import { applyRecords, isZh, lang, markDocument, onLang, setLang, t, translateDom, type Lang } from './i18n';
-import { canvasFontsReady } from './scene/textures';
+import { CASE_GLYPHS, canvasFontsReady, caseItems } from './scene/textures';
 
 export function start() {
   const data: ArchiveData = JSON.parse(document.getElementById('archive-data')!.textContent!);
@@ -119,6 +119,7 @@ export function start() {
         else select(ci, i);
       },
       scrub: (step) => step && move(step),
+      paper: (i) => pullItem(i),
     });
   } catch (err) {
     console.error('[archive] WebGL unavailable', err);
@@ -248,6 +249,7 @@ export function start() {
       (p) => dossier.reveal(p),
     );
     stage?.inspect(rec);
+    openBag(rec);
     audio.open();
     audio.sputnik(rec.category === 'programs');
     voice.say(`open.${rec.stamp}`, { file: rec.file, title: rec.title });
@@ -288,6 +290,7 @@ export function start() {
     root.dataset.view = 'browse';
     $('dossier').setAttribute('aria-hidden', 'true');
     document.querySelector('.inspect')!.setAttribute('aria-hidden', 'true');
+    closeBag();
     dossier.reset();
     retrieve.cancel();
     restoreCover();
@@ -300,7 +303,99 @@ export function start() {
     if (push) history.pushState({}, '', base);
   }
 
+  /* ---------------- case envelopes (events) ---------------- */
+  // An event comes in a kraft case envelope: it opens to its contents list,
+  // and each paper is drawn out and read on its own, then put back.
+  const isCase = (r: ArchiveRecord | null): r is ArchiveRecord => !!r && r.category === 'events' && r.stamp !== 'TOP SECRET';
+  /** The paper out of the envelope, by its place in the contents list; -1 while the list is showing. */
+  let bagItem = -1;
+  let pullT = 0;
+  const bagEl = $('bag');
+
+  function renderBag(rec: ArchiveRecord) {
+    const items = caseItems(rec);
+    const ci = categories.findIndex((c) => c.id === rec.category);
+    $('bag-where').textContent = t('Archive · Drawer {drawer} · Envelope {n}', { drawer: String(ci + 1).padStart(2, '0'), n: String(byCat[ci].indexOf(rec) + 1).padStart(2, '0') });
+    $('bag-title').textContent = rec.title;
+    $('bag-sub').textContent = rec.subtitle ?? '';
+    $('bag-head').textContent = t('Contents');
+    $('bag-count').textContent = t('{n} items', { n: items.length });
+    $('bag-list').innerHTML = items
+      .map((it, i) => `<li><button type="button" data-item="${i}" aria-current="${i === bagItem}"><span class="bag__no">${it.no}</span><span class="bag__label">${esc(it.label)}</span><span class="bag__date">${esc(it.date ?? '')}</span></button></li>`)
+      .join('');
+    $('bag-hint').textContent = t(matchMedia('(pointer: coarse)').matches ? 'Tap one to draw it out · Back fastens the envelope' : 'Pick one to draw it out · Esc fastens the envelope');
+  }
+
+  function openBag(rec: ArchiveRecord) {
+    window.clearTimeout(pullT);
+    bagItem = -1;
+    if (!isCase(rec)) {
+      delete root.dataset.bag;
+      bagEl.setAttribute('aria-hidden', 'true');
+      dossier.showItem(null);
+      return;
+    }
+    root.dataset.bag = 'list';
+    renderBag(rec);
+    bagEl.setAttribute('aria-hidden', 'false');
+    $('dossier').setAttribute('aria-hidden', 'true');
+  }
+
+  function closeBag() {
+    window.clearTimeout(pullT);
+    bagItem = -1;
+    delete root.dataset.bag;
+    bagEl.setAttribute('aria-hidden', 'true');
+  }
+
+  /** Draw paper `i` out of the open envelope and lay it on the reader. */
+  function pullItem(i: number) {
+    if (view !== 'detail' || !isCase(current)) return;
+    const rec = current;
+    const items = caseItems(rec);
+    if (!items.length) return;
+    i = (i + items.length) % items.length;
+    if (i === bagItem && root.dataset.bag === 'paper') return;
+    const swap = bagItem >= 0;
+    bagItem = i;
+    stage?.pull(rec, i);
+    audio.paper();
+    bagEl.querySelectorAll<HTMLElement>('[data-item]').forEach((b) => b.setAttribute('aria-current', String(Number(b.dataset.item) === i)));
+    window.clearTimeout(pullT);
+    // the paper clears the envelope's mouth before it is laid down to read
+    pullT = window.setTimeout(() => {
+      if (current !== rec || bagItem !== i) return;
+      root.dataset.bag = 'paper';
+      bagEl.setAttribute('aria-hidden', 'true');
+      $('dossier').setAttribute('aria-hidden', 'false');
+      dossier.showItem(items[i], items.length);
+      $('btn-back').querySelector('span')!.textContent = t('Put it back');
+    }, reducedMotion() || swap ? 0 : 480);
+  }
+
+  /** Put the paper being read back in the envelope; the contents list shows again. */
+  function putBack() {
+    if (!isCase(current) || root.dataset.bag !== 'paper') return;
+    window.clearTimeout(pullT);
+    bagItem = -1;
+    stage?.pull(current, -1);
+    audio.paper();
+    root.dataset.bag = 'list';
+    renderBag(current);
+    bagEl.setAttribute('aria-hidden', 'false');
+    $('dossier').setAttribute('aria-hidden', 'true');
+    $('btn-back').querySelector('span')!.textContent = backLabel();
+  }
+
+  bagEl.addEventListener('click', (e) => {
+    const b = (e.target as HTMLElement).closest<HTMLElement>('[data-item]');
+    if (b) pullItem(Number(b.dataset.item));
+  });
+
+  const reading = () => root.dataset.bag === 'paper';
+
   function stepRecord(d: number) {
+    if (reading()) return pullItem(bagItem + d);
     if (!current) return;
     const list = byCat[col];
     const i = list.indexOf(current);
@@ -506,6 +601,14 @@ export function start() {
       renderHud(true);
       dossier.relang();
       $('btn-back').querySelector('span')!.textContent = backLabel();
+      if (isCase(current) && view === 'detail') {
+        renderBag(current);
+        if (reading()) {
+          const items = caseItems(current);
+          dossier.showItem(items[bagItem] ?? null, items.length);
+          $('btn-back').querySelector('span')!.textContent = t('Put it back');
+        }
+      }
       if (view === 'detail' && current) document.title = t('{file} · {title} — The Ninth Draft', { file: current.file, title: current.title });
       else document.title = t(roomTarget === 'wall' ? 'Link analysis — The Ninth Draft' : 'The Ninth Draft — Archive');
       if (sweeps) $('wall-sweep').textContent = t('Sweep {n}', { n: String(sweeps).padStart(2, '0') });
@@ -533,7 +636,7 @@ export function start() {
     const rec = byCat[col][sel[col]];
     if (rec) openRecord(rec);
   });
-  $('btn-back').addEventListener('click', () => closeRecord());
+  $('btn-back').addEventListener('click', () => (reading() ? putBack() : closeRecord()));
   $('nav-links').addEventListener('click', (e) => {
     if (e.metaKey || e.ctrlKey) return;
     e.preventDefault();
@@ -614,12 +717,15 @@ export function start() {
       }
     } else {
       if (e.key === 'Escape' && dossier.slipOpen) { e.preventDefault(); dossier.closeSlip(); }
+      else if ((e.key === 'Escape' || e.key === 'Backspace') && reading()) { e.preventDefault(); putBack(); }
       else if (e.key === 'Escape' || e.key === 'Backspace') { e.preventDefault(); closeRecord(); }
       else if (e.key === 'ArrowRight') { e.preventDefault(); stepRecord(1); }
       else if (e.key === 'ArrowLeft') { e.preventDefault(); stepRecord(-1); }
-      else if (['1', '2', '3'].includes(e.key)) dossier.jump(Number(e.key));
-      else if (e.key === '[') dossier.stepDraft(-1);
-      else if (e.key === ']') dossier.stepDraft(1);
+      else if (root.dataset.bag === 'list' && /^[1-9]$/.test(e.key)) pullItem(Number(e.key) - 1);
+      else if (root.dataset.bag === 'list' && e.key === 'Enter') pullItem(0);
+      else if (!root.dataset.bag && ['1', '2', '3'].includes(e.key)) dossier.jump(Number(e.key));
+      else if (e.key === '[' && !root.dataset.bag) dossier.stepDraft(-1);
+      else if (e.key === ']' && !root.dataset.bag) dossier.stepDraft(1);
     }
     if (e.key === 'n' || e.key === 'N') applyTheme(prefs.get('theme') === 'day' ? 'night' : 'day');
     if (e.key === 'l' || e.key === 'L') setLang(isZh() ? 'en' : 'zh');
@@ -656,7 +762,8 @@ export function start() {
   stage?.start();
   // In Chinese, the folders were typed before their glyphs arrived: retype them
   const allZh = () => records.map((r) => [r.title, r.subtitle, r.place, r.summary, ...r.fields.map((f) => f.label + f.value)].join('')).join('');
-  if (isZh()) void canvasFontsReady(allZh()).then(() => {
+  // (the case envelopes print their form in Chinese in either language)
+  void canvasFontsReady(CASE_GLYPHS + (isZh() ? allZh() : '')).then(() => {
     stage?.relabel();
     wall?.relabel();
   });

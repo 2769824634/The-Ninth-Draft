@@ -9,6 +9,7 @@
  * Origin at the bottom-centre, +Z is the front, like a Folder.
  */
 import * as THREE from 'three';
+import { Spring } from '../spring';
 import type { ArchiveRecord } from '../types';
 import { caseFlapTexture, caseItems, caseItemTexture, CASE_KRAFT, hash, plainTexture, type CaseItem, type CaseItemKind } from './textures';
 
@@ -44,6 +45,8 @@ interface Paper {
   y0: number;
   rise: number;
   spin: number;
+  /** 0 in the envelope with the others, 1 drawn out to be read. */
+  out: Spring;
 }
 
 export class CaseBag {
@@ -52,8 +55,9 @@ export class CaseBag {
   private flapB = new THREE.Group();
   private prongs: THREE.Group[] = [];
   private papers: Paper[] = [];
-  /** The papers lean together, pivoting on the envelope's floor, so none passes through another. */
   private stack = new THREE.Group();
+  /** The papers, for picking one out of the open envelope; `userData.item` is its place in the contents list. */
+  readonly paperHits: THREE.Object3D[] = [];
   private flapMat: THREE.MeshStandardMaterial;
   private front: THREE.Mesh;
   readonly depth: number;
@@ -176,8 +180,10 @@ export class CaseBag {
       const x = si < 0 ? (r() - 0.5) * lim : Math.max(-lim, Math.min(lim, -w / 2 + (w * (si + 0.5)) / small.length + (r() - 0.5) * 0.1));
       // fanned: every paper shows a strip above the one in front of it
       const topOut = h + 0.17 + rank * (0.5 / Math.max(1, n - 1)) + (item.kind === 'report' ? 0.16 : 0);
-      const paper: Paper = { mesh, item, rank, x, z, y0: 0.012 + ph / 2, rise: Math.max(0, topOut - ph - 0.012), spin: (r() - 0.5) * 0.07 };
+      const paper: Paper = { mesh, item, rank, x, z, y0: 0.012 + ph / 2, rise: Math.max(0, topOut - ph - 0.012), spin: (r() - 0.5) * 0.07, out: new Spring(0, 6.5) };
       this.papers.push(paper);
+      mesh.userData.item = item.no - 1;
+      this.paperHits.push(mesh);
       this.stack.add(mesh);
     });
     group.add(this.stack);
@@ -208,8 +214,13 @@ export class CaseBag {
     });
   }
 
+  /** Draw paper `i` (its place in the contents list) out to be read; -1 puts it back. */
+  pull(i: number) {
+    for (const p of this.papers) p.out.target = p.item.no - 1 === i ? 1 : 0;
+  }
+
   /** `u` 0 closed → 1 clasp open, flap back, papers drawn up and fanned. */
-  update(u: number) {
+  update(u: number, dt = 0) {
     const prong = smooth(0, 0.2, u);
     const lift = smooth(0.14, 0.5, u);
     for (const p of this.prongs) p.rotation.y = -p.userData.sx * prong * Math.PI * 0.5;
@@ -221,10 +232,13 @@ export class CaseBag {
       // drawn front first, one after another
       const a = 0.42 + ((n - 1 - p.rank) * 0.4) / Math.max(1, n);
       const k = smooth(a, a + 0.3, u);
-      p.mesh.position.set(p.x, p.y0 + p.rise * k, p.z);
-      p.mesh.rotation.set(0, 0, k * p.spin);
+      // a paper being read comes clear of the mouth and toward the reader
+      const o = Math.min(1, p.out.update(dt)) * k;
+      const ph = p.mesh.scale.y;
+      const y = p.y0 + p.rise * k;
+      p.mesh.position.set(p.x * (1 - o * 0.6), y + (Math.max(y, CASE.h - ph * 0.15 + ph / 2) - y) * o, p.z + (this.depth / 2 + 0.3 - p.z) * o);
+      p.mesh.rotation.set(-0.12 * o, 0, k * p.spin * (1 - o));
     }
-    this.stack.rotation.x = 0;
   }
 }
 

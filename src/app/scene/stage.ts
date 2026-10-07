@@ -61,6 +61,8 @@ export interface StageEvents {
   hover(rec: ArchiveRecord | null): void;
   pick(rec: ArchiveRecord): void;
   scrub(step: number): void;
+  /** A paper in the open case envelope was clicked: its place in the contents list. */
+  paper?(i: number): void;
 }
 
 export class Stage {
@@ -324,9 +326,15 @@ export class Stage {
     this.layout();
   }
 
+  /** Draw paper `i` out of the open case envelope (-1 puts it back). */
+  pull(rec: ArchiveRecord, i: number) {
+    this.folders.get(rec.file)?.bag?.pull(i);
+  }
+
   /** Return to browsing. */
   release() {
     const f = this.active;
+    f?.bag?.pull(-1);
     this.mode = 'browse';
     this.active = null;
     this.lampScale.target = 1;
@@ -604,6 +612,8 @@ export class Stage {
         if (this.drag.moved > 6) c.closest('.archive')?.classList.add('is-dragging');
       } else if (this.mode === 'browse' && e.target === c) {
         this.updateHover();
+      } else if (this.mode === 'detail' && e.target === c) {
+        c.closest('.archive')?.classList.toggle('is-hovering', this.paperAt() >= 0);
       }
     });
 
@@ -620,6 +630,9 @@ export class Stage {
       if (wasClick && this.mode === 'browse') {
         this.updateHover();
         if (this.hovered) this.on.pick(this.hovered.rec);
+      } else if (wasClick && this.mode === 'detail') {
+        const i = this.paperAt();
+        if (i >= 0) this.on.paper?.(i);
       }
     };
     c.addEventListener('pointerup', end);
@@ -642,6 +655,16 @@ export class Stage {
         wheelT = now;
       }
     }, { passive: false });
+  }
+
+  /** Which paper of the open case envelope is under the pointer: -1 for none, or the envelope itself (it hides the papers still inside). */
+  private paperAt() {
+    const bag = this.active?.bag;
+    if (!bag) return -1;
+    this.raycaster.setFromCamera(this.pointer, this.camera);
+    const hit = this.raycaster.intersectObjects([...bag.paperHits, ...bag.hit], false)[0];
+    const i = hit?.object.userData.item;
+    return typeof i === 'number' ? i : -1;
   }
 
   private updateHover() {

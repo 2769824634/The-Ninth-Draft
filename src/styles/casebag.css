@@ -1,0 +1,119 @@
+/* ==========================================================================
+   Case envelopes (events): the open envelope's contents list, and the
+   reader holding one paper at a time
+   ========================================================================== */
+
+/* While the list shows, the envelope is the thing to look at: no veil over the room, no sheet */
+.archive[data-bag='list'] .inspect { background: transparent; }
+.archive[data-view='detail'][data-bag='list'] .dossier { pointer-events: none; }
+.archive[data-view='detail'][data-bag='list'] .dossier > * {
+  opacity: 0;
+  transform: translateY(-1.6rem);
+  transition: opacity 240ms var(--ease), transform 300ms var(--ease);
+}
+
+.bag {
+  position: absolute;
+  top: 13.2rem;
+  right: calc(var(--edge) + 2rem);
+  width: min(25rem, 32vw);
+  z-index: 3;
+  color: var(--ink);
+  opacity: 0;
+  visibility: hidden;
+  transform: translateX(1.2rem);
+  transition: opacity 260ms var(--ease), transform 300ms var(--ease), visibility 0s linear 300ms;
+}
+.archive[data-view='detail'][data-bag='list'] .bag {
+  opacity: 1;
+  visibility: visible;
+  transform: none;
+  transition: opacity 600ms var(--ease) 700ms, transform 800ms var(--ease) 700ms, visibility 0s;
+}
+.bag__where { color: var(--ink-3); letter-spacing: .1em; }
+.bag__title {
+  margin: .7rem 0 .4rem;
+  font-family: var(--f-display);
+  font-size: 2rem;
+  font-weight: 700;
+  line-height: 1.15;
+}
+.bag__sub { margin: 0 0 1.6rem; font-family: var(--f-serif); color: var(--ink-2); }
+.bag__head {
+  display: flex;
+  align-items: baseline;
+  gap: .8rem;
+  padding-bottom: .5rem;
+  border-bottom: 2px solid var(--case-red);
+  color: var(--case-red);
+}
+.bag__head b { font-family: var(--f-display); font-size: 1.15rem; font-weight: 700; }
+.bag__list { list-style: none; margin: 0; padding: 0; }
+.bag__list button {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 1.6rem 1fr auto;
+  align-items: center;
+  gap: .8rem;
+  padding: .7rem .6rem;
+  text-align: left;
+  border-bottom: 1px solid color-mix(in srgb, var(--case-red) 35%, transparent);
+  transition: background-color 200ms var(--ease), padding 260ms var(--ease);
+}
+.bag__list button:hover, .bag__list button:focus-visible { background: color-mix(in srgb, var(--case-red) 8%, transparent); padding-left: .9rem; }
+.bag__list button[aria-current='true'] { background: color-mix(in srgb, var(--case-red) 12%, transparent); }
+.bag__no {
+  width: 1.4rem;
+  height: 1.4rem;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--case-red);
+  color: #eee8da;
+  font: 600 .7rem var(--f-mono);
+}
+.bag__label { font-family: var(--f-serif); font-size: .95rem; }
+.bag__date { font: .72rem var(--f-mono); opacity: .6; }
+.bag__hint { margin-top: 1.1rem; opacity: .6; letter-spacing: .06em; }
+.archive { --case-red: #b03428; }
+[data-theme='night'] .archive { --case-red: #d0584a; }
+
+/* The reader with one paper on it */
+.dossier__item {
+  margin: 1rem 0 0;
+  padding: .5rem .7rem;
+  border-left: 3px solid #b03428;
+  background: rgb(176 52 40 / .07);
+  color: var(--ink-2);
+  line-height: 1.6;
+}
+.dossier__item[hidden] { display: none; }
+.dossier__item b { color: #b03428; }
+.dossier[data-item] :is(.sheaf, .dossier__old) { display: none; }
+.dossier[data-item] .dossier__paper { box-shadow: 0 1px 0 rgb(0 0 0 / .05), 0 24px 48px -28px rgb(0 0 0 / .55); }
+.dossier:is([data-item='report'], [data-item='draft']) #ds-attach { display: none; }
+.dossier[data-item='photo'] :is(#ds-record, #ds-attach, #ds-see) { display: none; }
+.dossier[data-item='attach'] :is(#ds-meta, #ds-overview, #ds-record, #ds-see, .clips-label) { display: none; }
+.dossier[data-item='attach'] .clip:not(.is-pick) { display: none; }
+.dossier[data-item='attach'] .clips { justify-content: center; padding: 2.4rem 0 2.8rem; }
+.dossier[data-item='attach'] .clip.is-pick { transform: scale(1.25) rotate(var(--r)); transform-origin: top center; margin-bottom: 25%; }
+
+@media (max-width: 900px), (max-aspect-ratio: 1/1) {
+  /* Phones: the envelope sits in the top half, its contents list along the bottom */
+  .bag {
+    top: auto;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    width: auto;
+    max-height: 48vh;
+    overflow-y: auto;
+    padding: 1rem var(--edge) calc(1rem + env(safe-area-inset-bottom));
+    background: color-mix(in srgb, var(--bg) 92%, transparent);
+    transform: translateY(1.2rem);
+  }
+  .bag__title { font-size: 1.4rem; margin: .4rem 0 .2rem; }
+  .bag__sub { margin-bottom: .8rem; font-size: .9rem; }
+  .bag__list button { padding: .55rem .4rem; }
+  .dossier[data-item='attach'] .clip.is-pick { transform: rotate(var(--r)); margin-bottom: 0; }
+}

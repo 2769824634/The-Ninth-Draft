@@ -67,7 +67,7 @@
   "Related ({n})": "关联（{n}）",
   "Attached": "附件",
   "Attached ({n})": "附件（{n}）",
-  "Abstract": "摘要",
+  "Abstract": "摘由",
   "Date": "日期",
   "Place": "地点",
   "Status": "状态",
@@ -303,7 +303,13 @@
   "Back to my file": "回我的档案",
   "Back to the guide": "回入馆须知",
   "Call slip": "调阅单",
-  "Abstract": "摘由",
   "Kept in": "存放",
-  "Request it from the archive": "去档案室调阅"
+  "Request it from the archive": "去档案室调阅",
+  "Archive · Drawer {drawer} · Envelope {n}": "档案室 · 第 {drawer} 抽屉 · 第 {n} 袋",
+  "Contents": "卷内目录",
+  "{n} items": "共 {n} 件",
+  "Tap one to draw it out · Back fastens the envelope": "点一件，从袋里抽出来读 · 返回就扣上袋子",
+  "Pick one to draw it out · Esc fastens the envelope": "点一件，从袋里抽出来读 · Esc 扣回袋子",
+  "Put it back": "放回袋里",
+  "Item {n}": "卷内第 {n} 件"
 }

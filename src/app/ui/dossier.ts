@@ -14,6 +14,7 @@ import { attachmentsHtml, paintNegatives, showDraft } from './attachments';
 import { isZh, t } from '../i18n';
 import { reducedMotion } from '../prefs';
 import { isFiled } from '../island';
+import type { CaseItem } from '../scene/textures';
 
 const pad2 = (n: number) => String(n).padStart(2, '0');
 
@@ -498,8 +499,46 @@ export class Dossier {
     this.slip.hidden = true;
   }
 
+  /**
+   * A case envelope is read one paper at a time: the report as filed, one
+   * earlier draft, the photograph, or one attachment. `null` reads the whole
+   * file again (folders and string envelopes).
+   */
+  showItem(item: CaseItem | null, total = 0) {
+    const line = document.getElementById('ds-item')!;
+    const count = document.getElementById('ds-count')!;
+    this.closeSlip();
+    this.paper.querySelectorAll('.clip.is-pick').forEach((c) => c.classList.remove('is-pick'));
+    if (!item) {
+      delete this.el.dataset.item;
+      line.hidden = true;
+      this.el.dataset.sheets = String(Math.min(3, this.sheets.length));
+      count.textContent = `${pad2(this.pos.index + 1)} / ${pad2(this.pos.total)}`;
+      return;
+    }
+    const kind = item.kind === 'report' || item.kind === 'draft' || item.kind === 'photo' ? item.kind : 'attach';
+    this.el.dataset.item = kind;
+    this.el.dataset.sheets = '0';
+    this.setDraft(item.kind === 'draft' && item.draft ? item.draft : 9, false);
+    if (kind === 'attach' && item.attach !== undefined) {
+      // the routing slip is the first clip; the record's own attachments follow
+      this.paper.querySelectorAll<HTMLElement>('#ds-attach .clip')[item.attach + 1]?.classList.add('is-pick');
+    }
+    line.hidden = false;
+    line.innerHTML = `<b>${esc(t('Item {n}', { n: pad2(item.no) }))}</b> · ${esc(item.label)}${item.date ? ` · ${esc(longDate(item.date) ?? item.date)}` : ''}`;
+    count.textContent = `${pad2(item.no)} / ${pad2(total)}`;
+    this.paper.scrollTop = 0;
+    if (!reducedMotion()) {
+      this.paper.animate(
+        [{ transform: 'translateY(-2.4rem) rotate(-.6deg)', opacity: 0.2 }, { transform: 'none', opacity: 1 }],
+        { duration: 560, easing: 'cubic-bezier(.16,1,.3,1)' },
+      );
+    }
+  }
+
   reset() {
     this.rec = null;
     this.closeSlip();
+    this.showItem(null);
   }
 }
