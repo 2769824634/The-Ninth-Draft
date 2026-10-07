@@ -30,7 +30,7 @@ export interface ClientRecord {
   place?: string;
   /** District key (axis, ang-mo-kio, …); see src/data/gerimis/districts.ts. */
   district?: string;
-  /** Neighbourhood inside the district, as the gazetteer names it. */
+  /** Where in the district: an HDB block ("Blk 7") or a neighbourhood, as the gazetteer names it. */
   block?: string;
   image?: string;
   imageCaption?: string;

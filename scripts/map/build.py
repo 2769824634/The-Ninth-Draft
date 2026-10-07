@@ -6,7 +6,8 @@ scripts/map/fetch.py leaves in .cache/map-src/.
 
 Writes
   public/map/base.json    the island sheet: land, water, green, roads, rail, districts
-  public/map/detail.json  close up: small roads, streams, HDB blocks, place names
+  public/map/detail.json  close up: small roads, streams, HDB blocks with their addresses, place names
+  public/map/index.json   the index at the back: every name on the sheet, A to Z
   src/data/gerimis/sheet.ts   a light coast for the office and the small maps
 
 Shapes follow OpenStreetMap, then go back to 1999: reclamation after 1999 is
@@ -160,6 +161,7 @@ UNSURVEYED = {'paya-lebar', 'western-catchment', 'tengah'}
 
 def in_district(pt_deg):
     for d, g in district_deg.items():
+        shapely.prepare(g)
         if g.contains(pt_deg): return d
     return None
 
@@ -244,7 +246,8 @@ for oid, o in hdb['CityObjects'].items():
     p = Polygon(pts).buffer(0)
     if p.is_empty: continue
     blocks.append({'p': p, 'no': a.get('hdb_blk_no') or '', 'street': a.get('osm_addr:street') or '', 'year': year,
-                   'res': a.get('hdb_residential') == 'Y', 'floors': int(a.get('hdb_max_floor_lvl') or 0)})
+                   'res': a.get('hdb_residential') == 'Y', 'floors': int(a.get('hdb_max_floor_lvl') or 0),
+                   'hs': a.get('hdb_street') or '', 'pc': (a.get('osm_addr:postcode') or '').strip()})
 new_blocks = []
 for oid, o in hdb['CityObjects'].items():
     a = o['attributes']
@@ -260,7 +263,7 @@ print('blocks to 1999:', len(blocks))
 seg = table('segment', subtype='road')
 s_g, s_n, s_cls = geoms(seg), names(seg), seg['class'].to_pylist()
 ROAD_LEVEL = {'motorway': 'mw', 'trunk': 'tr', 'primary': 'pr', 'secondary': 'se', 'tertiary': 'te', 'residential': 'rd', 'unclassified': 'rd', 'living_street': 'rd'}
-LATER_ROADS = re.compile(r'Kallang[–-]Paya Lebar|Marina Coastal|North[–-]South Corridor|Bayfront|Sheares Avenue|Central Boulevard|Rhu Cross|Gardens by the Bay|Marina Gardens|Punggol (Central|Way|East|Field|Walk|Drive|Place)|Sumang|Edgedale|Edgefield|Northshore|Waterway|Tengah|Plantation|Garden (Avenue|Walk)|Bidadari|Woodleigh Link|Canberra (Link|Drive|Street|Crescent|Road)|Sengkang (East|West) Avenue|Fernvale|Anchorvale|Compassvale (Bow|Link)|Jurong (Lake|Gateway) Link|Changi Business Park|Changi Airport Terminal 3|Expo|Seletar Aerospace|Tampines North|Woodlands North Coast|Bukit Batok West Avenue [89]|Tuas South Boulevard|Tuas Link|Tuas West|Gul (Link|Avenue)|Tanah Merah Coast|Jurong Island Highway extension', re.I)
+LATER_ROADS = re.compile(r'Kallang[–-]Paya Lebar|Marina Coastal|North[–-]South Corridor|Bayfront|Sheares Avenue|Central Boulevard|Rhu Cross|Gardens by the Bay|Marina Gardens|Punggol (Central|Way|East|Field|Walk|Drive|Place)|Sumang|Edgedale|Edgefield|Northshore|Waterway|Tengah|Plantation|Garden (Avenue|Walk)|Bidadari|Woodleigh Link|Canberra (Link|Drive|Street|Crescent|Road)|Sengkang (East|West) Avenue|Fernvale|Anchorvale|Compassvale (Bow|Link)|Jurong (Lake|Gateway) Link|Changi Business Park|Changi Airport Terminal 3|^T[34] |Expo|Seletar Aerospace|Tampines North|Woodlands North Coast|Bukit Batok West Avenue [89]|Tuas South Boulevard|Tuas Link|Tuas West|Gul (Link|Avenue)|Tanah Merah Coast|Jurong Island Highway extension', re.I)
 # within these districts nothing but a few old roads is drawn: the new towns came after 1999
 NEW_TOWN = {'punggol': re.compile(r'^(Punggol Road|Tampines Expressway|Punggol Point)$'), 'tengah': re.compile(r'^(Jalan Bahar|Old Choa Chu Kang Road|Pan-Island Expressway|Kranji Expressway|Brickland Road)$'),
             'marina': re.compile(r'^(East Coast Parkway|Benjamin Sheares Bridge|Marina Station Road|Marina Way)$')}
@@ -291,9 +294,20 @@ UNNAMED = re.compile(r"\b(Raffles|Stamford|Clementi|Nicoll|Sheares|Braddell|Euno
 
 CJK = re.compile(r'[\u3400-\u9fff]')
 
+# Streets of a renamed place take the island's name for it, as the stations do (ideas/霏微-地名录.md):
+# the Clementi avenues and streets are West Coast's, the Eunos roads Kampong Melayu's.
+STREET_RENAME = [(re.compile(r'^Clementi (?=(Avenue|Street|West Street) )'), 'West Coast '), (re.compile(r'\bEunos\b'), 'Kampong Melayu')]
+
+
+def renamed(en):
+    for pat, to in STREET_RENAME:
+        if en and pat.search(en): return pat.sub(to, en)
+    return None
+
 
 def label(en, zh):
     if en and CJK.search(en): en, zh = None, zh or en  # a name only in Chinese: no English to print
+    if renamed(en): en, zh = renamed(en), None
     if en in POST99_WATER: return None
     if not en or UNNAMED.search(en): return None
     return [en, zh] if zh else [en]
@@ -433,25 +447,165 @@ base = {
     'stations': stations,
     'districts': districts_out,
 }
+# ---------- addresses: every block's street and postcode ----------
+# The Housing Board writes streets short ("BT BATOK WEST AVE 6"); OpenStreetMap has most of them in full.
+ABBR = {'AVE': 'Avenue', 'ST': 'Street', 'RD': 'Road', 'DR': 'Drive', 'CRES': 'Crescent', 'CL': 'Close', 'CTRL': 'Central',
+        'NTH': 'North', 'STH': 'South', 'BT': 'Bukit', 'JLN': 'Jalan', 'KG': 'Kampong', 'LOR': 'Lorong', 'UPP': 'Upper',
+        'TER': 'Terrace', 'PK': 'Park', 'GDNS': 'Gardens', 'HTS': 'Heights', 'PL': 'Place', 'IND': 'Industrial',
+        'TG': 'Tanjong', "C'WEALTH": 'Commonwealth', 'MKT': 'Market', 'CTR': 'Centre', 'SQ': 'Square', 'PDE': 'Parade'}
+full = {}
+for b in blocks:
+    if b['street'] and b['hs']: full.setdefault(b['hs'], {}).setdefault(b['street'], 0); full[b['hs']][b['street']] += 1
+full = {hs: max(c, key=c.get) for hs, c in full.items()}
+
+
+def expand(hs):
+    ws = hs.split()
+    return ' '.join('St.' if i == 0 and w == 'ST' and len(ws) > 2 else ABBR.get(w, w if re.match(r'^[\dA-Z]\d', w) else w.capitalize()) for i, w in enumerate(ws))
+
+
+def same(a, b):
+    # the same words with better capitals (McNair, not Mcnair)
+    return a.lower() == b.lower() and all(w[0].isupper() or w[0].isdigit() for w in a.split())
+
+
+def street_of(b):
+    # the Housing Board's street, written out; OpenStreetMap's spelling where it says the same thing (it has the capitals right: McNair)
+    if b['hs']:
+        en = expand(b['hs'])
+        for cand in (full.get(b['hs']), b['street']):
+            if cand and same(cand, en): en = cand; break
+    else:
+        en = b['street']
+    n = label(en, None)
+    return n[0] if n else ''  # a street named for a governor or a minister is left blank, like on the map
+
+
+def num(no):
+    m = re.match(r'\d+', no)
+    return int(m.group()) if m else None
+
+
+# A postcode is the sector (two figures), one figure for the estate and the block number: Blk 123 in Ang Mo Kio is 560123.
+# The sector and estate figures come from the blocks whose postcodes OpenStreetMap has; the rest follow their street, or the nearest such block.
+pref = {}
+for b in blocks:
+    n = num(b['no'])
+    if n is not None and n < 1000 and re.fullmatch(r'\d{6}', b['pc']) and b['pc'][3:] == f'{n:03d}':
+        pref.setdefault(b['hs'], {}).setdefault(b['pc'][:3], 0); pref[b['hs']][b['pc'][:3]] += 1
+pref = {hs: max(c, key=c.get) for hs, c in pref.items()}
+known = [b for b in blocks if b['hs'] in pref]
+known_tree = shapely.STRtree([b['p'].centroid for b in known])
+used = set()
+
+
+def postcode(b):
+    n = num(b['no'])
+    real = re.fullmatch(r'\d{6}', b['pc']) is not None
+    lettered = not re.fullmatch(r'\d+', b['no'])
+    if b['hs'] in pref:
+        p3 = pref[b['hs']]
+        fits = real and n is not None and b['pc'] == f'{p3}{n % 1000:03d}'
+    else:
+        p3 = pref[known[known_tree.nearest(b['p'].centroid)]['hs']]
+        fits = False
+    pc = b['pc'] if real and (fits or lettered or b['hs'] not in pref) else f'{p3}{(n or 0) % 1000:03d}'
+    # one postcode, one block: a lettered block or a clash takes the next estate figure (and, when those run out, the next sector)
+    for k in range(100):
+        alt = pc[0] + str((int(pc[1]) + k // 10) % 10) + str((int(pc[2]) + k) % 10) + pc[3:]
+        if alt not in used: break
+    pc = alt
+    used.add(pc)
+    return pc
+
+
+# blocks whose own postcode already fits go first, so they keep it
+for b in sorted(blocks, key=lambda b: (not (b['hs'] in pref and b['pc'][:3] == pref[b['hs']]), b['hs'], b['no'])):
+    b['addr'] = street_of(b)
+    b['post'] = postcode(b)
+    b['d'] = in_district(b['p'].representative_point())
+streets = sorted({b['addr'] for b in blocks if b['addr']})
+street_no = {n: i for i, n in enumerate(streets)}
+dist_no = {d['id']: i for i, d in enumerate(districts_out)}
+print('postcodes:', len(used), 'for', len(blocks), 'blocks;', len(streets), 'streets')
+
 detail = {
     'v': 1, 'q': Q,
     'roads': merged(roads['rd'], ROAD_TOL['rd']),
     'streams': enc_lines(stream_lines, 0.1),
     'hdb': [],
     'places': places,
+    # street names for the blocks' addresses, and the districts in base.json's order
+    'streets': streets,
 }
 for b in blocks:
     p = S(b['p'])
     r = enc_poly(p, 0.06)
     if not r: continue
     c = p.centroid
-    detail['hdb'].append({'r': r[0], 'b': b['no'], 's': b['street'], 'y': b['year'], **({'c': 1} if not b['res'] else {})})
+    detail['hdb'].append({'r': r[0], 'b': b['no'], 's': street_no.get(b['addr'], -1), 'p': b['post'], 'y': b['year'], 'f': b['floors'],
+                          'd': dist_no.get(b['d'], -1), **({'c': 1} if not b['res'] else {})})
 
 os.makedirs(OUT, exist_ok=True)
 for name, data in (('base.json', base), ('detail.json', detail)):
     s = json.dumps(data, ensure_ascii=False, separators=(',', ':'))
     open(os.path.join(OUT, name), 'w', encoding='utf-8').write(s)
     print(name, round(len(s) / 1024), 'KB')
+
+# ---------- the index at the back of the directory ----------
+# Every name on the sheet, A to Z, with where it is: [english, chinese, kind, x, y, district number].
+# Kinds: d district, m MRT station, l LRT station, p neighbourhood, w river, r road.
+def entry(en, zh, kind, x, y, d=None):
+    if d is None: d = in_district(Point(x / K + LON0, LAT0 - y / K))
+    return [en, zh or '', kind, r1(x), r1(y), dist_no.get(d, -1)]
+
+
+index = []
+dzh = dict(re.findall(r"id: '([a-z-]+)', en: '[^']*', zh: '([^']+)'", dist_ts))
+den = dict(re.findall(r"id: '([a-z-]+)', en: '([^']+)'", dist_ts))
+for d in districts_out: index.append(entry(den[d['id']], dzh[d['id']], 'd', d['lx'], d['ly'], d['id']))
+seen = set()
+for st in stations:
+    if st['n'][0] in seen: continue
+    seen.add(st['n'][0])
+    index.append(entry(st['n'][0], st['n'][1], 'l' if st['l'] == 'bp' else 'm', st['x'], st['y']))
+for pl in places:
+    nm = re.findall(r"b\('([^']+)', '([^']+)'", re.search(rf"id: '{pl['d']}'.*?blocks: \[(.*?)\],\n\s+transit", dist_ts, re.S).group(1))[pl['i']]
+    index.append(entry(nm[0], nm[1], 'p', pl['x'], pl['y'], pl['d']))
+
+
+def spots(items, kind):
+    """One entry for each stretch of a name: the same name a kilometre or more away is another place."""
+    by = {}
+    for g, en, zh in items:
+        n = label(en, zh)
+        if n: by.setdefault(n[0], [n, []])[1].extend(lines(g))
+    for en, (n, ls) in by.items():
+        parts = lines(linemerge(ls)) if len(ls) > 1 else ls
+        groups = []
+        for l in sorted(parts, key=lambda l: -l.length):
+            near = [g for g in groups if any(x.distance(l) < 0.009 for x in g)]
+            if near:
+                near[0].append(l)
+                for g in near[1:]: near[0].extend(g); groups.remove(g)
+            else: groups.append([l])
+        done = set()
+        for g in sorted(groups, key=lambda g: -sum(l.length for l in g)):
+            if sum(l.length for l in g) * 111 < 0.06: continue
+            pt = g[0].interpolate(0.5, normalized=True)
+            e = entry(n[0], n[1] if len(n) > 1 else '', kind, (pt.x - LON0) * K, (LAT0 - pt.y) * K)
+            if e[5] in done: continue  # one line a district: the longest stretch
+            done.add(e[5])
+            index.append(e)
+
+
+spots([x for k in ROAD_TOL for x in roads[k]], 'r')
+spots(water_lines, 'w')
+nat = lambda t: [int(x) if x.isdigit() else x.lower() for x in re.split(r'(\d+)', t)]
+index.sort(key=lambda e: (nat(e[0]), e[2]))
+s = json.dumps({'v': 1, 'districts': [d['id'] for d in districts_out], 'index': index}, ensure_ascii=False, separators=(',', ':'))
+open(os.path.join(OUT, 'index.json'), 'w', encoding='utf-8').write(s)
+print('index.json', len(index), 'entries,', round(len(s) / 1024), 'KB')
 
 # ---------- the light coast for the office and the small maps ----------
 def pts(p, tol):

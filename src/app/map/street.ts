@@ -28,9 +28,27 @@ interface Base {
 interface Detail {
   q: number;
   roads: Named[]; streams: Enc[];
-  hdb: { r: Enc; b: string; s: string; y: number; c?: 1 }[];
+  /** Block number, street (index into streets, -1 when the street is not printed), postcode, year built, storeys, district (base.json's order); c: no flats in it. */
+  hdb: { r: Enc; b: string; s: number; p: string; y: number; f: number; d: number; c?: 1 }[];
   places: { d: string; i: number; x: number; y: number }[];
+  streets: string[];
 }
+
+/** An HDB block as the directory gives it. */
+export interface Block {
+  i: number;
+  no: string;
+  street: string;
+  postcode: string;
+  year: number;
+  floors: number;
+  district: string | null;
+  flats: boolean;
+  x: number;
+  y: number;
+}
+/** Something pinned to the sheet: a record at its block or neighbourhood. */
+export interface Spot { key: string; label: string; x: number; y: number }
 
 export interface StreetMapOptions {
   frame: HTMLElement;
@@ -49,6 +67,12 @@ export interface StreetMapOptions {
   onRefuse?: (id: string) => void;
   /** What is under the pointer (or the centre): district and page reference. */
   onPoint?: (id: string | null, ref: string | null) => void;
+  /** Records pinned to a block or a neighbourhood, drawn close up as red tags. */
+  spots?: () => Spot[];
+  /** A tap on a tag. */
+  onSpot?: (key: string) => void;
+  /** A tap on a block close up (null: the block is let go). Without it, blocks cannot be tapped. */
+  onBlock?: (b: Block | null) => void;
 }
 
 /* ---------------- geometry ---------------- */
@@ -203,8 +227,14 @@ export function streetMap(o: StreetMapOptions) {
   let roadsNamed: { cls: string; pts: Float32Array; n: string[] }[] = [];
   let D: { id: string; rings: Float32Array[]; lx: number; ly: number; box: Box; path: Path2D }[] = [];
   let hdb: { pts: Float32Array; b: string; x: number; y: number; cell: number }[] = [];
+  const hdbCells = new Map<number, number[]>();
+  let chosen: number | null = null; // the block tapped or looked up
+  let mark: { x: number; y: number } | null = null; // where the index sent you
+  let spotBoxes: { key: string; x0: number; y0: number; x1: number; y1: number }[] = [];
+  let detailWait: ((d: Detail) => void)[] = [];
   let picked: string | null = o.focus ?? null, hover: string | null = null;
   let pendingFrame: string[] | null = null;
+  let pendingGo: (() => void) | null = null;
   let area: Set<string> | null = null; // a region shown on its own, the rest paled
   let P = palette(document.documentElement.dataset.theme === 'night');
   let pats: Record<string, CanvasPattern> = {};
@@ -280,6 +310,7 @@ export function streetMap(o: StreetMapOptions) {
     frame.classList.add('is-ready');
     if (o.focus) fit(o.focus, false);
     else if (pendingFrame) frameIds(pendingFrame, false);
+    if (pendingGo && W) { pendingGo(); pendingGo = null; }
     draw();
     point(null);
   };
@@ -292,16 +323,43 @@ export function streetMap(o: StreetMapOptions) {
     L.streams = lineLayer(d.streams, q);
     L.hdb = polyLayer(d.hdb.map((h) => [h.r]), q);
     roadsNamed.push(...d.roads.filter((r) => r.n).map((r) => ({ cls: 'rd', pts: dec(r.l, q), n: r.n! })));
-    hdb = d.hdb.map((h) => {
+    hdb = d.hdb.map((h, i) => {
       const pts = dec(h.r, q);
       let x = 0, y = 0;
       for (let i = 0; i < pts.length; i += 2) { x += pts[i]; y += pts[i + 1]; }
       x /= pts.length / 2; y /= pts.length / 2;
-      return { pts, b: h.b, x, y, cell: Math.floor(y / TILE) * 64 + Math.floor(x / TILE) };
+      const cell = Math.floor(y / 10) * 1000 + Math.floor(x / 10);
+      hdbCells.set(cell, [...(hdbCells.get(cell) ?? []), i]);
+      return { pts, b: h.b, x, y, cell };
     });
     detail = d;
+    for (const f of detailWait) f(d);
+    detailWait = [];
     draw();
   };
+
+  /** The block at a point on the sheet. */
+  const blockAt = (x: number, y: number) => {
+    const cx = Math.floor(x / 10), cy = Math.floor(y / 10);
+    for (let j = cy - 1; j <= cy + 1; j++) for (let i = cx - 1; i <= cx + 1; i++)
+      for (const k of hdbCells.get(j * 1000 + i) ?? []) if (inRing(hdb[k].pts, x, y)) return k;
+    return null;
+  };
+  const blockInfo = (i: number): Block | null => {
+    if (!detail || !base || !detail.hdb[i]) return null;
+    const h = detail.hdb[i];
+    return {
+      i, no: h.b, street: h.s >= 0 ? detail.streets[h.s] : '', postcode: h.p, year: h.y, floors: h.f,
+      district: base.districts[h.d]?.id ?? null, flats: !h.c, x: hdb[i].x, y: hdb[i].y,
+    };
+  };
+  /** The blocks, once the close-up sheet is in (it is fetched on first asking). */
+  const blocks = () => new Promise<{ all: Block[] }>((res) => {
+    const done = () => res({ all: detail!.hdb.map((_, i) => blockInfo(i)!) });
+    if (detail) return done();
+    detailWait.push(done);
+    loadDetail();
+  });
 
   const districtAt = (x: number, y: number) => {
     for (const d of D) {
@@ -399,6 +457,15 @@ export function streetMap(o: StreetMapOptions) {
     if (s > 2.5 && fade(ramp(s, 2.6))) {
       fill(L.hdb, s > 8 ? pats.hdb : P.hdb);
       if (s > 6) stroke(L.hdb, P.hdbLine, px(0.7));
+    }
+    if (chosen !== null && hdb[chosen]) {
+      // the block looked up: inked in red
+      const p = hdb[chosen].pts, b = new Path2D();
+      b.moveTo(p[0], p[1]);
+      for (let i = 2; i < p.length; i += 2) b.lineTo(p[i], p[i + 1]);
+      b.closePath();
+      ctx.fillStyle = P.accent; ctx.globalAlpha = 0.28; ctx.fill(b);
+      ctx.globalAlpha = 1; ctx.strokeStyle = P.accent; ctx.lineWidth = px(1.6); ctx.stroke(b);
     }
     ctx.globalAlpha = 1;
     // ground the survey did not cover
@@ -531,6 +598,36 @@ export function streetMap(o: StreetMapOptions) {
     };
     const F = fonts();
 
+    // where the index sent you: a red pencil ring, drawn before the names so they give way to it
+    if (mark) {
+      const [x, y] = toScreen(mark.x, mark.y);
+      const r = Math.max(9, Math.min(26, 0.6 * s));
+      ctx.strokeStyle = P.accent; ctx.lineWidth = 1.6; ctx.globalAlpha = 0.9;
+      ctx.beginPath(); ctx.ellipse(x, y, r * 1.12, r, -0.2, 0.15, Math.PI * 2 - 0.1); ctx.stroke();
+      ctx.globalAlpha = 1;
+      boxes.push([x - r, y - r, x + r, y + r]);
+    }
+    // records pinned to their block or neighbourhood: a red tag on a short lead
+    spotBoxes = [];
+    if (o.spots && s > 3 && fade(ramp(s, 3))) {
+      for (const sp of o.spots()) {
+        const [x, y] = toScreen(sp.x, sp.y);
+        if (x < -40 || x > W + 40 || y < -30 || y > H + 30) continue;
+        ctx.font = `600 9px ${F.mono}`;
+        ctx.letterSpacing = '0.5px';
+        const w = ctx.measureText(sp.label).width + 8, tx = x + 6, ty = y - 19;
+        ctx.strokeStyle = P.accent; ctx.lineWidth = 1.1;
+        ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(tx, ty + 13); ctx.stroke();
+        ctx.fillStyle = P.accent; ctx.beginPath(); ctx.arc(x, y, 2.2, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = P.halo; ctx.fillRect(tx, ty, w, 13);
+        ctx.strokeRect(tx + 0.5, ty + 0.5, w - 1, 12);
+        ctx.fillStyle = P.accent; ctx.fillText(sp.label, tx + 4, ty + 9.8);
+        boxes.push([tx, ty, tx + w, ty + 13]);
+        spotBoxes.push({ key: sp.key, x0: tx - 4, y0: ty - 4, x1: tx + w + 4, y1: ty + 17 });
+      }
+    }
+    ctx.globalAlpha = 1;
+
     // the visitor's district and the picked one first, then the large towns, then the rest
     const order = [...D].sort((a, b) => rank(b.id) - rank(a.id));
     const pins = o.pins?.() ?? {};
@@ -626,11 +723,11 @@ export function streetMap(o: StreetMapOptions) {
 
     // block numbers
     if (s > 15 && detail && fade(ramp(s, 15))) {
-      for (const h of hdb) {
-        if (h.x < v.x0 || h.x > v.x1 || h.y < v.y0 || h.y > v.y1 || !h.b) continue;
+      hdb.forEach((h, i) => {
+        if (h.x < v.x0 || h.x > v.x1 || h.y < v.y0 || h.y > v.y1 || !h.b) return;
         const [x, y] = toScreen(h.x, h.y);
-        text(h.b, x, y + 3, `600 ${s > 30 ? 11 : 9}px ${F.mono}`, P.label, { halo: 2.5 });
-      }
+        text(h.b, x, y + 3, `600 ${s > 30 ? 11 : 9}px ${F.mono}`, i === chosen ? P.accent : P.label, { halo: 2.5, force: i === chosen });
+      });
     }
     ctx.globalAlpha = 1;
 
@@ -876,7 +973,7 @@ export function streetMap(o: StreetMapOptions) {
     flyTo((b.x0 + b.x1) / 2, (b.y0 + b.y1) / 2, Math.max(s, fitIsland()), animate ? 800 : 0);
   };
 
-  const reset = () => { area = null; flyTo(500, 285, fitIsland()); };
+  const reset = () => { area = null; mark = null; flyTo(500, 285, fitIsland()); };
 
   // pointers: drag to move, two fingers to pinch, a tap to pick
   const ptrs = new Map<number, { x: number; y: number }>();
@@ -948,9 +1045,17 @@ export function streetMap(o: StreetMapOptions) {
     const p = local(e);
     if (downAt && moved < 6 && performance.now() - downAt.t < 500) {
       const [x, y] = toSheet(p.x, p.y);
+      const spot = spotBoxes.find((b) => p.x >= b.x0 && p.x <= b.x1 && p.y >= b.y0 && p.y <= b.y1);
+      const blk = o.onBlock && detail && view.s > 12 ? blockAt(x, y) : null;
       const id = districtAt(x, y);
-      if (id && o.selectable && !o.selectable(id)) o.onRefuse?.(id);
-      else pick(id === picked && !o.focus && !o.selectable ? null : id);
+      mark = null;
+      if (spot) { o.onSpot?.(spot.key); draw(); }
+      else if (blk !== null) choose(blk === chosen ? null : blk);
+      else if (id && o.selectable && !o.selectable(id)) o.onRefuse?.(id);
+      else {
+        if (chosen !== null) choose(null);
+        pick(id === picked && !o.focus && !o.selectable ? null : id);
+      }
     } else if (!reducedMotion() && performance.now() - vel.t < 80 && Math.hypot(vel.x, vel.y) > 0.15) {
       // let it glide a little
       let vx = vel.x * 16, vy = vel.y * 16;
@@ -1002,6 +1107,22 @@ export function streetMap(o: StreetMapOptions) {
     e.preventDefault();
   });
 
+  /** Take up a block (or let it go). */
+  const choose = (i: number | null) => {
+    chosen = i;
+    draw();
+    o.onBlock?.(i === null ? null : blockInfo(i));
+  };
+  /** Go to a place on the sheet at a printed scale (1 : n), ringed in red, or with its block inked. */
+  const goto = (x: number, y: number, n: number, opt: { block?: number; ring?: boolean } = {}) => {
+    area = null;
+    mark = opt.ring === false ? null : { x, y };
+    if (opt.block !== undefined) { mark = null; choose(opt.block); }
+    const go = () => flyTo(x, y, Math.max(fitIsland(), PRINT[Math.max(0, PRINT.findIndex((p) => RATIO(p) <= n * 1.01))]), 900);
+    if (W && base) go();
+    else pendingGo = go;
+  };
+
   const pick = (id: string | null, fly = false) => {
     picked = id;
     draw();
@@ -1035,6 +1156,7 @@ export function streetMap(o: StreetMapOptions) {
       view.s = fitIsland();
       if (o.focus && D.length) fit(o.focus, false);
       else if (pendingFrame && D.length) frameIds(pendingFrame, false);
+      if (pendingGo && base) { pendingGo(); pendingGo = null; }
     }
   }).observe(frame);
 
@@ -1053,6 +1175,12 @@ export function streetMap(o: StreetMapOptions) {
     reset,
     redraw: draw,
     focus: () => canvas.focus(),
+    /** Go to a place at a printed scale, ringed, or with a block inked. */
+    goto,
+    /** Let the block go. */
+    unchoose: () => chosen !== null && choose(null),
+    /** Every block with its address (fetches the close-up sheet if it is not in yet). */
+    blocks,
   };
 }
 

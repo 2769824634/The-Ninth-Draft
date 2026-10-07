@@ -2,7 +2,7 @@
  * Wires a StreetMap.astro block: the canvas, the zoom buttons, the page
  * reference in the corner and the district card.
  */
-import { streetMap } from './street';
+import { streetMap, type Block } from './street';
 import { district, pageRef } from '../visitor/districts';
 import { isZh, t } from '../i18n';
 import { audio } from '../audio';
@@ -21,7 +21,18 @@ export interface MountOptions {
   /** Only these districts can be picked; a tap on another calls onRefuse. */
   selectable?: (id: string) => boolean;
   onRefuse?: (id: string) => void;
+  /** Records pinned to a block or neighbourhood (only the ones already filed by the island's date). */
+  records?: () => RecordSpot[];
+  /** Blocks can be tapped for their address (on by default where there is a card). */
+  blocks?: boolean;
 }
+
+/** A record at its address, as the page lists it. */
+export interface RecordSpot { file: string; title: [string, string]; href: string; x: number; y: number; addr: [string, string]; postcode?: string }
+
+const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!);
+/** "Gerimis 550007", the way a letter is addressed. */
+export const postText = (pc: string, zh = isZh()) => (zh ? `霏微 ${pc}` : `Gerimis ${pc}`);
 
 /** "112 C3" as the directory prints it. */
 const pageText = (ref: string) => {
@@ -71,6 +82,46 @@ export function mountStreetMap(root: HTMLElement, opt: MountOptions) {
     card.querySelector('.smap__card-x')!.addEventListener('click', () => map.pick(null, false));
   };
 
+  // a block close up: its address, as a slip
+  let block: Block | null = null;
+  const showBlock = (b: Block | null) => {
+    block = b;
+    if (!b) return showCard(current);
+    const zh = isZh();
+    const d = b.district ? district(b.district) : undefined;
+    const ref = pageRef(b);
+    const dn = d ? (zh ? d.zh : d.en) : '';
+    const recs = (opt.records?.() ?? []).filter((r) => Math.hypot(r.x - b.x, r.y - b.y) < 0.6);
+    card.innerHTML = `
+      <p class="micro">${ref ? pageText(ref.text) : ''}</p>
+      <h3>${zh ? `${esc(b.no)} 座` : `Blk ${esc(b.no)}`}</h3>
+      <p class="smap__card-blocks">${b.street ? esc(b.street) : ''}${b.street && dn ? (zh ? '，' : ', ') : ''}${dn}</p>
+      <p class="smap__card-post">${postText(b.postcode, zh)}</p>
+      <p class="micro">${b.flats
+        ? zh ? `${b.year} 年建成 · ${b.floors} 层` : `Built ${b.year} · ${b.floors} storeys`
+        : zh ? `${b.year} 年建成 · 不住人：商店、巴刹或停车场` : `Built ${b.year} · no flats: shops, market or car park`}</p>
+      ${recs.map((r) => `<a class="smap__card-rec micro" href="${r.href}"><b>${esc(r.file)}</b> ${esc(zh ? r.title[1] : r.title[0])}</a>`).join('')}
+      ${d && d.kind !== 'unsurveyed' ? `<a class="smap__card-go micro" href="${opt.base}district/${d.id}/">${zh ? '区页' : 'District file'} →</a>` : ''}
+      <button type="button" class="smap__card-x" aria-label="${t('Close')}">×</button>`;
+    card.hidden = false;
+    card.querySelector('.smap__card-x')!.addEventListener('click', () => map.unchoose());
+  };
+
+  // a record's tag: where it is, and the way to it
+  const showRecord = (r: RecordSpot) => {
+    const zh = isZh();
+    const ref = pageRef(r);
+    card.innerHTML = `
+      <p class="micro">${ref ? pageText(ref.text) : ''}</p>
+      <h3>${esc(r.file)}</h3>
+      <p class="smap__card-blocks">${esc(zh ? r.title[1] : r.title[0])}</p>
+      <p class="micro">${esc(zh ? r.addr[1] : r.addr[0])}${r.postcode ? ` · ${postText(r.postcode, zh)}` : ''}</p>
+      <a class="smap__card-go micro" href="${r.href}">${zh ? '调阅' : 'Read the file'} →</a>
+      <button type="button" class="smap__card-x" aria-label="${t('Close')}">×</button>`;
+    card.hidden = false;
+    card.querySelector('.smap__card-x')!.addEventListener('click', () => { card.hidden = true; });
+  };
+
   const map = streetMap({
     frame,
     canvas,
@@ -87,6 +138,12 @@ export function mountStreetMap(root: HTMLElement, opt: MountOptions) {
     onPoint: corner,
     selectable: opt.selectable,
     onRefuse: opt.onRefuse,
+    spots: opt.records ? () => opt.records!().map((r) => ({ key: r.file, label: r.file, x: r.x, y: r.y })) : undefined,
+    onSpot: (key) => {
+      const r = opt.records?.().find((r) => r.file === key);
+      if (r) { audio.click(); showRecord(r); }
+    },
+    onBlock: opt.blocks ?? opt.card !== false ? (b) => { if (b) audio.click(); showBlock(b); } : undefined,
   });
 
   root.querySelectorAll<HTMLButtonElement>('[data-z]').forEach((b) =>
@@ -104,9 +161,13 @@ export function mountStreetMap(root: HTMLElement, opt: MountOptions) {
     map,
     pick: (id: string | null, fly = true) => map.pick(id, fly),
     frame: (ids: string[]) => map.frame(ids),
+    /** Go to a place at a printed scale (1 : n), ringed in red, or with its block inked. */
+    goto: map.goto,
+    blocks: map.blocks,
     /** After the language changes. */
     relang: () => {
-      showCard(current === focus ? null : current);
+      if (block) showBlock(block);
+      else showCard(current === focus ? null : current);
       corner(...last);
       map.redraw();
     },
