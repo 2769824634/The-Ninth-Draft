@@ -11,7 +11,8 @@
 import * as THREE from 'three';
 import type { ArchiveRecord } from '../types';
 import { Spring, SpringV3, damp } from '../spring';
-import { accessLogTexture, coverTexture, envelopeTexture, flapTexture, hash, inkOf, KRAFT, loadPhoto, MANILA, MANILA_DARK, pageTexture, plainTexture, tabTexture } from './textures';
+import { CaseBag } from './casebag';
+import { accessLogTexture, caseFrontTexture, coverTexture, envelopeTexture, flapTexture, hash, inkOf, KRAFT, loadPhoto, MANILA, MANILA_DARK, pageTexture, plainTexture, tabTexture } from './textures';
 
 export const FOLDER = {
   w: 2.9,
@@ -74,12 +75,16 @@ export class Folder {
   quatOmega = 9;
   /** String-and-button envelope instead of a folder. */
   readonly envelope: boolean;
+  readonly isCase: boolean;
   private env: Envelope | null = null;
+  /** Standing case envelope (events) instead of a folder. */
+  private bag: CaseBag | null = null;
 
   constructor(public readonly rec: ArchiveRecord, public readonly index: number, tabSlot: number) {
     const { w, h, t, gap, tabW, tabH } = FOLDER;
     const seed = hash(rec.file);
     this.envelope = rec.stamp === 'TOP SECRET';
+    this.isCase = !this.envelope && rec.category === 'events';
     const plainIn = new THREE.MeshStandardMaterial({ map: plainTexture(this.envelope ? KRAFT : MANILA, seed % 5), roughness: 0.92 });
     const coverMat = new THREE.MeshStandardMaterial({ map: this.coverTex(rec.stamp), roughness: 0.9 });
     this.coverMat = coverMat;
@@ -108,6 +113,14 @@ export class Folder {
     sheet.castShadow = sheet.receiveShadow = true;
 
     this.coverInMat = new THREE.MeshStandardMaterial({ map: plainIn.map, roughness: 0.92 });
+    if (this.isCase) {
+      this.bag = new CaseBag(this.group, rec, coverMat);
+      this.hit.push(...this.bag.hit);
+      for (const m of this.hit) m.userData.folder = this;
+      this.pos = new SpringV3(new THREE.Vector3(), 7.5);
+      this.open.omega = 2.4;
+      return;
+    }
     if (this.envelope) {
       this.env = new Envelope(this, back, tab, sheet, coverMat, plainIn, seed);
       this.pos = new SpringV3(new THREE.Vector3(), 7.5);
@@ -164,6 +177,7 @@ export class Folder {
     this.covers.clear();
     this.pages.clear();
     const stamp = this.stampNow;
+    this.bag?.relabel();
     const cover = this.coverTex(stamp);
     this.covers.set(stamp, cover);
     this.coverMat.map = cover;
@@ -192,6 +206,7 @@ export class Folder {
   }
 
   private coverTex(stamp: string) {
+    if (this.isCase) return caseFrontTexture(this.rec, hash(this.rec.file), stamp);
     return this.envelope ? envelopeTexture(this.rec, hash(this.rec.file), stamp) : coverTexture(this.rec, hash(this.rec.file), stamp);
   }
 
@@ -208,7 +223,8 @@ export class Folder {
     this.quat.slerp(this.targetQuat, damp(this.quatOmega, dt));
     this.group.quaternion.copy(this.quat);
     const u = this.open.update(dt);
-    if (this.env) this.env.update(u);
+    if (this.bag) this.bag.update(u);
+    else if (this.env) this.env.update(u);
     // cover swings open toward the viewer around its left edge
     else this.coverPivot.rotation.y = -u * 2.72;
   }

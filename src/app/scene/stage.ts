@@ -451,17 +451,18 @@ export class Stage {
     const { w, h } = FOLDER;
     const tan = Math.tan(THREE.MathUtils.degToRad(this.camera.fov / 2));
     // Open spread is about two folder widths. Fit it to ~46% of the screen width (landscape).
-    const spread = w * 1.95;
+    // a case envelope is one piece, with its papers standing up out of it
+    const spread = f.isCase ? w * 1.06 : w * 1.95;
     const share = portrait ? 0.92 : 0.46;
     let d = spread / (share * 2 * tan * this.camera.aspect);
-    d = Math.max(d, (h * 1.7) / (2 * tan));
+    d = Math.max(d, (h * (f.isCase ? 1.75 : 1.7)) / (2 * tan));
     const visW = 2 * d * tan * this.camera.aspect;
     const visH = 2 * d * tan;
     // Centre of the open spread in camera space
     const cx = portrait ? 0 : -visW * 0.15;
     const cy = portrait ? visH * 0.2 : -visH * 0.02;
     // Folder origin is bottom-centre of the back board; the spread centre sits ~w/2 left of it.
-    const local = new THREE.Vector3(cx + w * 0.47, cy - h / 2, -d);
+    const local = new THREE.Vector3(cx + (f.isCase ? 0 : w * 0.47), cy - h / 2 - (f.isCase ? h * 0.18 : 0), -d);
 
     const camQ = this.camera.quaternion;
     const pos = local.applyQuaternion(camQ).add(this.camera.position);

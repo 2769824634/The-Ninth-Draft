@@ -3,9 +3,10 @@
  * Everything here is generated in code: no image assets are required.
  */
 import * as THREE from 'three';
-import type { ArchiveRecord } from '../types';
+import type { ArchiveRecord, Attachment } from '../types';
 import { INK as CLEARANCE_INK, clearanceKey } from '../clearance';
 import { halftone, hasPortrait } from './halftone';
+import { isFiled } from '../island';
 
 const inkOf = (stamp: string) => CLEARANCE_INK[clearanceKey(stamp)];
 
@@ -761,5 +762,352 @@ export function flapTexture(seed: number) {
   g.bezierCurveTo(350, H - 110, 380, H - 40, 410, H - 70);
   g.stroke();
   g.restore();
+  return toTexture(c);
+}
+
+/* ======================================================================
+   Case envelope (events): kraft, a red printed case form, a contents list
+   ====================================================================== */
+export const CASE_KRAFT = '#c29d68';
+const FORM_RED = 'rgba(176, 52, 40, .9)';
+const zhNow = () => document.documentElement.lang.startsWith('zh');
+
+export type CaseItemKind = 'report' | 'draft' | 'photo' | Attachment['kind'];
+export interface CaseItem {
+  kind: CaseItemKind;
+  /** Line in the contents list. */
+  label: string;
+  date?: string;
+  /** A few lines typed on the item itself. */
+  lines: string[];
+  head: string;
+  /** Number in the contents list. */
+  no: number;
+  /** Paper colour: carbon copies of earlier drafts come in the form's colours. */
+  paper: string;
+}
+
+const KIND_NAME: Record<Attachment['kind'], [string, string]> = {
+  note: ['Note', '便条'],
+  telegram: ['Telegram', '电报'],
+  ticket: ['Ticket', '票根'],
+  clipping: ['Press cutting', '剪报'],
+  negative: ['Negative strip', '底片条'],
+};
+
+/** dd.mm.yy for the typed contents list. */
+const short = (d?: string) => {
+  if (!d) return '';
+  const m = d.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  return m ? `${m[3]}.${m[2]}.${m[1].slice(2)}` : d;
+};
+
+/** What is in the envelope, in the order it was filed: report, earlier drafts, photograph, attachments. */
+export function caseItems(rec: ArchiveRecord): CaseItem[] {
+  const zh = zhNow();
+  const items: Omit<CaseItem, 'no' | 'paper'>[] = [];
+  const summary = plain(rec.summary ?? '');
+  items.push({ kind: 'report', label: zh ? `事件报告（定稿）` : 'Incident report (final)', date: rec.date, head: zh ? '事件报告' : 'INCIDENT REPORT', lines: [rec.file, rec.title, summary] });
+  const future = new Set(rec.drafts.filter((d) => !isFiled(d.date)).map((d) => d.n));
+  for (const d of rec.drafts.filter((d) => !future.has(d.n)).sort((a, b) => a.n - b.n)) {
+    const no = String(d.n).padStart(2, '0');
+    items.push({ kind: 'draft', label: zh ? `第 ${no} 稿 · ${d.label ?? ''}` : `Draft ${no} · ${d.label ?? ''}`, date: d.date, head: zh ? `第 ${no} 稿` : `DRAFT ${no}`, lines: [d.label ?? '', d.by ?? '', summary] });
+  }
+  if (rec.image) items.push({ kind: 'photo', label: zh ? '照片 1 张' : 'Photograph, 1', head: zh ? '照片' : 'PHOTOGRAPH', lines: [rec.imageCaption ?? ''] });
+  for (const a of rec.attachments.filter((a) => !(a.draft && future.has(a.draft)))) {
+    const [en, cn] = KIND_NAME[a.kind];
+    const name = zh ? cn : en;
+    items.push({ kind: a.kind, label: a.title ? `${name} · ${a.title}` : a.by ? `${name} · ${a.by}` : name, date: a.date, head: (a.title ?? name).toUpperCase(), lines: [plain(a.text)] });
+  }
+  let copy = 0;
+  return items.map((it, i) => ({ ...it, no: i + 1, paper: it.kind === 'draft' ? CARBON[copy++ % CARBON.length] : ITEM_PAPER[it.kind] }));
+}
+
+/** Multi-part form copies: pink, green, blue, yellow. */
+const CARBON = ['#ead5cb', '#dfe3cc', '#d6dde0', '#ece2b6'];
+
+/** Front of the case envelope. The flap covers the top fifth; the form is printed below it. */
+export function caseFrontTexture(rec: ArchiveRecord, seed: number, stampText = rec.stamp) {
+  const W = 1280, H = 905;
+  const [c, g] = canvas(W, H);
+  paper(g, W, H, CASE_KRAFT, seed, 1.2);
+  const s = hash(rec.file);
+  const zh = zhNow();
+  const red = FORM_RED;
+  g.strokeStyle = red;
+  g.fillStyle = red;
+  const label = (cn: string, en: string, x: number, y: number) => {
+    g.fillStyle = red;
+    g.font = `400 17px ${SANS}`;
+    g.fillText(cn, x, y);
+    const w = g.measureText(cn).width;
+    g.font = `400 12px ${MONO}`;
+    g.fillText(en, x + w + 8, y);
+  };
+  const line = (x0: number, y0: number, x1: number, y1: number, w = 1.4) => {
+    g.lineWidth = w;
+    g.beginPath();
+    g.moveTo(x0, y0);
+    g.lineTo(x1, y1);
+    g.stroke();
+  };
+
+  // header, left of the clasp
+  const top = 228;
+  g.font = `400 46px ${SANS}`;
+  g.fillText('霏微记录署', 64, top + 22);
+  g.font = `600 17px ${SANS}`;
+  g.fillText('RECORDS OFFICE  ·  GERIMIS', 64, top + 52);
+  g.font = `400 13px ${MONO}`;
+  g.fillText('PEJABAT REKOD  ·  FORM 9-C', 64, top + 72);
+  g.font = `400 40px ${SANS}`;
+  g.fillText('案  卷', 420, top + 22);
+  g.font = `600 17px ${SANS}`;
+  g.fillText('CASE FILE', 420, top + 52);
+
+  // file number box, right of the clasp
+  const bx = 900, by = top - 30, bw = 316, bh = 104;
+  g.lineWidth = 2.4;
+  g.strokeRect(bx, by, bw, bh);
+  label('档号', 'FILE NO.', bx + 12, by + 24);
+  typed(g, rec.file, bx + 22, by + 84, 50, s);
+
+  // double rule
+  line(64, top + 96, W - 64, top + 96, 3);
+  line(64, top + 103, W - 64, top + 103, 1);
+
+  // particulars, left block: a ruled grid
+  const gx = 64, gy = top + 128, gw = 600, rh = 80;
+  const rows: [string, string, string, string, string, string][] = [
+    ['案由', 'SUBJECT', rec.title, '', '', ''],
+    ['日期', 'DATE', rec.date ?? '', '地点', 'PLACE', rec.place ?? ''],
+    ['密级', 'CLASS', stampText, '状态', 'STATUS', rec.status],
+    ['保管期限', 'RETENTION', zh ? '永久' : 'PERMANENT', '立卷', 'FILED BY', zh ? '数据组' : 'DATA SECTION'],
+  ];
+  g.lineWidth = 1.6;
+  g.strokeRect(gx, gy, gw, rh * rows.length);
+  rows.forEach((r, i) => {
+    const y = gy + i * rh;
+    if (i) line(gx, y, gx + gw, y);
+    const half = r[3] ? gw / 2 : gw;
+    if (r[3]) line(gx + half, y, gx + half, y + rh);
+    label(r[0], r[1], gx + 12, y + 24);
+    const font = (sz: number) => `500 ${sz}px ${MONO}`;
+    const sz = i === 0 ? 28 : 22;
+    typed(g, fit(g, r[2], half - 30, font(sz)), gx + 14, y + 64, sz, s + i * 7);
+    if (r[3]) {
+      label(r[3], r[4], gx + half + 12, y + 24);
+      typed(g, fit(g, r[5], half - 30, font(22)), gx + half + 14, y + 64, 22, s + i * 7 + 3);
+    }
+  });
+
+  // contents list, right block
+  const items = caseItems(rec);
+  const tx = 700, ty = gy, tw = W - 64 - tx, th = rh * rows.length;
+  const crow = Math.min(44, (th - 74) / Math.max(7, items.length));
+  g.lineWidth = 1.6;
+  g.strokeRect(tx, ty, tw, th);
+  g.fillStyle = red;
+  g.font = `400 24px ${SANS}`;
+  g.fillText('卷 内 目 录', tx + 14, ty + 34);
+  g.font = `600 13px ${MONO}`;
+  g.fillText('CONTENTS', tx + 170, ty + 33);
+  const cx = [tx, tx + 52, tx + tw - 132, tx + tw];
+  const hy = ty + 50;
+  line(tx, hy, tx + tw, hy);
+  g.font = `400 13px ${SANS}`;
+  g.fillText('序号', cx[0] + 10, hy + 18);
+  g.fillText('文件题名  ITEM', cx[1] + 10, hy + 18);
+  g.fillText('日期  DATE', cx[2] + 10, hy + 18);
+  const ry = hy + 26;
+  line(tx, ry, tx + tw, ry);
+  line(cx[1], hy, cx[1], ty + th, 1);
+  line(cx[2], hy, cx[2], ty + th, 1);
+  const n = Math.max(7, items.length);
+  for (let i = 0; i < n; i++) {
+    const y = ry + (i + 1) * crow;
+    if (y < ty + th - 2) line(tx, y, tx + tw, y, 0.8);
+    const it = items[i];
+    if (!it) continue;
+    const sz = Math.min(18, crow * 0.5);
+    typed(g, String(i + 1), cx[0] + 18, y - crow * 0.3, sz, s + 40 + i);
+    typed(g, fit(g, it.label, cx[2] - cx[1] - 20, `500 ${sz}px ${MONO}`), cx[1] + 10, y - crow * 0.3, sz, s + 50 + i);
+    typed(g, short(it.date), cx[2] + 10, y - crow * 0.3, sz, s + 60 + i);
+  }
+
+  // foot of the form
+  const fy = gy + th + 40;
+  g.fillStyle = red;
+  label('本袋共', 'ITEMS', 64, fy);
+  typed(g, String(items.length), 186, fy + 2, 26, s + 80);
+  line(176, fy + 8, 230, fy + 8, 1);
+  label('件  ·  请勿折叠', 'DO NOT FOLD  ·  RETURN TO DRAWER 02', 240, fy);
+
+  // received stamp: a red ring, dated with the latest paper in the envelope
+  const latest = [rec.date, ...rec.drafts.map((d) => d.date)].filter((d) => d && isFiled(d)).sort().pop();
+  g.save();
+  g.translate(W - 210, H - 92);
+  g.rotate(-0.18 + (s % 9) * 0.01);
+  g.strokeStyle = 'rgba(170, 40, 32, .7)';
+  g.fillStyle = 'rgba(170, 40, 32, .75)';
+  g.lineWidth = 3;
+  g.beginPath();
+  g.ellipse(0, 0, 112, 62, 0, 0, Math.PI * 2);
+  g.stroke();
+  g.lineWidth = 1.2;
+  g.beginPath();
+  g.ellipse(0, 0, 102, 53, 0, 0, Math.PI * 2);
+  g.stroke();
+  g.textAlign = 'center';
+  g.font = `400 20px ${SANS}`;
+  g.fillText('记录署 · 收文', 0, -16);
+  g.font = `700 24px ${MONO}`;
+  g.fillText(short(latest).replace(/\./g, ' . '), 0, 16);
+  g.font = `400 12px ${MONO}`;
+  g.fillText('RECEIVED', 0, 38);
+  g.restore();
+
+  stamp(g, stampText, 330, H - 70, 38, -0.07 - (s % 5) * 0.012, s);
+  return toTexture(c);
+}
+
+/** Outside of the case envelope's flap: a pasted label with the file number, a punched hole for the clasp. */
+export function caseFlapTexture(rec: ArchiveRecord, seed: number, stampText = rec.stamp) {
+  const W = 1280, H = 300;
+  const [c, g] = canvas(W, H);
+  paper(g, W, H, CASE_KRAFT, seed + 9, 1.5);
+  // crease shadow along the hinge
+  const grd = g.createLinearGradient(0, 0, 0, 40);
+  grd.addColorStop(0, 'rgba(70,45,15,.3)');
+  grd.addColorStop(1, 'rgba(70,45,15,0)');
+  g.fillStyle = grd;
+  g.fillRect(0, 0, W, 40);
+  // the tip, darker where hands lift it
+  const tip = g.createLinearGradient(0, H - 60, 0, H);
+  tip.addColorStop(0, 'rgba(70,45,15,0)');
+  tip.addColorStop(1, 'rgba(70,45,15,.22)');
+  g.fillStyle = tip;
+  g.fillRect(0, 0, W, H);
+  // printed in the same red as the form
+  g.fillStyle = FORM_RED;
+  g.font = `400 20px ${SANS}`;
+  g.fillText('霏微记录署  案卷袋', 120, 120);
+  g.font = `400 14px ${MONO}`;
+  g.fillText('RECORDS OFFICE · CASE ENVELOPE · 9-C', 120, 146);
+  g.textAlign = 'right';
+  g.font = `400 16px ${SANS}`;
+  g.fillText('开启后请扣回  RE-FASTEN AFTER USE', W - 120, 132);
+  // a hand has written the file number on it in ballpoint
+  const s = hash(rec.file);
+  g.textAlign = 'left';
+  g.save();
+  g.translate(W / 2 - 330, 220);
+  g.rotate(-0.03 + (s % 5) * 0.01);
+  g.fillStyle = 'rgba(30, 40, 90, .62)';
+  g.font = `italic 600 44px ${SERIF}`;
+  g.fillText(rec.file, 0, 0);
+  g.restore();
+  void stampText;
+  return toTexture(c);
+}
+
+const ITEM_PAPER: Record<CaseItemKind, string> = {
+  report: '#eee9dc',
+  draft: '#e3dcc6',
+  photo: '#f1eee6',
+  note: '#efe0a0',
+  telegram: '#e9dfb4',
+  ticket: '#d9c6a0',
+  clipping: '#d9d4c4',
+  negative: '#2b2520',
+};
+
+/**
+ * One paper from the envelope. Its top strip is what shows when the papers
+ * are fanned: the number from the contents list, what it is, its date.
+ */
+export function caseItemTexture(item: CaseItem, aspect: number, seed: number) {
+  const W = 1024, H = Math.max(160, Math.round(1024 / aspect));
+  const [c, g] = canvas(W, H);
+  const dark = item.kind === 'negative';
+  paper(g, W, H, item.paper, seed, dark ? 0.3 : 0.8);
+  if (dark) {
+    // sprocket holes, frames, edge print
+    g.fillStyle = 'rgba(0,0,0,.55)';
+    for (let x = 16; x < W; x += 40) {
+      g.fillRect(x, 12, 20, 16);
+      g.fillRect(x, H - 28, 20, 16);
+    }
+    g.strokeStyle = 'rgba(236,224,200,.3)';
+    g.lineWidth = 2;
+    for (let x = 40; x < W - 200; x += 240) g.strokeRect(x, 44, 216, H - 88);
+    g.fillStyle = 'rgba(236,190,90,.8)';
+    g.font = `600 18px ${MONO}`;
+    g.fillText(`${item.no}  ·  KODAK SAFETY FILM 5063  ·  ${short(item.date)}`, 40, 38);
+    return toTexture(c);
+  }
+  // the strip
+  const sh = 64;
+  g.fillStyle = 'rgba(176, 52, 40, .9)';
+  g.beginPath();
+  g.arc(48, sh / 2 + 4, 20, 0, Math.PI * 2);
+  g.fill();
+  g.fillStyle = item.paper;
+  g.font = `700 24px ${MONO}`;
+  g.textAlign = 'center';
+  g.fillText(String(item.no), 48, sh / 2 + 13);
+  g.textAlign = 'left';
+  g.fillStyle = INK;
+  g.font = `400 30px ${SANS}`;
+  g.fillText(fit(g, item.label, W - 300, `400 30px ${SANS}`), 84, sh / 2 + 15);
+  if (item.date) typed(g, short(item.date), W - 170, sh / 2 + 14, 26, seed);
+  g.strokeStyle = FORM_RED;
+  g.lineWidth = 2;
+  g.beginPath();
+  g.moveTo(24, sh + 6);
+  g.lineTo(W - 24, sh + 6);
+  g.stroke();
+
+  // what is on the rest of the paper
+  let y = sh + 52;
+  if (item.kind === 'report' || item.kind === 'draft') {
+    g.fillStyle = FORM_RED;
+    g.font = `400 26px ${SANS}`;
+    g.fillText('霏微记录署', 40, y);
+    g.font = `500 15px ${MONO}`;
+    g.fillText('RECORDS OFFICE · GERIMIS', 186, y - 2);
+    y += 52;
+    typed(g, fit(g, item.head, W - 80, `500 34px ${MONO}`), 40, y, 34, seed + 1);
+    y += 46;
+  } else if (item.kind === 'clipping') {
+    g.fillStyle = INK;
+    g.font = `800 40px ${SERIF}`;
+    for (const l of wrap(g, item.head, W - 80).slice(0, 2)) {
+      g.fillText(l, 40, y);
+      y += 46;
+    }
+  }
+  if (item.kind === 'note') {
+    g.fillStyle = 'rgba(30, 40, 90, .8)';
+    g.font = `italic 500 34px ${SERIF}`;
+    for (const l of wrap(g, item.lines[0] ?? '', W - 80).slice(0, Math.floor((H - y) / 46))) {
+      g.fillText(l, 40, y);
+      y += 46;
+    }
+    return toTexture(c);
+  }
+  g.font = `500 22px ${MONO}`;
+  const body = wrap(g, item.lines.filter(Boolean).join('  ·  '), W - 80);
+  const rows = Math.max(0, Math.floor((H - y - 20) / 32));
+  body.slice(0, rows).forEach((l, i) => typed(g, l, 40, y + i * 32, 22, seed + 9 + i));
+  if (item.kind === 'draft' && rows > 3) {
+    // red pencil through a line
+    g.strokeStyle = 'rgba(176, 40, 32, .7)';
+    g.lineWidth = 4;
+    g.beginPath();
+    g.moveTo(36, y + 32 * 2 - 8);
+    g.lineTo(W - 160, y + 32 * 2 - 12);
+    g.stroke();
+  }
   return toTexture(c);
 }
