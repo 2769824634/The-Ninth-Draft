@@ -9,17 +9,22 @@ const { id = 'smap', focus, tall } = Astro.props;
 ---
 
 <div class={`smap${tall ? ' smap--tall' : ''}`} id={id} data-focus={focus}>
+  <div class="smap__head micro">
+    <span class="smap__title"><span data-l="en">Records Office · Survey Section · Street directory, 1999</span><span data-l="zh">记录署 · 测绘科 · 街道图，1999 年版</span></span>
+    <span class="smap__corner" aria-live="polite"><b data-smap-page>—</b><span data-smap-where></span></span>
+  </div>
   <div class="smap__frame">
-    <canvas class="smap__canvas" tabindex="0" aria-label="Street map of Gerimis. Drag to move, scroll or pinch to zoom, tap a district."></canvas>
+    <canvas class="smap__canvas" tabindex="0" aria-label="Street map of Gerimis. Drag to move, scroll or pinch to turn to a closer scale, tap a district."></canvas>
     <p class="smap__wait micro" aria-hidden="true"><span data-l="en">Unfolding the sheet…</span><span data-l="zh">正在摊开图纸……</span></p>
-    <div class="smap__corner micro" aria-live="polite"><b data-smap-page>—</b><span data-smap-where></span></div>
-    <div class="smap__zoom">
-      <button type="button" data-z="in" aria-label="Zoom in">+</button>
-      <button type="button" data-z="out" aria-label="Zoom out">−</button>
-      <button type="button" data-z="reset" class="micro" aria-label="Whole island"><span data-l="en">Island</span><span data-l="zh">全岛</span></button>
-    </div>
     <aside class="smap__card" hidden aria-live="polite"></aside>
-    <p class="smap__credit micro"><span data-l="en">Map data © OpenStreetMap contributors, redrawn as in 1999</span><span data-l="zh">地图参考 © OpenStreetMap 贡献者，按 1999 年重绘</span></p>
+  </div>
+  <div class="smap__foot micro">
+    <div class="smap__zoom">
+      <button type="button" data-z="out" aria-label="Wider scale">−</button>
+      <button type="button" data-z="in" aria-label="Closer scale">+</button>
+      <button type="button" data-z="reset" aria-label="Whole island"><span data-l="en">Whole island</span><span data-l="zh">全岛</span></button>
+    </div>
+    <p class="smap__credit"><span data-l="en">Map data © OpenStreetMap contributors, redrawn as in 1999</span><span data-l="zh">地图参考 © OpenStreetMap 贡献者，按 1999 年重绘</span></p>
   </div>
   <details class="smap__key micro">
     <summary><span data-l="en">Key</span><span data-l="zh">图例</span></summary>
@@ -33,6 +38,8 @@ const { id = 'smap', focus, tall } = Astro.props;
       <li><i class="k-ne"></i><span data-l="en">North-East line, being dug</span><span data-l="zh">东北线，在挖</span></li>
       <li><i class="k-ktm"></i><span data-l="en">Railway across the strait</span><span data-l="zh">对岸铁路</span></li>
       <li><i class="k-spur"></i><span data-l="en">Jurong branch, disused</span><span data-l="zh">裕廊支线，停用</span></li>
+      <li><i class="k-green"></i><span data-l="en">Park, nature reserve</span><span data-l="zh">公园、自然保护区</span></li>
+      <li><i class="k-water"></i><span data-l="en">Reservoir</span><span data-l="zh">蓄水池</span></li>
       <li><i class="k-hdb"></i><span data-l="en">HDB block</span><span data-l="zh">组屋</span></li>
       <li><i class="k-bound"></i><span data-l="en">District bound</span><span data-l="zh">区界</span></li>
       <li><i class="k-old"></i><span data-l="en">Shore before the reclamation</span><span data-l="zh">填海前的海岸</span></li>

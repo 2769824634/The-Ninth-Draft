@@ -86,8 +86,8 @@ export function mountStreetMap(root: HTMLElement, opt: MountOptions) {
     b.addEventListener('click', () => {
       audio.click();
       const z = b.dataset.z;
-      if (z === 'in') map.zoom(1.8);
-      else if (z === 'out') map.zoom(1 / 1.8);
+      if (z === 'in') map.step(1);
+      else if (z === 'out') map.step(-1);
       else map.reset();
     }),
   );
