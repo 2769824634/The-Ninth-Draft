@@ -786,6 +786,7 @@ const arrow = '<svg viewBox="0 0 24 12" aria-hidden="true"><path d="M0 6h22M17 1
     await wait(900);
     filing.hidden = true;
     say(COUNTER.done);
+    window.setTimeout(() => say(COUNTER.pmark), 3200);
     const r = $('receipt');
     r.hidden = false;
     $('rc-door').textContent = doorText(h);

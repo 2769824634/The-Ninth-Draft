@@ -59,6 +59,7 @@ export const COUNTER = {
   shop: { en: 'That one has no flats in it. Shops downstairs, nobody upstairs.', zh: '那一座没有住家，楼下是店，楼上没人。' },
   reissue: { en: 'Reissued at the old address. It saves us drawing a new line on the map.', zh: '按旧址补发。省得我们在地图上再画一条线。' },
   review: { en: 'Read it back. Once it is filed, it is the version we keep.', zh: '核对一遍。归档以后，署里就认这一份。' },
+  pmark: { en: 'The P after your code? The computer puts it there by itself. Everybody this year has one. Don\'t worry about it.', zh: '代码后面那个 P？电脑自己加的，今年人人都有，不用管它。' },
   done: { en: 'Your card, still warm. The keys are on the hook; the tag has your door on it.', zh: '身份证，还热着。钥匙挂在钩上，牌子上写着门牌。' },
   known: ['heuss', 'yosh', 'frank'],
 } as const;

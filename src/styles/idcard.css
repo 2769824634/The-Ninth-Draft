@@ -307,3 +307,20 @@
 .board__n p { margin: 0; }
 .board__by { margin-top: .4rem !important; font-family: var(--f-mono); font-size: .7rem; letter-spacing: .04em; color: #6d6253; }
 @media (prefers-reduced-motion: reduce) { .mail__env, .mail__body { transition: none; } }
+
+/* the pencil note on the register card copy */
+.mail__pencil { margin: .9rem 0 .2rem !important; padding-left: .6rem; border-left: 2px solid var(--note, #2b4a8a); font-family: var(--f-note); color: var(--note, #2b4a8a); transform: rotate(-.8deg); }
+/* the diary */
+.diary__in { width: 100%; max-width: 34rem; margin-top: .8rem; min-height: 8rem; }
+.diary__acts { display: flex; flex-wrap: wrap; align-items: center; gap: .8rem; margin-top: .6rem; }
+.diary__state { color: var(--ink-3); }
+.diary { list-style: none; margin: 1rem 0 0; padding: 0; display: grid; gap: .7rem; max-width: 34rem; }
+.diary__e { padding: .7rem .9rem; border: 1px solid var(--line); background: repeating-linear-gradient(0deg, transparent 0 1.45rem, color-mix(in srgb, var(--line) 60%, transparent) 1.45rem calc(1.45rem + 1px)), color-mix(in srgb, var(--bg) 80%, var(--bg-2)); }
+.diary__at { display: flex; justify-content: space-between; gap: 1rem; margin: 0 0 .3rem; color: var(--ink-3); }
+.diary__del { border: 0; background: none; padding: 0; font: inherit; color: var(--ink-3); text-decoration: underline; cursor: pointer; }
+.diary__t { margin: 0; font-family: var(--f-serif); line-height: 1.45rem; overflow-wrap: anywhere; }
+/* the help note: plain, outside the story */
+.help { max-width: 34rem; margin-top: 1rem; padding: .9rem 1rem; border: 1px solid var(--ink-2); border-radius: 4px; background: var(--bg); color: var(--ink); font-family: system-ui, -apple-system, 'Segoe UI', sans-serif; font-size: .98rem; line-height: 1.5; }
+.help p { margin: 0 0 .5rem; }
+.help p:last-child { margin-bottom: 0; }
+.help a { color: inherit; }
