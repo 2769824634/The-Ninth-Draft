@@ -148,6 +148,8 @@ export class StacksScene {
   private exam: number[] = [];
   private examLevel: number[] = [];
   private hush = 0;
+  private blindK = 0;
+  blindsShut = false;
   private examFlick: number[] = [];
   /** Where a page is being read, if one is. */
   private readPoint: THREE.Vector3 | null = null;
@@ -392,22 +394,26 @@ export class StacksScene {
     // the sky: grey and soft on a wet day, warmer towards evening
     const hour = islandNow().hours + islandNow().minutes / 60;
     const dusk = Math.max(0, Math.min(1, (hour - 16.5) / 2.5));
-    this.hemi.intensity = L.hemi * (1 - wet * 0.2);
-    this.sun.intensity = L.sun * (1 - wet * 0.4);
+    // louvres: the blades turn shut and the daylight, moon and street light stop at the window
+    this.blindK += ((this.blindsShut ? 1 : 0) - this.blindK) * Math.min(1, dt * 3);
+    r.setBlades(this.blindK);
+    const open = 1 - 0.94 * this.blindK;
+    this.hemi.intensity = L.hemi * (1 - wet * 0.2) * open * (1 - 0.6 * this.hush);
+    this.sun.intensity = L.sun * (1 - wet * 0.4) * open;
     this.sun.visible = this.sun.intensity > 0.05;
     this.sun.color.set('#fff1d8').lerp(new THREE.Color('#dfe6ee'), wet).lerp(new THREE.Color('#ffc890'), dusk * (1 - wet) * 0.7);
-    this.scene.environmentIntensity = L.env * (1 - wet * 0.2);
+    this.scene.environmentIntensity = L.env * (1 - wet * 0.2) * open * (1 - 0.6 * this.hush);
     // outside at night: the sodium lamp always, the moon when it is up and the sky is clear
     const moon = this.moonK * L.night;
-    r.street.intensity = L.street * (this.moonK > 0.18 ? 0.5 : 1);
+    r.street.intensity = L.street * (this.moonK > 0.18 ? 0.5 : 1) * open;
     r.street.visible = r.street.intensity > 0.1;
-    r.moon.intensity = moon * 0.9;
+    r.moon.intensity = moon * 0.9 * open;
     r.moon.visible = r.moon.intensity > 0.01;
     r.paperShadow.opacity = 0.3 + L.night * 0.3;
     const patch = new THREE.Color('#fff3d6').lerp(new THREE.Color('#ffb46a'), dusk);
     const nightPatch = new THREE.Color('#ff9a3c').lerp(new THREE.Color('#9fb2e6'), Math.min(1, this.moonK * 1.6));
     r.sunPatches.forEach((m, i) => {
-      const dayOp = day * (0.22 - wet * 0.17), nightOp = L.night * (0.07 + this.moonK * 0.12) * (1 - wet * 0.4);
+      const dayOp = open * day * (0.22 - wet * 0.17), nightOp = open * L.night * (0.07 + this.moonK * 0.12) * (1 - wet * 0.4);
       m.material.opacity = dayOp + nightOp;
       m.material.color.copy(patch).lerp(nightPatch, nightOp / Math.max(1e-4, dayOp + nightOp));
       // the patches creep across the floor with the sun

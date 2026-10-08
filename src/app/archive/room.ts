@@ -174,6 +174,11 @@ export class StacksRoom {
   readonly tableTop = new THREE.Group();
   readonly pictureLight = new THREE.SpotLight('#ffd9a8', 0, 2.2, 0.9, 0.7, 1.4);
   readonly paperShadow: THREE.MeshBasicMaterial;
+  /** window louvre blades: tilted open (-1.0) or turned shut (-0.05) */
+  readonly blades: THREE.Mesh[] = [];
+  setBlades(shut: number) {
+    for (const b of this.blades) b.rotation.x = -1.0 + 0.95 * shut;
+  }
   readonly sunPatches: THREE.Mesh<THREE.PlaneGeometry, THREE.MeshBasicMaterial>[] = [];
   readonly exitMat: THREE.MeshStandardMaterial;
   readonly ledMat: THREE.MeshStandardMaterial;
@@ -348,10 +353,11 @@ export class StacksRoom {
     this.box(g, 0.04, H, 0.05, 0, 0, 0.03, M.steelDark);
     for (let i = 0; i < 8; i++) {
       const b = this.box(g, W / 2 - 0.05, 0.1, 0.008, -W / 4, -H / 2 + 0.07 + i * 0.108, 0.04, M.glass, false);
-      b.rotation.x = -0.5;
+      b.rotation.x = -1.0;
       const b2 = b.clone();
       b2.position.x = W / 4;
       g.add(b2);
+      this.blades.push(b, b2);
     }
     for (let i = 0; i < 6; i++) this.box(g, 0.018, H, 0.018, -W / 2 + 0.12 + (i * (W - 0.24)) / 5, 0, 0.09, M.steelDark);
     this.box(g, W + 0.3, 0.05, 0.16, 0, -H / 2 - 0.08, 0.08, M.cream);

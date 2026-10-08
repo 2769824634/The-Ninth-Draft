@@ -513,6 +513,9 @@ export class Stacks {
     else if (which === 'seat' && this.scene) {
       this.scene.room.setSide(this.scene.room.sideNow === 'l' ? 'r' : 'l');
       audio.paper();
+    } else if (which === 'blinds' && this.scene) {
+      this.scene.blindsShut = !this.scene.blindsShut;
+      audio.rocker();
     } else if (which === 'desks') {
       const on = !(this.lights.desks[0] || this.lights.desks[1]);
       for (const i of [0, 1]) if (this.lights.desks[i] !== on) this.toggleDesk(i);
@@ -534,6 +537,7 @@ export class Stacks {
     set('exam', !!this.examAt && (this.scene?.examWanted[this.examAt.i] ?? 0) > 0);
     set('row', at === 'drawer' ? this.lights.rows[1] : this.lights.rows[3]);
     set('desks', this.lights.desks[1], at === 'table');
+    set('blinds', !!this.scene?.blindsShut);
     set('seat', this.scene?.room.sideNow === 'r', at === 'table');
   }
 
