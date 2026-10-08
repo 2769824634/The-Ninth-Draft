@@ -12,12 +12,12 @@ const STEPS = [
     zh: ['顺着红线走', '线索墙把所有档案钉在一块板上。红线连着彼此认识的人和事，其中有些宁可不认识。'],
   },
   {
-    en: ['Register', 'Fill in Form RO-9 and become a resident: a codename, a district, a file number. The Office writes you a small secret that only you can read.'],
-    zh: ['入馆登记', '填一张 RO-9 表，成为霏微居民：代号、住处、档案编号。署里会给你写一个小秘密，只有你自己看得到。'],
+    en: ['Sign in', 'Sign the visitors\' book at the door and take a reader\'s pass. To stay, fill in Form RO-9 at Window 3: tick a box, take a number, and the Office gives you a flat, a card and a key.'],
+    zh: ['入馆登记', '在门口的访客簿上签个名，领一张阅览证。想住下来，到三号窗口填 RO-9 表：勾一格，取个号，署里给你一间屋子、一张身份证和一把钥匙。'],
   },
   {
-    en: ['Look for yourself', 'Your secret points at real files in the archive. Go and find them. Things here have a habit of happening on the 9th.'],
-    zh: ['找你自己', '你的小秘密会指向档案馆里真实的档案，去把它们找出来。这里的事，总爱发生在 9 号。'],
+    en: ['Go home', 'Your block is on the street map, with whatever is downstairs. Things here have a habit of happening on the 9th.'],
+    zh: ['回家', '你住的那一座在街道图上，楼下有什么也画着。这里的事，总爱发生在 9 号。'],
   },
 ];
 ---
@@ -54,7 +54,7 @@ const STEPS = [
     </section>
 
     <div class="guide__acts">
-      <a class="f-btn" href={`${base}register/`} id="guide-go"><span>Register</span><svg viewBox="0 0 24 12" aria-hidden="true"><path d="M0 6h22M17 1l5 5-5 5" /></svg></a>
+      <a class="f-btn" href={`${base}register/`} id="guide-go"><span>Sign in</span><svg viewBox="0 0 24 12" aria-hidden="true"><path d="M0 6h22M17 1l5 5-5 5" /></svg></a>
       <a class="f-btn f-btn--ghost" href={base}><span>Enter the archive</span></a>
     </div>
   </div>
@@ -69,7 +69,7 @@ const STEPS = [
   const mark = () => {
     if (!loadVisitor()) return;
     go.href = go.href.replace(/register\/$/, 'me/');
-    go.querySelector('span')!.textContent = t('Open my file');
+    go.querySelector('span')!.textContent = t('Go home');
   };
   const { base } = flat(mark);
   void base;

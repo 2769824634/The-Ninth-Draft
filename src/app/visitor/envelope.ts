@@ -19,6 +19,11 @@ export function opened(no: string) {
   }
 }
 
+/** The file got a new number (a flat drawn late): it stays opened. */
+export function keepOpened(no: string) {
+  try { localStorage.setItem(KEY, no); } catch { /* ignore */ }
+}
+
 export function reseal() {
   try {
     localStorage.removeItem(KEY);

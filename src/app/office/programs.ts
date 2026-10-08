@@ -11,7 +11,7 @@ import { audio } from '../audio';
 import { isZh } from '../i18n';
 import { reducedMotion } from '../prefs';
 import { CLOCKS } from '../visitor/districts';
-import { fileNo, loadVisitor } from '../visitor/store';
+import { fileNo, loadPass, loadVisitor, passNo } from '../visitor/store';
 
 type L = { en: string; zh: string };
 const T = (l: L) => (isZh() ? l.zh : l.en);
@@ -423,11 +423,12 @@ export class ConsoleScreen {
         this.hooks.sync();
         break;
       case 'WHO': {
-        const v = loadVisitor();
+        const r = loadVisitor(), pass = loadPass();
+        const v = r ?? (pass ? { code: pass.code, no: pass.no, pass: true } : null);
         p('SESSIONS SINCE 18:00:', '18:00 以来的登录：');
         this.print('HEUSS     DATA SECTION    TTY2   23:41');
         this.print('YOSH      BACKUP          TTY4   02:10');
-        this.print(v ? `${esc(v.code.toUpperCase().slice(0, 9).padEnd(9, ' ')).replace(/ /g, '&nbsp;')} ${fileNo(v)}          TTY1   ${zh ? '现在' : 'NOW'}` : `GUEST     ${zh ? '未登记' : 'UNREGISTERED'}    TTY1   ${zh ? '现在' : 'NOW'}`);
+        this.print(v ? `${esc(v.code.toUpperCase().slice(0, 9).padEnd(9, ' ')).replace(/ /g, '&nbsp;')} ${'pass' in v ? passNo(v) + '&nbsp;' : fileNo(v)}          TTY1   ${zh ? '现在' : 'NOW'}` : `GUEST     ${zh ? '未登记' : 'UNREGISTERED'}    TTY1   ${zh ? '现在' : 'NOW'}`);
         break;
       }
       case 'CLEAR':

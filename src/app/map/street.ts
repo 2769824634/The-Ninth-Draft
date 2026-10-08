@@ -32,6 +32,10 @@ interface Detail {
   hdb: { r: Enc; b: string; s: number; p: string; y: number; f: number; d: number; c?: 1 }[];
   places: { d: string; i: number; x: number; y: number }[];
   streets: string[];
+  /** Markets, interchanges, shops, post offices, clinics, schools: kind, English, Chinese, x, y, postcode, block (-1: a building of its own), year opened, year closed (0: still open), district. */
+  fac?: [string, string, string, number, number, string, number, number, number, number][];
+  /** Each kind: English, Chinese, and its abbreviation on the sheet in each. */
+  kinds?: Record<string, [string, string, string, string]>;
 }
 
 /** An HDB block as the directory gives it. */
@@ -46,6 +50,26 @@ export interface Block {
   flats: boolean;
   x: number;
   y: number;
+  /** What is in it or downstairs: a market, the post office. */
+  fac: Facility[];
+}
+/** A market, interchange, shop, post office, clinic, school, pool or place of worship. */
+export interface Facility {
+  i: number;
+  kind: string;
+  /** The kind's name, [English, Chinese]. */
+  kindName: [string, string];
+  en: string;
+  zh: string;
+  x: number;
+  y: number;
+  postcode: string;
+  /** The HDB block it is in, if it is in one. */
+  block: number | null;
+  year: number | null;
+  /** Closed before 1999: still on the sheet, in red pencil. */
+  gone: number | null;
+  district: string | null;
 }
 /** Something pinned to the sheet: a record at its block or neighbourhood. */
 export interface Spot { key: string; label: string; x: number; y: number }
@@ -73,6 +97,8 @@ export interface StreetMapOptions {
   onSpot?: (key: string) => void;
   /** A tap on a block close up (null: the block is let go). Without it, blocks cannot be tapped. */
   onBlock?: (b: Block | null) => void;
+  /** A tap on a market, an interchange, a post office (null: let go). Without it, they cannot be tapped. */
+  onFacility?: (f: Facility | null) => void;
 }
 
 /* ---------------- geometry ---------------- */
@@ -216,6 +242,13 @@ const ramp = (s: number, at: number) => Math.min(1, Math.max(0, Math.log(s / at)
 
 /* ---------------- the map ---------------- */
 const MIN_S = 0.3, MAX_S = 60;
+// facilities in three tiers: interchanges, hospitals, piers and shopping centres from 1:50 000; markets, post offices,
+// clinics, libraries, community centres and pools from about 1:25 000; schools and places of worship from about 1:15 000
+const FAC_TIER = (k: string) => (k === 'bi' || k === 'hp' || k === 'fr' || k === 'sc' ? 0 : k === 'sh' || k === 'wo' ? 2 : 1);
+const FAC_AT = [3.5, 7, 12], FAC_NAMED = [8, 14, 22];
+let abbrs: Record<string, [string, string]> = {};
+const WORSHIP: Record<string, [string, string]> = { Church: ['CH', '堂'], Mosque: ['MSQ', '寺'], Temple: ['TPL', '庙'], 'Hindu temple': ['TPL', '庙'], Gurdwara: ['GDW', '庙'], Synagogue: ['SYN', '堂'] };
+const facAbbr = (f: { kind: string; en: string }, zh: boolean) => (f.kind === 'wo' ? WORSHIP[f.en] : abbrs[f.kind])?.[zh ? 1 : 0] ?? '?';
 
 export function streetMap(o: StreetMapOptions) {
   const { canvas, frame } = o;
@@ -231,6 +264,11 @@ export function streetMap(o: StreetMapOptions) {
   let chosen: number | null = null; // the block tapped or looked up
   let mark: { x: number; y: number } | null = null; // where the index sent you
   let spotBoxes: { key: string; x0: number; y0: number; x1: number; y1: number }[] = [];
+  let facs: Facility[] = [];
+  let facOrder: number[] = []; // the large ones first, so a school gives way to the interchange
+  let facBoxes: { i: number; x0: number; y0: number; x1: number; y1: number }[] = [];
+  let chosenFac: number | null = null;
+  let pendingFac: string | null = null;
   let detailWait: ((d: Detail) => void)[] = [];
   let picked: string | null = o.focus ?? null, hover: string | null = null;
   let pendingFrame: string[] | null = null;
@@ -332,7 +370,15 @@ export function streetMap(o: StreetMapOptions) {
       hdbCells.set(cell, [...(hdbCells.get(cell) ?? []), i]);
       return { pts, b: h.b, x, y, cell };
     });
+    const kinds = d.kinds ?? {};
+    facs = (d.fac ?? []).map(([kind, en, zh, x, y, postcode, b, year, gone, di], i) => ({
+      i, kind, kindName: [kinds[kind]?.[0] ?? '', kinds[kind]?.[1] ?? ''], en, zh, x, y, postcode,
+      block: b >= 0 ? b : null, year: year || null, gone: gone || null, district: base?.districts[di]?.id ?? null,
+    }));
+    facOrder = facs.map((f) => f.i).sort((a, b) => FAC_TIER(facs[a].kind) - FAC_TIER(facs[b].kind));
+    abbrs = Object.fromEntries(Object.entries(kinds).map(([k, v]) => [k, [v[2], v[3]]]));
     detail = d;
+    if (pendingFac !== null) { const i = facs.findIndex((f) => f.en === pendingFac); pendingFac = null; if (i >= 0) chooseFac(i); }
     for (const f of detailWait) f(d);
     detailWait = [];
     draw();
@@ -351,6 +397,7 @@ export function streetMap(o: StreetMapOptions) {
     return {
       i, no: h.b, street: h.s >= 0 ? detail.streets[h.s] : '', postcode: h.p, year: h.y, floors: h.f,
       district: base.districts[h.d]?.id ?? null, flats: !h.c, x: hdb[i].x, y: hdb[i].y,
+      fac: facs.filter((f) => f.block === i),
     };
   };
   /** The blocks, once the close-up sheet is in (it is fetched on first asking). */
@@ -358,6 +405,13 @@ export function streetMap(o: StreetMapOptions) {
     const done = () => res({ all: detail!.hdb.map((_, i) => blockInfo(i)!) });
     if (detail) return done();
     detailWait.push(done);
+    loadDetail();
+  });
+
+  /** The facilities, once the close-up sheet is in. */
+  const facilities = () => new Promise<Facility[]>((res) => {
+    if (detail) return res(facs);
+    detailWait.push(() => res(facs));
     loadDetail();
   });
 
@@ -696,6 +750,44 @@ export function streetMap(o: StreetMapOptions) {
         const name = zh ? st.n[1] : st.n[0].toUpperCase();
         const soon = st.l === 'bp' && !bpOpen() ? (zh ? '（11月6日通车）' : ' (6 NOV)') : '';
         text(name + soon, x + 7, y + 3.5, `500 ${s > 8 ? 10 : 9}px ${zh ? F.sans : F.mono}`, P.label, { align: 'left', halo: 3, spacing: zh ? 0.5 : 0.8 });
+      }
+    }
+    ctx.globalAlpha = 1;
+
+    // markets, interchanges, post offices: the survey's abbreviation in a small box, its name beside it close up
+    facBoxes = [];
+    if (s > FAC_AT[0] && facs.length) {
+      // the one taken up goes down first, so its name keeps its room
+      for (const i of chosenFac === null ? facOrder : [chosenFac, ...facOrder.filter((j) => j !== chosenFac)]) {
+        const f = facs[i], t = FAC_TIER(f.kind);
+        if (s <= FAC_AT[t] && i !== chosenFac) continue;
+        const [x, y] = toScreen(f.x, f.y);
+        if (x < -60 || x > W + 60 || y < -12 || y > H + 12) continue;
+        const on = i === chosenFac;
+        const ab = facAbbr(f, zh);
+        const font = zh ? `600 9px ${F.sans}` : `600 7.5px ${F.mono}`;
+        ctx.font = font;
+        ctx.letterSpacing = zh ? '0px' : '0.4px';
+        const w = Math.ceil(ctx.measureText(ab).width) + (zh ? 5 : 6), h = 11, bx = Math.round(x - w / 2) + 0.5, by = Math.round(y - h / 2) + 0.5;
+        if (on) boxes.push([bx - 1, by - 1, bx + w + 1, by + h + 1]);
+        else if (!free(bx - 1, by - 1, bx + w + 1, by + h + 1)) continue;
+        ctx.globalAlpha = (on ? 1 : ramp(s, FAC_AT[t])) * (f.gone ? 0.7 : 1);
+        const red = on || !!f.gone, solid = f.kind === 'bi' || f.kind === 'fr';
+        // transit is printed reversed out of a black box; what has closed, in red pencil
+        ctx.fillStyle = solid && !f.gone ? (on ? P.accent : P.ink) : P.halo;
+        ctx.fillRect(bx, by, w, h);
+        ctx.strokeStyle = red ? P.accent : P.ink; ctx.lineWidth = on ? 1.4 : 0.9;
+        ctx.setLineDash(f.gone ? [2, 1.5] : []);
+        ctx.strokeRect(bx, by, w, h);
+        ctx.setLineDash([]);
+        ctx.fillStyle = solid && !f.gone ? P.paper : red ? P.accent : P.ink;
+        ctx.textAlign = 'left';
+        ctx.fillText(ab, bx + (zh ? 2.5 : 3), by + (zh ? 8.8 : 8.2));
+        facBoxes.push({ i, x0: bx - 3, y0: by - 3, x1: bx + w + 3, y1: by + h + 3 });
+        if ((on || s > FAC_NAMED[t]) && f.kind !== 'wo') {
+          const n = zh && f.zh ? f.zh : f.en;
+          text(n, bx + w + 4, by + 8.5, `${on ? 600 : 400} ${zh ? 11 : 10}px ${zh ? F.sans : F.serif}`, red ? P.accent : P.label2, { align: 'left', halo: 3, force: on });
+        }
       }
     }
     ctx.globalAlpha = 1;
@@ -1046,14 +1138,17 @@ export function streetMap(o: StreetMapOptions) {
     if (downAt && moved < 6 && performance.now() - downAt.t < 500) {
       const [x, y] = toSheet(p.x, p.y);
       const spot = spotBoxes.find((b) => p.x >= b.x0 && p.x <= b.x1 && p.y >= b.y0 && p.y <= b.y1);
+      const fb = o.onFacility && !spot ? facBoxes.find((b) => p.x >= b.x0 && p.x <= b.x1 && p.y >= b.y0 && p.y <= b.y1) : undefined;
       const blk = o.onBlock && detail && view.s > 12 ? blockAt(x, y) : null;
       const id = districtAt(x, y);
       mark = null;
       if (spot) { o.onSpot?.(spot.key); draw(); }
-      else if (blk !== null) choose(blk === chosen ? null : blk);
+      else if (fb) chooseFac(fb.i === chosenFac ? null : fb.i);
+      else if (blk !== null) { chosenFac = null; choose(blk === chosen ? null : blk); }
       else if (id && o.selectable && !o.selectable(id)) o.onRefuse?.(id);
       else {
         if (chosen !== null) choose(null);
+        chosenFac = null;
         pick(id === picked && !o.focus && !o.selectable ? null : id);
       }
     } else if (!reducedMotion() && performance.now() - vel.t < 80 && Math.hypot(vel.x, vel.y) > 0.15) {
@@ -1113,12 +1208,30 @@ export function streetMap(o: StreetMapOptions) {
     draw();
     o.onBlock?.(i === null ? null : blockInfo(i));
   };
-  /** Go to a place on the sheet at a printed scale (1 : n), ringed in red, or with its block inked. */
-  const goto = (x: number, y: number, n: number, opt: { block?: number; ring?: boolean } = {}) => {
+  /** Take up a market, a post office (or let it go). */
+  const chooseFac = (i: number | null) => {
+    chosenFac = i;
+    if (i !== null && chosen !== null) chosen = null;
+    draw();
+    o.onFacility?.(i === null ? null : facs[i]);
+  };
+  /** Go to a place on the sheet at a printed scale (1 : n), ringed in red, or with its block or facility (by its English name) taken up. */
+  const goto = (x: number, y: number, n: number, opt: { block?: number; fac?: string; ring?: boolean } = {}) => {
     area = null;
     mark = opt.ring === false ? null : { x, y };
     if (opt.block !== undefined) { mark = null; choose(opt.block); }
-    const go = () => flyTo(x, y, Math.max(fitIsland(), PRINT[Math.max(0, PRINT.findIndex((p) => RATIO(p) <= n * 1.01))]), 900);
+    if (opt.fac !== undefined) {
+      mark = null;
+      const i = facs.findIndex((f) => f.en === opt.fac);
+      if (i >= 0) chooseFac(i);
+      else { pendingFac = opt.fac; loadDetail(); }
+    }
+    const go = () => {
+      const sc = Math.max(fitIsland(), PRINT[Math.max(0, PRINT.findIndex((p) => RATIO(p) <= n * 1.01))]);
+      // on a phone the slip sits over the lower half: keep what it describes above it
+      const lift = W < 560 && (opt.block !== undefined || opt.fac !== undefined) ? (H * 0.22) / sc : 0;
+      flyTo(x, y + lift, sc, 900);
+    };
     if (W && base) go();
     else pendingGo = go;
   };
@@ -1179,8 +1292,13 @@ export function streetMap(o: StreetMapOptions) {
     goto,
     /** Let the block go. */
     unchoose: () => chosen !== null && choose(null),
+    /** Let the facility go. */
+    unchooseFac: () => chosenFac !== null && chooseFac(null),
     /** Every block with its address (fetches the close-up sheet if it is not in yet). */
     blocks,
+    blockInfo,
+    /** Every market, interchange, post office and the rest (fetches the close-up sheet if it is not in yet). */
+    facilities,
   };
 }
 

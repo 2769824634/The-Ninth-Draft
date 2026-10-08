@@ -139,7 +139,7 @@ const KIND = {
       if (to.district) {
         mark(to.district, true);
         sm.pick(to.district);
-      } else sm.goto(to.x, to.y, to.scale, { block: to.block });
+      } else sm.goto(to.x, to.y, to.scale, { block: to.block, fac: to.fac });
       document.getElementById('smap')!.scrollIntoView({ block: 'start', behavior: reducedMotion() ? 'auto' : 'smooth' });
     },
     blocks: () => sm.blocks(),
