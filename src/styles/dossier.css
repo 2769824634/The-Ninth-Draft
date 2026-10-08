@@ -1192,6 +1192,7 @@ a.cite:hover, a.cite:focus-visible { color: var(--accent); text-decoration-style
   opacity: .8 !important;
   transition: opacity 600ms var(--ease);
   background:
+    linear-gradient(var(--sd-tint, transparent), var(--sd-tint, transparent)),
     linear-gradient(rgb(10 7 4 / var(--sd-all, 0)), rgb(10 7 4 / var(--sd-all, 0))),
     linear-gradient(180deg, rgb(10 7 4 / var(--sd-t, 0)), rgb(10 7 4 / calc(var(--sd-t, 0) * .4)) 25%, rgb(10 7 4 / calc(var(--sd-b, 0) * .4)) 75%, rgb(10 7 4 / var(--sd-b, 0))),
     linear-gradient(90deg, rgb(10 7 4 / var(--sd-l, 0)), rgb(10 7 4 / calc(var(--sd-l, 0) * .5)) 14%, rgb(10 7 4 / calc(var(--sd-l, 0) * .16)) 30%, transparent 50%, rgb(10 7 4 / calc(var(--sd-r, 0) * .16)) 70%, rgb(10 7 4 / calc(var(--sd-r, 0) * .5)) 86%, rgb(10 7 4 / var(--sd-r, 0)));
@@ -1244,6 +1245,7 @@ a.cite:hover, a.cite:focus-visible { color: var(--accent); text-decoration-style
   pointer-events: none;
   opacity: .8;
   background:
+    linear-gradient(var(--sd2-tint, transparent), var(--sd2-tint, transparent)),
     linear-gradient(rgb(10 7 4 / var(--sd2-all, 0)), rgb(10 7 4 / var(--sd2-all, 0))),
     linear-gradient(180deg, rgb(10 7 4 / var(--sd2-t, 0)), rgb(10 7 4 / calc(var(--sd2-t, 0) * .4)) 25%, rgb(10 7 4 / calc(var(--sd2-b, 0) * .4)) 75%, rgb(10 7 4 / var(--sd2-b, 0))),
     linear-gradient(90deg, rgb(10 7 4 / var(--sd2-l, 0)), rgb(10 7 4 / calc(var(--sd2-l, 0) * .5)) 14%, rgb(10 7 4 / calc(var(--sd2-l, 0) * .16)) 30%, transparent 50%, rgb(10 7 4 / calc(var(--sd2-r, 0) * .16)) 70%, rgb(10 7 4 / calc(var(--sd2-r, 0) * .5)) 86%, rgb(10 7 4 / var(--sd2-r, 0)));

@@ -397,7 +397,7 @@ export class StacksScene {
     // louvres: the blades turn shut and the daylight, moon and street light stop at the window
     this.blindK += ((this.blindsShut ? 1 : 0) - this.blindK) * Math.min(1, dt * 3);
     r.setBlades(this.blindK);
-    const open = 1 - 0.94 * this.blindK;
+    const open = 1 - 0.72 * this.blindK;
     this.hemi.intensity = L.hemi * (1 - wet * 0.2) * open * (1 - 0.6 * this.hush);
     this.sun.intensity = L.sun * (1 - wet * 0.4) * open;
     this.sun.visible = this.sun.intensity > 0.05;
@@ -520,6 +520,7 @@ export class StacksScene {
   private v1 = new THREE.Vector3();
   private v2 = new THREE.Vector3();
   private v3 = new THREE.Vector3();
+  private v4 = new THREE.Vector3();
   private bestAt = new THREE.Vector3();
 
   /** Everything that reaches a point in the room: its colour sum, strength, and what share is lamps, street, moon and day. */
@@ -558,10 +559,13 @@ export class StacksScene {
     }
     for (const d of room.desks) lamps += spot(d.light);
     for (const e of room.exams) lamps += spot(e.light);
-    const street = add(room.street.color, room.street.intensity * 0.07, null);
-    const moon = add(room.moon.color, room.moon.intensity * 0.75, null);
+    // what comes in at the windows (the back wall) is stronger near it and thins out across the room
+    const win = this.v4.set(p.x, 2.4, AR.z0);
+    const near = 0.5 + 1.85 * Math.exp(-(p.z - AR.z0) / 2.6);
+    const street = add(room.street.color, room.street.intensity * 0.07 * near, win);
+    const moon = add(room.moon.color, room.moon.intensity * 0.75 * near, win);
     const dayW = (this.hemi.intensity * 3 + (this.sun.visible ? this.sun.intensity * 0.6 : 0)) * (1 - this.rainK * 0.3);
-    const day = add(this.sun.color, dayW, null);
+    const day = add(this.sun.color, dayW * (0.7 + 0.3 * near), win);
     return { r, g, b, lux, lamps, street, moon, day, best };
   }
 
@@ -621,7 +625,7 @@ export class StacksScene {
       return Math.min(0.6, (1 - lit) * 0.62);
     }) as [number, number, number, number];
     const mid4 = q[0].clone().add(q[2]).multiplyScalar(0.5).add(this.v1.set(0, 0.004, 0));
-    const dim = Math.min(0.86, Math.exp(-this.gather(mid4).lux / 1.1) * 0.92);
+    const dim = Math.min(0.8, Math.exp(-this.gather(mid4).lux / 1.3) * 0.9);
     const key = pts.map(([x, y]) => `${x.toFixed(1)},${y.toFixed(1)}`).join('|') + `|${h}|` + shade.map((v) => v.toFixed(2)).join() + `|${dim.toFixed(2)}`;
     const xs = pts.map((p) => p[0]), ys = pts.map((p) => p[1]);
     return { pin: laidOver(w, h, pts), w, h, box: [Math.min(...xs), Math.min(...ys), Math.max(...xs), Math.max(...ys)], shade, dim, key };
