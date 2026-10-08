@@ -275,3 +275,31 @@
 .tick--row { grid-template-columns: 1fr 1fr; }
 .tick--row .tick__o small { grid-column: auto; justify-self: end; }
 .tick--row .tick__o { grid-template-columns: 1.3rem 1fr auto; }
+
+/* ---------- the letterbox wall, the letters, the void deck ---------- */
+.mbox__slot b { order: 2; font-family: var(--f-mono); font-weight: 500; font-size: .92em; letter-spacing: .04em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mbox__slot.is-empty b::after { content: '—'; color: #6d6253; }
+.mbox__in { position: absolute; right: .25rem; top: .2rem; min-width: 1.2em; padding: 0 .25em; border-radius: .6em; background: var(--accent); color: #fff; font-style: normal; font-size: .9em; text-align: center; }
+.mail { list-style: none; margin: .9rem 0 0; padding: 0; display: grid; gap: .55rem; max-width: 30rem; }
+.mail__env { position: relative; display: grid; grid-template-columns: 1fr auto; gap: .2rem 1rem; width: 100%; padding: .7rem .9rem .75rem; border: 1px solid color-mix(in srgb, var(--ink) 45%, transparent); background: #f1ead8; color: #1d1a16; text-align: left; cursor: pointer; font: inherit; box-shadow: 0 1px 0 rgb(0 0 0 / .12); transition: transform var(--t-2) var(--ease); }
+.mail__env:hover { transform: translateY(-2px) rotate(-.4deg); }
+.mail__l--postcard .mail__env { background: #f6f1e4; border-style: solid; }
+.mail__l--bill .mail__env, .mail__l--licence .mail__env { background: #e9e4d6; }
+.mail__l--postcard .mail__env::before { content: ''; position: absolute; inset: 0; border: 4px solid transparent; border-image: repeating-linear-gradient(45deg, #a83a2c 0 6px, transparent 6px 12px, #2b4a8a 12px 18px, transparent 18px 24px) 4; pointer-events: none; }
+.mail__from { font-family: var(--f-serif); font-size: .9rem; color: #4a4238; }
+.mail__to { grid-column: 1; font-family: var(--f-mono); font-size: .8rem; letter-spacing: .06em; line-height: 1.35; }
+.mail__pm { grid-column: 2; grid-row: 1; justify-self: end; padding: .1rem .35rem; border: 1px solid #6d6253; border-radius: 50%; color: #6d6253; transform: rotate(-8deg); }
+.mail__stamp { grid-column: 2; grid-row: 2; align-self: end; justify-self: end; color: #a83a2c; letter-spacing: .1em; }
+.mail__body { display: block; margin: 0; padding: 0 .9rem; overflow: hidden; border: 1px solid transparent; font-family: var(--f-note); font-size: .95rem; line-height: 1.5; color: var(--ink-2); transition: max-height var(--t-2) var(--ease), padding var(--t-2) var(--ease); max-height: 0; }
+.mail__l.is-open .mail__body { max-height: 12rem; padding: .7rem .9rem .8rem; border-color: var(--line); border-top: 0; background: color-mix(in srgb, var(--bg) 70%, #efe6cf); }
+.meet { max-width: 34rem; padding: .8rem 1rem; border-left: 3px solid var(--accent); background: color-mix(in srgb, var(--bg) 85%, var(--bg-2)); }
+.meet:empty { display: none; }
+.meet__who { margin: 0 0 .3rem; color: var(--ink-3); }
+.meet__line { margin: 0; font-family: var(--f-serif); font-size: 1.02rem; line-height: 1.5; }
+.board { position: relative; display: flex; flex-wrap: wrap; gap: .8rem; margin-top: 1rem; padding: 2rem 1rem 1rem; max-width: 34rem; border: 1px solid var(--ink); background: repeating-linear-gradient(0deg, transparent 0 3px, rgb(0 0 0 / .03) 3px 4px), #b9a37c; }
+.board__h { position: absolute; left: .7rem; top: .5rem; margin: 0; color: #2a241c; }
+.board__n { position: relative; flex: 1 1 12rem; max-width: 16rem; padding: .7rem .8rem .6rem; background: #f6f1e4; color: #1d1a16; box-shadow: 0 2px 4px rgb(0 0 0 / .25); transform: rotate(var(--r)); font-family: var(--f-serif); font-size: .9rem; line-height: 1.45; }
+.board__n::before { content: ''; position: absolute; left: 50%; top: -.35rem; width: .6rem; height: .6rem; margin-left: -.3rem; border-radius: 50%; background: #a83a2c; box-shadow: 0 1px 1px rgb(0 0 0 / .4); }
+.board__n p { margin: 0; }
+.board__by { margin-top: .4rem !important; font-family: var(--f-mono); font-size: .7rem; letter-spacing: .04em; color: #6d6253; }
+@media (prefers-reduced-motion: reduce) { .mail__env, .mail__body { transition: none; } }

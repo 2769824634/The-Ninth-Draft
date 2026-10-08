@@ -45,16 +45,23 @@ const arrow = '<svg viewBox="0 0 24 12" aria-hidden="true"><path d="M0 6h22M17 1
         <h2 class="f-sec__h"><i>01</i><span>Letterbox</span></h2>
         <div class="mbox" id="mbox" aria-label="Letterboxes on your floor"></div>
         <p class="mbox__note" id="mbox-note"></p>
+        <ul class="mail" id="mail"></ul>
+      </section>
+
+      <section class="f-sec" id="sec-down">
+        <h2 class="f-sec__h"><i>02</i><span>Downstairs</span></h2>
+        <div class="meet" id="meet" aria-live="polite"></div>
+        <div class="board" id="board" aria-label="Notice board at the void deck"></div>
       </section>
 
       <section class="f-sec" id="sec-map">
-        <h2 class="f-sec__h"><i>02</i><span>On the map</span></h2>
+        <h2 class="f-sec__h"><i>03</i><span>On the map</span></h2>
         <StreetMap id="home-map" />
         <p class="mbox__note" id="downstairs"></p>
       </section>
 
       <section class="f-sec">
-        <h2 class="f-sec__h"><i>03</i><span>Recovery phrase</span></h2>
+        <h2 class="f-sec__h"><i>04</i><span>Recovery phrase</span></h2>
         <p class="f-help" style="margin-top:0"><span data-l="en">Your codename and these words bring your home back on another device.</span><span data-l="zh">代号加这几个词，可以在别的设备上回家。</span></p>
         <button class="f-btn f-btn--ghost" type="button" id="show-phrase" style="margin-top:.8rem"><span>Show phrase</span></button>
         <ol class="phrase me__phrase" id="me-phrase" hidden></ol>
@@ -91,6 +98,8 @@ const arrow = '<svg viewBox="0 0 24 12" aria-hidden="true"><path d="M0 6h22M17 1
   import { keepOpened, opened, reseal, sealed } from '../../app/visitor/envelope';
   import { mountStreetMap } from '../../app/map/mount';
   import { reducedMotion } from '../../app/prefs';
+  import { household, letters, notices, previousTenant, type Letter } from '../../app/visitor/households';
+  import { countVisit, encounter } from '../../app/visitor/encounters';
 
   const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
   let v = loadVisitor();
@@ -100,12 +109,18 @@ const arrow = '<svg viewBox="0 0 24 12" aria-hidden="true"><path d="M0 6h22M17 1
   const card = $('card'), cardIn = $('card-in');
   let sm: ReturnType<typeof mountStreetMap> | null = null;
   let downstairs: string[][] = [];
+  // the year the block went up: households cannot have moved in before it
+  let built = 1975;
+  const visit = loadVisitor()?.home ? countVisit() : null;
+  const openLetters = new Set<number>();
+  const STAMP: Record<Letter['kind'], string> = { bill: 'PAID?', postcard: 'AIR MAIL', paper: 'PRINTED MATTER', clinic: 'APPOINTMENT', draw: 'BY HAND', licence: 'OFFICIAL' };
 
   const render = () => {
     if (!v) return;
     const zh = isZh();
     const no = fileNo(v);
     const h = v.home;
+    const mail = h ? letters(v, built) : [];
     document.title = t('{file} · My home — The Ninth Draft', { file: no });
     $('me-file').textContent = `${t('File')} ${no}`;
     $('me-door').textContent = h ? doorText(h) : zh ? '待分配' : 'TO BE ALLOTTED';
@@ -125,18 +140,53 @@ const arrow = '<svg viewBox="0 0 24 12" aria-hidden="true"><path d="M0 6h22M17 1
     // the letterboxes on your floor, yours in the middle of the row
     $('sec-box').hidden = !h;
     $('sec-map').hidden = !h;
+    $('sec-down').hidden = !h;
     $('key').hidden = !h;
     if (h) {
       $('keyno').textContent = `${h.blk} ${doorText(h)}`;
       $('mbox').innerHTML = Array.from({ length: DOORS }, (_, k) => {
         const d = { ...h, stack: k };
-        return `<div class="mbox__slot${k === h.stack ? ' is-mine' : ''}"><span>${doorText(d)}</span></div>`;
+        const mine = k === h.stack;
+        const hh = mine ? null : household(d, built);
+        const plate = mine ? esc(v!.code.toUpperCase()) : hh ? esc(zh ? hh.zh : hh.plate) : '';
+        return `<div class="mbox__slot${mine ? ' is-mine' : ''}${!mine && !hh ? ' is-empty' : ''}"><span>${doorText(d)}</span><b>${plate}</b>${mine && mail.length ? `<i class="mbox__in">${mail.length}</i>` : ''}</div>`;
       }).join('');
-      $('mbox-note').textContent = zh ? '信箱是空的。邮差十点以后才来。' : 'Empty. The postman comes after ten.';
+      const prev = previousTenant(h, built);
+      $('mbox-note').textContent = !mail.length
+        ? zh ? '信箱是空的。邮差十点以后才来。' : 'Empty. The postman comes after ten.'
+        : v!.origin === 'G'
+          ? zh ? `${mail.length} 封。一封是寄给你的，好多年前的，一直没人拿。` : `${mail.length} letters. One is to you, from years ago, never collected.`
+          : zh ? `${mail.length} 封，没有一封是你的。都寄给 ${prev.plate}，${prev.left} 年搬走的前任住户。` : `${mail.length} letters, none of them yours. They are for ${prev.plate}, who had the flat until ${prev.left}.`;
+      $('mail').innerHTML = mail.map((l, i) => `<li class="mail__l mail__l--${l.kind}${openLetters.has(i) ? ' is-open' : ''}" data-i="${i}">
+          <button type="button" class="mail__env" aria-expanded="${openLetters.has(i)}"><span class="mail__from">${esc(tx(l.from))}</span><span class="mail__to">${esc(l.to)}<br>${esc(doorText(h))}</span><span class="mail__pm micro">${l.date}</span><span class="mail__stamp micro">${STAMP[l.kind]}</span></button>
+          <p class="mail__body">${esc(tx(l.body))}</p></li>`).join('');
+      renderDown();
       $('downstairs').textContent = downstairs.length ? `${zh ? '楼下：' : 'Downstairs: '}${downstairs.map((f) => (zh && f[1] ? f[1] : f[0])).join(zh ? '、' : ', ')}` : '';
     }
     renderRedraw();
   };
+
+  /* ---------- downstairs: who you run into, and the notice board ---------- */
+  const meetAt = Date.now();
+  const renderDown = () => {
+    if (!v?.home) return;
+    const zh = isZh();
+    const e = visit ? encounter(v, visit.before, meetAt) : null;
+    $('meet').innerHTML = e
+      ? `<p class="meet__who micro">${e.by ? `${esc(tx(e.by.name))} · ${esc(tx(e.by.role))}` : zh ? '你注意到' : 'You notice'}</p><p class="meet__line">${esc(e.by ? `“${tx(e.line)}”` : tx(e.line))}</p>`
+      : '';
+    $('board').innerHTML = `<p class="board__h micro">${zh ? `${v.home.blk} 座楼下 · 告示板` : `Blk ${esc(v.home.blk)} · void deck notice board`}</p>` +
+      notices(v.home, built).map((n, i) => `<div class="board__n" style="--r:${((i * 37) % 7) - 3}deg"><p>${esc(tx(n.text))}</p><p class="board__by">— ${esc(tx(n.by))}</p></div>`).join('');
+  };
+  $('mail').addEventListener('click', (ev) => {
+    const li = (ev.target as HTMLElement).closest<HTMLElement>('.mail__l');
+    if (!li) return;
+    const i = Number(li.dataset.i);
+    if (openLetters.has(i)) openLetters.delete(i); else openLetters.add(i);
+    li.classList.toggle('is-open', openLetters.has(i));
+    li.querySelector('button')!.setAttribute('aria-expanded', String(openLetters.has(i)));
+    audio.paper();
+  });
 
   /* ---------- a registration from before the form changed: a flat owed ---------- */
   let turning = false;
@@ -190,6 +240,10 @@ const arrow = '<svg viewBox="0 0 24 12" aria-hidden="true"><path d="M0 6h22M17 1
   card.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); flip(); } });
 
   const { base, markMe } = flat(() => { render(); sm?.relang(); });
+  if (v?.home) {
+    const pc = v.home.postcode;
+    void homeBlocks(base).then((all) => { const b = all.find((x) => x.postcode === pc); if (b) { built = b.year || built; render(); } }).catch(() => {});
+  }
 
   if (!v) {
     $('none').hidden = false;
