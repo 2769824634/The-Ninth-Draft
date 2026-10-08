@@ -4,14 +4,14 @@
     "Opening the front shutter",
     "Switching on the reading lamps",
     "Wiping the rain off the windows",
-    "Counting the drawers. Still three",
-    "Setting the year field to 1999",
+    "Emptying the dehumidifier",
+    "Turning the date stamp to today",
     "Finding the visitor's book"
   ],
   "welcome": [
     "Morning. Or evening. The clock in here stopped agreeing with me years ago.",
     "Come in, mind the step. The drawers on the left stick, the ones on the right are empty.",
-    "Records Office, Gerimis. Everything on the island is normal. If it isn't, it's the previous draft.",
+    "Records Office. The files are in the cabinets behind me. If you can see it, you can read it.",
     "Welcome. Sign the visitor's book if you like. Nobody reads it except Heuss.",
     "If a street name outside doesn't match your map, go by the street. The map is older."
   ],
@@ -30,7 +30,7 @@
   "day": [
     "Lights on. The cleaner comes at eleven, so mind your feet.",
     "Daylight. Take an umbrella when you leave. It's Gerimis.",
-    "Morning light. The files look less tired. So do I, mostly."
+    "Morning light. The files look less tired in it."
   ],
   "drawer": {
     "personnel": [
@@ -38,7 +38,7 @@
       "The people drawer. Go gently, some of these names are still in use."
     ],
     "events": [
-      "Events. Every date in here was argued about at least once.",
+      "Events. One folder for each day something happened, filed by date.",
       "Events. Things that happened, mostly in the order they were written down."
     ],
     "programs": [
@@ -64,7 +64,7 @@
       "{title}. Internal. Please don't photocopy it. The machine jams anyway."
     ],
     "DECLASSIFIED": [
-      "{file}. Declassified. The interesting parts went out with the old drafts.",
+      "{file}. Declassified. Anyone can read it now, which is why nobody does.",
       "{title}. Fully open. Read it, then have a look at the older pages underneath."
     ]
   },
@@ -79,7 +79,7 @@
   ],
   "reveal": [
     "You lifted the ink. I'll put it back after you've gone.",
-    "Fine. Now you know. Don't tell the counter.",
+    "Fine. Now you know what it said. Don't tell the front desk.",
     "That bar was the cheapest thing in the whole file. Two seconds with a marker."
   ],
   "searchEmpty": [
@@ -98,10 +98,10 @@
     "Still there? Take your time. Nobody else is coming in this weather.",
     "I'll be at the counter. Shout if a drawer sticks.",
     "Raining again. That isn't news, that's Gerimis.",
-    "Still 1999. No hurry."
+    "The coffee on the counter's gone cold. Take your time."
   ],
   "soundOn": [
-    "Sound on. If the radio starts reading out numbers, write them down. Or don't. Nobody else does.",
+    "Sound on. The radio in the corner reads out numbers sometimes. Nobody here knows whose they are.",
     "Sound's back. That hum is the dehumidifier. It has been here longer than I have."
   ],
   "soundOff": [
@@ -124,7 +124,7 @@
     "mess": [
       "You've moved half the board. I hope you're taking notes.",
       "Interesting. Heuss will put it all back tomorrow and say nothing.",
-      "That's a theory. A theory with a lot of string."
+      "If you want to keep it like that, copy it onto paper. The board gets put back."
     ],
     "reset": [
       "Back where they were. I measured.",
@@ -149,10 +149,10 @@
     "any": [
       "There are older pages under this one. Pull one out and see what it said before.",
       "You can click the black bars. I'd rather you didn't, but you can.",
-      "Press W to see who {file} is connected to.",
+      "On a keyboard, W takes {file} to the link board, to see who it's connected to.",
       "Anything clipped to the folder can be picked up. Put it back where it was.",
       "The routing slip shows who had {file} out. It's mostly Heuss.",
-      "If a page is missing, it was never here. That's policy, not a hint."
+      "Some files are one page long. That's all anyone wrote down at the time."
     ],
     "personnel": [
       "Personnel files open on the photograph. When there isn't one, I make do.",
@@ -172,7 +172,7 @@
   },
   "sweep": [
     "Sweep done. {count} cards on the board, all present.",
-    "Nothing new on the wall. That's usually how it starts.",
+    "Nothing new on the wall since this morning.",
     "Another pass over the board. Habit."
   ],
   "lang": {
@@ -188,11 +188,11 @@
   "negative": [
     "The negative. Light is dark, dark is light, and one street sign reads differently.",
     "Hold it up to the window. That's how Heuss checks his.",
-    "In the negative the rain goes up. I've stopped asking."
+    "The Office keeps negatives, not prints. Prints fade in this damp."
   ],
   "stamp": {
     "verified": [
-      "{file}, verified by you. That makes two of us. Possibly.",
+      "{file}, verified. Your initials go next to mine.",
       "VERIFIED. Your ink, your name on it."
     ],
     "correct": [
@@ -211,7 +211,7 @@
   "poke": [
     "Yes?",
     "That's my elbow.",
-    "I'm working. More or less.",
+    "I'm doing the date stamps.",
     "Still here."
   ],
   "pokeAngry": [
@@ -221,12 +221,12 @@
   "away": [
     "Welcome back. A street changed its name while you were out. Same street.",
     "You went out. The rain didn't.",
-    "Back? Nothing happened while you were gone. On paper."
+    "Back? I left the lamp on for you."
   ],
   "resident": [
-    "Welcome back, {code}. Your file is where you left it, more or less.",
+    "Welcome back, {code}. Your file is where you left it.",
     "{code}, {file}. Still on the register. Well done.",
-    "Ah, {code}. Somebody asked after you earlier. I said I'd never heard of you. Force of habit."
+    "Ah, {code}. The aunty from your block came by this morning, asking if the lift notice had gone up yet."
   ],
   "unregistered": [
     "You haven't signed the book at the door. Nobody minds, but the reading room likes a name on the slip.",
@@ -312,7 +312,7 @@
       "That sofa came from the old registry upstairs. So did the smell."
     ],
     "wall": [
-      "The notice board. Whatever's pinned there happened, more or less.",
+      "The notice board. New notices go on top; nobody takes the old ones down.",
       "The calendar's the Office's own. Every 9th has a little dot. Nobody remembers who started that."
     ],
     "clock": [

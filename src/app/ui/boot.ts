@@ -29,8 +29,8 @@ export async function boot(root: HTMLElement, ready: Promise<unknown>, lines: st
   const skip = () => (skipped = true);
   window.addEventListener('keydown', skip, { once: true });
 
-  const steps = [...(lines.length ? lines.slice(0, 3) : [t('Establishing secure line'), t('Verifying clearance'), t('Indexing drawers')]), t('Ready')];
-  const full = t('Clearance confirmed : Visitor');
+  const steps = [...(lines.length ? lines.slice(0, 3) : [t('Opening the reading room'), t('Checking the date stamp'), t('Indexing drawers')]), t('Ready')];
+  const full = t('Reading room open : Visitor');
   if (!reducedMotion()) {
     for (let i = 0; i < steps.length - 1 && !skipped; i++) {
       caption.textContent = steps[i];

@@ -56,6 +56,10 @@ export function library() {
   const stickMonth = (id: string) => (id === 'daily-early' ? 'early' : `1999-${id.slice(6)}`);
   for (const b of bays) b.books = b.books.filter((book) => book.kind !== 'news' || stickMonth(book.id) <= thisMonth);
   const all = bays.flatMap((b) => b.books.map((book) => ({ book, bay: b })));
+  // the counts under the room's name, as they stand today
+  const stat = (k: string, n: number) => document.querySelectorAll<HTMLElement>(`[data-stat="${k}"]`).forEach((el) => (el.textContent = String(n)));
+  stat('volumes', all.length);
+  stat('cards', catalogue.reduce((n, d) => n + d.cards.length, 0));
   const root = $('lib');
   const voice = new Archivist(lines as unknown as ArchivistLines, 'library.idle');
   const T = (x: L) => (isZh() ? x.zh : x.en);
