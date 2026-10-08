@@ -113,7 +113,7 @@ const arrow = '<svg viewBox="0 0 24 12" aria-hidden="true"><path d="M0 6h22M17 1
   let built = 1975;
   const visit = loadVisitor()?.home ? countVisit() : null;
   const openLetters = new Set<number>();
-  const STAMP: Record<Letter['kind'], string> = { bill: 'PAID?', postcard: 'AIR MAIL', paper: 'PRINTED MATTER', clinic: 'APPOINTMENT', draw: 'BY HAND', licence: 'OFFICIAL' };
+  const STAMP: Record<Letter['kind'], string> = { bill: 'STATEMENT', postcard: 'AIR MAIL', paper: 'PRINTED MATTER', clinic: 'APPOINTMENT', draw: 'BY HAND', licence: 'OFFICIAL', note: 'BY HAND', office: 'BY HAND' };
 
   const render = () => {
     if (!v) return;
@@ -153,13 +153,15 @@ const arrow = '<svg viewBox="0 0 24 12" aria-hidden="true"><path d="M0 6h22M17 1
       }).join('');
       const prev = previousTenant(h, built);
       $('mbox-note').textContent = !mail.length
-        ? zh ? '信箱是空的。邮差十点以后才来。' : 'Empty. The postman comes after ten.'
+        ? zh ? '信箱是空的。邮差平日上午十点以后才来。' : 'Empty. The postman comes after ten on weekdays.'
         : v!.origin === 'G'
-          ? zh ? `${mail.length} 封。一封是寄给你的，好多年前的，一直没人拿。` : `${mail.length} letters. One is to you, from years ago, never collected.`
-          : zh ? `${mail.length} 封，没有一封是你的。都寄给 ${prev.plate}，${prev.left} 年搬走的前任住户。` : `${mail.length} letters, none of them yours. They are for ${prev.plate}, who had the flat until ${prev.left}.`;
+          ? zh ? `${mail.length} 封。你家搬走以后，这里空了一阵，寄给你的信都退到了管理处。你回来了，管理处把信连同一张条子放进信箱。` : `${mail.length} letters. After your family moved out the flat stood empty, and post for you went back to the estate office. Now that you are back, they have put it in your box with a note.`
+          : !prev
+          ? zh ? `${mail.length} 封，都是你的。这座楼 ${built} 年才建好，你是这个单位的第一户人家。` : `${mail.length} letters, all yours. The block went up in ${built} and you are the first to live in this flat.`
+          : zh ? `${mail.length} 封，大多寄给前任住户 ${prev.plate}。他们 ${prev.since} 年搬进来，${prev.left} 年搬走，有些人还不知道新地址。最上面那张是他们留给下一户的条子。` : `${mail.length} letters, mostly for ${prev.plate}, who lived here from ${prev.since} to ${prev.left}. Not everyone has their new address yet. The one on top is a note they left for whoever came next.`;
       $('mail').innerHTML = mail.map((l, i) => `<li class="mail__l mail__l--${l.kind}${openLetters.has(i) ? ' is-open' : ''}" data-i="${i}">
           <button type="button" class="mail__env" aria-expanded="${openLetters.has(i)}"><span class="mail__from">${esc(tx(l.from))}</span><span class="mail__to">${esc(l.to)}<br>${esc(doorText(h))}</span><span class="mail__pm micro">${l.date}</span><span class="mail__stamp micro">${STAMP[l.kind]}</span></button>
-          <p class="mail__body">${esc(tx(l.body))}</p></li>`).join('');
+          <div class="mail__body">${tx(l.body).split('\n\n').map((p) => `<p>${esc(p).replace(/\n/g, '<br>')}</p>`).join('')}</div></li>`).join('');
       renderDown();
       $('downstairs').textContent = downstairs.length ? `${zh ? '楼下：' : 'Downstairs: '}${downstairs.map((f) => (zh && f[1] ? f[1] : f[0])).join(zh ? '、' : ', ')}` : '';
     }
@@ -171,12 +173,12 @@ const arrow = '<svg viewBox="0 0 24 12" aria-hidden="true"><path d="M0 6h22M17 1
   const renderDown = () => {
     if (!v?.home) return;
     const zh = isZh();
-    const e = visit ? encounter(v, visit.before, meetAt) : null;
+    const e = visit ? encounter(v, visit.before, meetAt, built) : null;
     $('meet').innerHTML = e
-      ? `<p class="meet__who micro">${e.by ? `${esc(tx(e.by.name))} · ${esc(tx(e.by.role))}` : zh ? '你注意到' : 'You notice'}</p><p class="meet__line">${esc(e.by ? `“${tx(e.line)}”` : tx(e.line))}</p>`
+      ? `<p class="meet__who micro">${e.who ? `${esc(tx(e.who.name))} · ${esc(tx(e.who.role))}` : zh ? '楼下' : 'Downstairs'}</p><p class="meet__scene">${esc(tx(e.scene))}</p>${e.say ? `<p class="meet__line">${esc(zh ? `「${tx(e.say)}」` : `“${tx(e.say)}”`)}</p>` : ''}`
       : '';
     $('board').innerHTML = `<p class="board__h micro">${zh ? `${v.home.blk} 座楼下 · 告示板` : `Blk ${esc(v.home.blk)} · void deck notice board`}</p>` +
-      notices(v.home, built).map((n, i) => `<div class="board__n" style="--r:${((i * 37) % 7) - 3}deg"><p>${esc(tx(n.text))}</p><p class="board__by">— ${esc(tx(n.by))}</p></div>`).join('');
+      notices(v.home, built).map((n, i) => `<div class="board__n" style="--r:${((i * 37) % 7) - 3}deg"><p class="board__t">${esc(tx(n.head))}</p><p>${esc(tx(n.text))}</p><p class="board__by">— ${esc(tx(n.by))}</p></div>`).join('');
   };
   $('mail').addEventListener('click', (ev) => {
     const li = (ev.target as HTMLElement).closest<HTMLElement>('.mail__l');
