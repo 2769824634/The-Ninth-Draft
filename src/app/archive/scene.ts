@@ -106,7 +106,7 @@ interface Look {
   desk: number;
 }
 const LOOKS: Record<'day' | 'night', Look> = {
-  day: { hemi: 0.75, sun: 3.6, env: 0.35, street: 0, night: 0, pendant: 3, desk: 1.5 },
+  day: { hemi: 0.5, sun: 3.6, env: 0.24, street: 0, night: 0, pendant: 3, desk: 1.5 },
   night: { hemi: 0.05, sun: 0, env: 0.035, street: 6, night: 1, pendant: 34, desk: 9 },
 };
 
@@ -621,7 +621,7 @@ export class StacksScene {
       return Math.min(0.6, (1 - lit) * 0.62);
     }) as [number, number, number, number];
     const mid4 = q[0].clone().add(q[2]).multiplyScalar(0.5).add(this.v1.set(0, 0.004, 0));
-    const dim = Math.min(0.72, Math.exp(-this.gather(mid4).lux / 1.6) * 0.78);
+    const dim = Math.min(0.86, Math.exp(-this.gather(mid4).lux / 1.1) * 0.92);
     const key = pts.map(([x, y]) => `${x.toFixed(1)},${y.toFixed(1)}`).join('|') + `|${h}|` + shade.map((v) => v.toFixed(2)).join() + `|${dim.toFixed(2)}`;
     const xs = pts.map((p) => p[0]), ys = pts.map((p) => p[1]);
     return { pin: laidOver(w, h, pts), w, h, box: [Math.min(...xs), Math.min(...ys), Math.max(...xs), Math.max(...ys)], shade, dim, key };

@@ -1189,7 +1189,7 @@ a.cite:hover, a.cite:focus-visible { color: var(--accent); text-decoration-style
   inset: 0;
   z-index: 3;
   pointer-events: none;
-  opacity: .55 !important;
+  opacity: .8 !important;
   transition: opacity 600ms var(--ease);
   background:
     linear-gradient(rgb(10 7 4 / var(--sd-all, 0)), rgb(10 7 4 / var(--sd-all, 0))),
@@ -1242,7 +1242,7 @@ a.cite:hover, a.cite:focus-visible { color: var(--accent); text-decoration-style
   inset: 0;
   z-index: 3;
   pointer-events: none;
-  opacity: .55;
+  opacity: .8;
   background:
     linear-gradient(rgb(10 7 4 / var(--sd2-all, 0)), rgb(10 7 4 / var(--sd2-all, 0))),
     linear-gradient(180deg, rgb(10 7 4 / var(--sd2-t, 0)), rgb(10 7 4 / calc(var(--sd2-t, 0) * .4)) 25%, rgb(10 7 4 / calc(var(--sd2-b, 0) * .4)) 75%, rgb(10 7 4 / var(--sd2-b, 0))),
