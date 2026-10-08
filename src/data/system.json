@@ -1,40 +1,38 @@
 {
   "_readme": "SYSTEM lines: the archive's machine voice. Cold, short, never funny on purpose. Shown at the top of the screen and, with sound on, spoken by a synthetic female voice. One line is picked at random per event; most file openings say nothing.",
   "boot": [
-    "Terminal online. Visitor identified.",
-    "Archive terminal online. Session recorded.",
-    "Connection established. You are being logged.",
-    "Gerimis terminal online. Year: 1999.",
-    "Records Office terminal online. Weather: rain."
+    "Records Office terminal on. Reading room open.",
+    "Visitor entry recorded.",
+    "Archive terminal on. Year: 1999.",
+    "Lending desk open. Files may not leave the building."
   ],
   "open": [
-    "Access logged.",
-    "File access recorded.",
-    "Reading time is being measured.",
-    "Interest in this file has been noted.",
-    "Do not copy this document.",
-    "File checked against the previous draft."
+    "Loan recorded.",
+    "File out of drawer. Return after reading.",
+    "Do not write on the file.",
+    "Photocopying at the counter. Ten cents a page.",
+    "Keep the pages in order.",
+    "Final copy on top. Earlier versions underneath."
   ],
   "classified": [
-    "Clearance level insufficient. Proceeding anyway.",
-    "File under review. Session under review.",
-    "Restricted material. Access logged.",
-    "Unauthorised access attempt recorded."
+    "Classified material. Read on the premises only.",
+    "Classified material. Staff present during reading.",
+    "Clearance not required. Reading permitted.",
+    "Loan recorded against your reader's pass."
   ],
   "reveal": [
-    "Redaction removal logged.",
-    "Redaction integrity compromised.",
-    "Correction filed against this session."
+    "Redaction lifted for this reading only.",
+    "Redaction lifted. Restore before return."
   ],
   "early": [
-    "Earlier drafts are not admissible.",
+    "Earlier version. Superseded.",
     "This version was withdrawn.",
-    "You are reading a superseded document.",
-    "Backflow risk: superseded text on screen."
+    "Earlier version. Not valid for reference.",
+    "Changes are marked in red."
   ],
   "wall": [
-    "Pattern analysis in progress.",
-    "Associations recorded.",
+    "Link board. Lines show cross-references.",
+    "Links taken from the file text.",
     "Linking is not evidence."
   ],
   "backflow": [
