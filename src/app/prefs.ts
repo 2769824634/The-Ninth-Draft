@@ -8,6 +8,8 @@ export interface Prefs {
   themeHalf?: number;
   sound: boolean;
   lang: 'en' | 'zh';
+  /** A file taken to the table opens at once, instead of waiting shut on the blotter for the reader to open it. */
+  openAtOnce?: boolean;
 }
 
 const KEY = 'n9:prefs';

@@ -514,3 +514,143 @@ export function ledgerSpread(today: string) {
   }
   return tex(c);
 }
+
+const ATT_KIND: Record<string, string> = { note: 'Memo', telegram: 'Telegram', ticket: 'Ticket', clipping: 'Clipping', negative: 'Negative strip' };
+
+/** Wrap `text` to `w` px on the canvas, at most `max` lines. */
+function wrapLines(g: CanvasRenderingContext2D, text: string, w: number, max: number) {
+  const out: string[] = [];
+  let line = '';
+  for (const ch of [...text]) {
+    if (g.measureText(line + ch).width > w && line) {
+      out.push(line.trimEnd());
+      line = ch.trimStart();
+      if (out.length === max) return out;
+    } else line += ch;
+  }
+  if (line && out.length < max) out.push(line);
+  return out;
+}
+
+/**
+ * The inside of the cover, the page that lies on the left when a file is
+ * opened, printed from the record's own fields: the case form with its list
+ * of contents (events), the base card of a personnel file, the inside cover of
+ * a programme board.
+ */
+export function fileInside(rec: { file: string; title: string; category: string; place?: string; date?: string; status: string; summary: string; attachments: { kind: string }[]; stamp: string }) {
+  const W = 300, H = 410;
+  const [c, g] = cv(W, H);
+  const ev = rec.category === 'events', pr = rec.category === 'programs';
+  grain(g, W, H, ev ? '#cba879' : pr ? '#aeb4a8' : '#dfd0a8', rec.file.charCodeAt(3) * 7 + rec.title.length, 0.7);
+  const plain = (s: string) => s.replace(/<[^>]+>/g, '').replace(/&[a-z#0-9]+;/g, ' ');
+  const line = (x: number, y: number, w: number, col = 'rgba(29,27,23,.4)') => {
+    g.fillStyle = col;
+    g.fillRect(x, y, w, 1);
+  };
+  g.textBaseline = 'alphabetic';
+  if (ev) {
+    g.fillStyle = RED;
+    g.font = `700 15px ${DINB}`;
+    g.fillText('CASE FILE · FORM RO-31', 18, 34);
+    g.fillRect(18, 42, W - 36, 2);
+    const rows: [string, string][] = [['FILE NO.', rec.file], ['SUBJECT', rec.title], ['PLACE', rec.place ?? ''], ['DATE', rec.date ?? ''], ['STATUS', rec.status]];
+    rows.forEach(([k, v], i) => {
+      const y = 62 + i * 30;
+      g.fillStyle = RED;
+      g.font = `600 10px ${DIN}`;
+      g.fillText(k, 18, y);
+      g.fillStyle = INK;
+      g.font = `15px ${SONG}`;
+      g.fillText(v, 86, y, W - 104);
+      line(18, y + 6, W - 36, 'rgba(184,53,43,.55)');
+    });
+    g.fillStyle = RED;
+    g.font = `700 11px ${DINB}`;
+    g.fillText('CONTENTS', 18, 232);
+    const items = ['Record', ...rec.attachments.map((a) => ATT_KIND[a.kind] ?? 'Enclosure')].slice(0, 7);
+    items.forEach((it, i) => {
+      const y = 252 + i * 20;
+      g.fillStyle = RED;
+      g.font = `600 11px ${DIN}`;
+      g.fillText(String(i + 1).padStart(2, '0'), 18, y);
+      g.fillStyle = INK;
+      g.font = `13px ${SONG}`;
+      g.fillText(it, 46, y);
+      line(18, y + 5, W - 36, 'rgba(184,53,43,.4)');
+    });
+  } else if (pr) {
+    g.fillStyle = 'rgba(29,27,23,.55)';
+    g.font = `600 11px ${DIN}`;
+    g.fillText('PROGRAMME FILE · VOLUME 1 OF 1', 18, 30);
+    g.save();
+    g.beginPath();
+    g.moveTo(0, 150);
+    g.lineTo(W, 70);
+    g.lineTo(W, 150);
+    g.lineTo(0, 230);
+    g.closePath();
+    g.fillStyle = RED;
+    g.globalAlpha = 0.9;
+    g.fill();
+    g.restore();
+    g.fillStyle = '#f4efe2';
+    g.font = `700 40px ${DINB}`;
+    g.fillText(rec.file, 22, 168, W - 44);
+    g.fillStyle = INK;
+    g.font = `600 11px ${DIN}`;
+    g.fillText('ISSUED TO', 18, 292);
+    line(86, 292, W - 104);
+    g.fillText('DATE OPENED', 18, 322);
+    g.font = `14px ${SONG}`;
+    g.fillText(rec.date ?? '', 100, 320, W - 120);
+    line(100, 323, W - 118);
+    g.font = `600 10px ${DIN}`;
+    g.fillStyle = 'rgba(29,27,23,.55)';
+    g.fillText('DO NOT REMOVE FROM THE OFFICE', 18, H - 20);
+  } else {
+    g.fillStyle = INK;
+    g.font = `700 14px ${DINB}`;
+    g.fillText('STAFF RECORD · BASE CARD', 18, 32);
+    g.fillRect(18, 40, W - 36, 2);
+    g.strokeStyle = 'rgba(29,27,23,.6)';
+    g.lineWidth = 1;
+    g.strokeRect(W - 98, 56, 80, 100);
+    g.fillStyle = 'rgba(29,27,23,.45)';
+    g.font = `600 9px ${DIN}`;
+    g.fillText('PHOTO', W - 74, 110);
+    const rows: [string, string][] = [['NAME', rec.title], ['FILE NO.', rec.file], ['OPENED', rec.date ?? ''], ['DISTRICT', rec.place ?? '']];
+    rows.forEach(([k, v], i) => {
+      const y = 72 + i * 28;
+      g.fillStyle = 'rgba(29,27,23,.6)';
+      g.font = `600 9px ${DIN}`;
+      g.fillText(k, 18, y);
+      g.fillStyle = INK;
+      g.font = `14px ${SONG}`;
+      g.fillText(v, 18, y + 14, 170);
+      line(18, y + 18, 176);
+    });
+    g.fillStyle = 'rgba(29,27,23,.6)';
+    g.font = `600 9px ${DIN}`;
+    g.fillText('REMARKS', 18, 196);
+    g.fillStyle = INK;
+    g.font = `13px ${SONG}`;
+    const lines = wrapLines(g, plain(rec.summary), W - 40, 6);
+    lines.forEach((l, i) => g.fillText(l, 20, 218 + i * 22));
+    for (let i = 0; i < 7; i++) line(18, 222 + i * 22, W - 36);
+    g.save();
+    g.translate(W - 70, H - 46);
+    g.rotate(-0.12);
+    const ink = CLR_INK[rec.stamp] ?? INK;
+    g.strokeStyle = ink;
+    g.fillStyle = ink;
+    g.globalAlpha = 0.8;
+    g.lineWidth = 3;
+    g.font = `700 16px ${DINB}`;
+    const sw = g.measureText(rec.stamp).width + 16;
+    g.strokeRect(-sw / 2, -17, sw, 26);
+    g.fillText(rec.stamp, -sw / 2 + 8, 2);
+    g.restore();
+  }
+  return tex(c);
+}

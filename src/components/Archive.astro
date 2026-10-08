@@ -118,6 +118,7 @@ const links = new Set(records.flatMap((r) => r.related.filter((f) => records.som
         <button type="button" data-ls="row" aria-pressed="false"><i></i><span data-l="en">Pendants overhead</span><span data-l="zh">头顶吊灯</span></button>
         <button type="button" data-ls="desks" aria-pressed="false"><i></i><span data-l="en">Reading lamp</span><span data-l="zh">阅读灯</span></button>
         <button type="button" data-ls="blinds" aria-pressed="false"><i></i><span data-l="en">Window blinds shut</span><span data-l="zh">关百叶窗</span></button>
+        <button type="button" data-ls="atonce" aria-pressed="false"><i></i><span data-l="en">Open files at once</span><span data-l="zh">直接翻开</span></button>
         <button type="button" data-ls="seat" aria-pressed="false"><i></i><span data-l="en">Sit at the right</span><span data-l="zh">坐右边</span></button>
         <label class="dsv__bright"><span data-l="en">Paper brightness</span><span data-l="zh">纸面亮度</span><input type="range" id="ds-bright" min="60" max="160" value="88" aria-label="Paper brightness" /></label>
       </div>
@@ -267,6 +268,7 @@ const links = new Set(records.flatMap((r) => r.related.filter((f) => records.som
     <div class="cite-slip" id="ds-slip" role="dialog" aria-label="File reference" hidden></div>
     <footer class="dossier__foot">
       <button type="button" class="dossier__step" data-dstep="-1"><svg viewBox="0 0 24 12" aria-hidden="true"><path d="M24 6H2M7 1 2 6l5 5" /></svg><span>Previous</span></button>
+      <button type="button" class="dossier__step dossier__fold" id="ds-fold" aria-pressed="true"><span id="ds-fold-l">Open the folder</span></button>
       <span class="micro" id="ds-count">01 / 04</span>
       <button type="button" class="dossier__step" data-dstep="1"><span>Next</span><svg viewBox="0 0 24 12" aria-hidden="true"><path d="M0 6h22M17 1l5 5-5 5" /></svg></button>
     </footer>

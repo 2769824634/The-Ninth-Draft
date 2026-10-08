@@ -100,8 +100,13 @@ export class Sheet {
    * Sat down at the table: the folder slides over and opens on the blotter in
    * the room itself, and the sheet comes up out of it once it lies open.
    */
-  seat(rec: ArchiveRecord) {
-    const wait = reducedMotion() ? 0 : 1150 + (rec.stamp === 'TOP SECRET' ? 300 : 0);
+  seat(rec: ArchiveRecord, mode: 'full' | 'shut' | 'open' = 'full') {
+    // shut: the folder only comes over and lies on the blotter, the sheet stays under its cover
+    if (mode === 'shut') {
+      if (!reducedMotion()) window.setTimeout(() => audio.slide(), 250);
+      return;
+    }
+    const wait = reducedMotion() ? 0 : mode === 'open' ? 520 : 1150 + (rec.stamp === 'TOP SECRET' ? 300 : 0);
     this.root.classList.add('is-arriving', 'is-seating');
     window.clearTimeout(this.arrive);
     this.arrive = window.setTimeout(() => this.root.classList.remove('is-arriving', 'is-seating'), wait + 700);
@@ -115,9 +120,11 @@ export class Sheet {
       { duration: wait + 560, easing: EASE_OUT, fill: 'both' },
     );
     pa.onfinish = () => pa.cancel();
-    if (rec.stamp === 'TOP SECRET') window.setTimeout(() => audio.pluck(), 500);
-    window.setTimeout(() => audio.slide(), 250);
-    window.setTimeout(() => audio.flap(), wait - 450);
+    if (mode === 'full') {
+      if (rec.stamp === 'TOP SECRET') window.setTimeout(() => audio.pluck(), 500);
+      window.setTimeout(() => audio.slide(), 250);
+    }
+    window.setTimeout(() => audio.flap(), Math.max(0, wait - 450));
   }
 
   /** Getting up from the table: the sheet goes back down into the folder, which shuts in the room. */

@@ -15,13 +15,13 @@ import type { Vector3 } from 'three';
 import type { ArchiveRecord, Category } from '../types';
 import { StacksScene, STACKS_ZONES, type StacksZone, type PaperLit, type SheetPlace } from './scene';
 import { ROWS, type StacksCategory } from './room';
-import { fileCover } from './textures';
+import { fileCover, fileInside } from './textures';
 import { Cards } from './cards';
 import { islandDay, islandHalfDay, islandIso, islandNow } from '../island';
 import { islandHumidity, islandMoon, islandRaining } from '../weather';
 import { isZh } from '../i18n';
 import { audio } from '../audio';
-import { reducedMotion } from '../prefs';
+import { prefs, reducedMotion } from '../prefs';
 import { canvasFontsReady } from '../scene/textures';
 import { esc } from '../ui/text';
 import { clearanceKey } from '../clearance';
@@ -521,6 +521,9 @@ export class Stacks {
     else if (which === 'seat' && this.scene) {
       this.scene.room.setSide(this.scene.room.sideNow === 'l' ? 'r' : 'l');
       audio.paper();
+    } else if (which === 'atonce') {
+      prefs.set('openAtOnce', !prefs.get('openAtOnce'));
+      audio.rocker();
     } else if (which === 'blinds' && this.scene) {
       this.scene.blindsShut = !this.scene.blindsShut;
       audio.rocker();
@@ -546,6 +549,7 @@ export class Stacks {
     set('row', at === 'drawer' ? this.lights.rows[1] : this.lights.rows[3]);
     set('desks', this.lights.desks[1], at === 'table');
     set('blinds', !!this.scene?.blindsShut);
+    set('atonce', !!prefs.get('openAtOnce'), at === 'table');
     set('seat', this.scene?.room.sideNow === 'r', at === 'table');
   }
 
@@ -850,12 +854,17 @@ export class Stacks {
   }
 
   /** Sit down at the reading place with this file open on the blotter (null: get up). */
-  sit(rec: ArchiveRecord | null) {
+  sit(rec: ArchiveRecord | null, open = true) {
     const s = this.scene;
     if (!s) return;
     if (rec && this.open) this.closeCabinet(false);
-    s.room.seat(rec && this.table.includes(rec.file) ? rec.file : null);
+    s.room.seat(rec && this.table.includes(rec.file) ? rec.file : null, open);
     s.sit(!!rec && this.table.includes(rec.file));
+  }
+
+  /** Open or shut the file being read, on the reader's say. */
+  setOpened(open: boolean) {
+    this.scene?.room.setOpened(open);
   }
 
   /** Lay a second file open beside the one being read (null: put it back). */
@@ -888,7 +897,7 @@ export class Stacks {
     const recs = this.onTable;
     await canvasFontsReady(recs.map((r) => r.title).join(''));
     if (retype) s.room.setTable([]);
-    s.room.setTable(recs.map((r) => ({ file: r.file, category: r.category, map: () => fileCover(r.file, r.title, r.stamp, r.category) })), from, back);
+    s.room.setTable(recs.map((r) => ({ file: r.file, category: r.category, map: () => fileCover(r.file, r.title, r.stamp, r.category), inside: () => fileInside(r) })), from, back);
   }
 
   /** The table, as a list in the head column. */

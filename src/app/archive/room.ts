@@ -1634,7 +1634,7 @@ export class StacksRoom {
    * Lay these files on the table, in this order; the rest go. A file given a
    * `from` (a place in the room) is carried over from there and put down.
    */
-  setTable(items: { file: string; category: string; map: () => THREE.Texture }[], from?: Map<string, THREE.Vector3>, back?: Map<string, THREE.Vector3>) {
+  setTable(items: { file: string; category: string; map: () => THREE.Texture; inside?: () => THREE.Texture }[], from?: Map<string, THREE.Vector3>, back?: Map<string, THREE.Vector3>) {
     const keep = new Set(items.map((i) => i.file));
     for (const [f, c] of this.covers) {
       if (keep.has(f)) continue;
@@ -1656,7 +1656,7 @@ export class StacksRoom {
     items.forEach((it, i) => {
       let c = this.covers.get(it.file);
       if (!c) {
-        c = this.makeTableFile(it.file, it.category, it.map());
+        c = this.makeTableFile(it.file, it.category, it.map(), it.inside?.());
         const w = from?.get(it.file);
         if (w) {
           this.tableTop.updateWorldMatrix(true, false);
@@ -1670,10 +1670,18 @@ export class StacksRoom {
   }
 
   /** Sit down to read `file` at the reading place (null: get up, it goes back to its spot). */
-  seat(file: string | null) {
+  seat(file: string | null, open = true) {
     this.seated = file && this.covers.has(file) ? file : null;
+    this.openSeated = open;
     this.aimTable(false);
   }
+
+  /** Open or shut the cover of the file being read (the reader's own choice). */
+  setOpened(open: boolean) {
+    this.openSeated = open;
+    this.aimTable(false);
+  }
+  private openSeated = true;
 
   /** Where each file on the table should be: at its spot shut, or open on the blotter. */
   private aimTable(snapNew: boolean) {
@@ -1682,7 +1690,7 @@ export class StacksRoom {
       if (f === this.seated) {
         c.to.copy(this.seatFor(true)).setY(0.772 + 0.012);
         c.toRot = 0;
-        c.toOpen = 1;
+        c.toOpen = this.openSeated ? 1 : 0;
         c.toS = StacksRoom.LEAN;
       } else if (f === this.aside) {
         c.to.copy(this.seatFor(false)).setY(0.772 + 0.012);
@@ -1707,7 +1715,7 @@ export class StacksRoom {
    * A folder as it lies on the table: the back board with the sheet on it,
    * and the front cover hinged along its left edge, so it can be opened flat.
    */
-  private makeTableFile(file: string, category: string, map: THREE.Texture): TableFile {
+  private makeTableFile(file: string, category: string, map: THREE.Texture, inside?: THREE.Texture): TableFile {
     const M = this.M;
     const W = 0.235, D = 0.32;
     const g = new THREE.Group();
@@ -1729,6 +1737,14 @@ export class StacksRoom {
     face.position.set(W / 2, 0.0042, 0);
     face.receiveShadow = true;
     flap.add(face);
+    // the page on the inside of the cover, which lies on the left once it is open
+    if (inside) {
+      const back = new THREE.Mesh(new THREE.PlaneGeometry(W - 0.005, D - 0.005), std({ map: inside, roughness: 0.9 }));
+      back.rotation.set(Math.PI / 2, 0, Math.PI);
+      back.position.set(W / 2, -0.0001, 0);
+      back.receiveShadow = true;
+      flap.add(back);
+    }
     const hit = new THREE.Mesh(BOX, new THREE.MeshBasicMaterial({ visible: false }));
     hit.scale.set(W + 0.015, 0.06, D + 0.01);
     hit.position.y = 0.02;
