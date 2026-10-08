@@ -76,6 +76,16 @@ export function previousTenant(d: Door, built = 1975): (Household & { left: numb
   return { ...h, since: Math.max(built, since), left };
 }
 
+/**
+ * Born on the island, but the block went up after your childhood: the old
+ * block with the same number stood here and was rebuilt on the spot. Real
+ * estates did this; your friends' childhood blocks may well be the new ones.
+ */
+export function rebuilt(v: Pick<Visitor, 'origin' | 'dob'>, built: number): boolean {
+  const by = Number((v.dob || '').slice(0, 4));
+  return v.origin === 'G' && !!by && built > by + 6;
+}
+
 /* ---------- the letterbox ---------- */
 
 export interface Letter {
@@ -137,7 +147,7 @@ const POSTCARDS: Card[] = [
  * your family moved out, and the estate office kept the post that came for
  * you; now that you are back they have put it in your box.
  */
-export function letters(v: Pick<Visitor, 'code' | 'origin' | 'home'>, built = 1975): Letter[] {
+export function letters(v: Pick<Visitor, 'code' | 'origin' | 'home' | 'dob'>, built = 1975): Letter[] {
   const h = v.home;
   if (!h) return [];
   const prevT = previousTenant(h, built), prev = prevT;
@@ -176,7 +186,10 @@ export function letters(v: Pick<Visitor, 'code' | 'origin' | 'home'>, built = 19
 
   const office = (): Letter => ({
     kind: 'office', from: { en: 'Estate office', zh: '组屋管理处' }, to, date: `${dd(now.day)}.${dd(now.month + 1)}.99`,
-    body: {
+    body: rebuilt(v, built) ? {
+      en: `Dear resident,\n\nWelcome back to Blk ${h.blk}. Your family lived in the old Blk ${h.blk}, which stood on this site until it was pulled down for rebuilding. The new block was completed in ${built} with the same number, and former residents were offered flats on their old floor where possible. ${door} is yours.\n\nWhen the old block was cleared, post that could not be delivered was kept at this office. A few items addressed to you by name are enclosed with this note.\n\nThe utilities account has been opened in your name. Defects found in the first twelve months are repaired free of charge; please come to the estate office counter, Monday to Friday, 9 am to 5 pm, and ask for form B.\n\nEstate office`,
+      zh: `住户您好：\n\n欢迎回到 ${h.blk} 座。您家以前住在旧的 ${h.blk} 座，旧楼原来就在这块地上，后来拆掉重建。新楼 ${built} 年建好，座号没变，原来的住户尽量分回原来的楼层。${door} 就是您的。\n\n旧楼清空的时候，送不到的信都存在管理处。其中有几封写着您的名字，现在连同这张条子一起放进您的信箱。\n\n水电户口已经开在您的名下。头十二个月里发现的毛病一律免费维修，请礼拜一到礼拜五早上九点到下午五点来管理处柜台，跟我们拿 B 表。\n\n组屋管理处`,
+    } : {
       en: `Dear resident,\n\nWelcome back to Blk ${h.blk}. Our records show your family lived in ${door} before, and that the flat stood empty for some time after you moved out.\n\nDuring that time a few items of post addressed to you by name were returned to this office. We kept them in case anyone came back for them, and have put them in your letterbox together with this note.\n\nThe utilities account for the flat has been reopened in your name. If anything in the flat needs repair, please come to the estate office counter, Monday to Friday, 9 am to 5 pm, and ask for form B.\n\nEstate office`,
       zh: `住户您好：\n\n欢迎回到 ${h.blk} 座。记录显示您家以前住在 ${door}，搬走以后这个单位空了一段时间。\n\n那段时间里，有几封写着您名字的信被退回管理处。我们一直替您收着，想着说不定有人会回来拿，现在连同这张条子一起放进您的信箱。\n\n这个单位的水电户口已经改回您的名下。屋里有什么要修的，请礼拜一到礼拜五早上九点到下午五点来管理处柜台，跟我们拿 B 表。\n\n组屋管理处`,
     },
@@ -196,7 +209,7 @@ export function letters(v: Pick<Visitor, 'code' | 'origin' | 'home'>, built = 19
     const el = kwh * 0.16, wa = m3 * 1.17, re = 6.5, tot = (el + wa + re).toFixed(2);
     const due = Math.min(28, d + 21);
     const tail: L = born
-      ? { en: 'This account was reopened on your return. A deposit of $40.00 will appear on your next bill.', zh: '此户口已于您迁回时重新开立，下期账单将加收按金 40.00 元。' }
+      ? rebuilt(v, built) ? { en: 'This is the first bill for this account. A deposit of $40.00 has been included and will be refunded when the account is closed.', zh: '这是本户口的第一张账单，已包括按金 40.00 元，户口结束时退还。' } : { en: 'This account was reopened on your return. A deposit of $40.00 will appear on your next bill.', zh: '此户口已于您迁回时重新开立，下期账单将加收按金 40.00 元。' }
       : !prev
       ? { en: 'This is the first bill for this account. A deposit of $40.00 has been included and will be refunded when the account is closed.', zh: '这是本户口的第一张账单，已包括按金 40.00 元，户口结束时退还。' }
       : { en: `This account is still registered to ${prev.plate}. If you are the new occupant, please bring your tenancy papers to any Utilities Board office so that the account can be transferred to your name.`, zh: `此户口仍登记在 ${prev.plate} 名下。如您是新住户，请携带租住文件到任何一间公用事业局办事处办理过户。` };

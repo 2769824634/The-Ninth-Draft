@@ -395,7 +395,9 @@ const arrow = '<svg viewBox="0 0 24 12" aria-hidden="true"><path d="M0 6h22M17 1
     if (!found.includes(b)) found = [b, ...found];
     if (fly) sm.goto(b.x, b.y, 5000, { block: b.i });
     audio.click();
-    say(COUNTER.found, { blk: b.no, year: String(b.year) });
+    // born here, but the block is newer than your childhood: it was rebuilt on the spot
+    const by = birthYear();
+    say(by && b.year > by + 6 ? COUNTER.foundRebuilt : COUNTER.found, { blk: b.no, year: String(b.year) });
     renderOld();
     renderCard();
   };

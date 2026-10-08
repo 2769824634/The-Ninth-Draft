@@ -55,6 +55,7 @@ export const COUNTER = {
   // born here: the old address
   find: { en: 'Which block? Number and street, or the postcode. People remember postcodes.', zh: '哪一座？座号加街名，或者邮编。人都记得邮编。' },
   found: { en: 'Blk {blk}, built {year}. Which floor were you on? And which door?', zh: '{blk} 座，{year} 年建的。住几楼？哪个门？' },
+  foundRebuilt: { en: 'Blk {blk}. The old block was pulled down and a new one went up on the same spot in {year}, same number. Most of the old families were given flats in the new one. Which floor were you on? We put you on the same floor and door.', zh: '{blk} 座。旧楼拆掉了，{year} 年在原地盖了新楼，座号没变，原来的住户大多分回新楼。你以前住几楼？按原来的楼层和门牌给你。' },
   shop: { en: 'That one has no flats in it. Shops downstairs, nobody upstairs.', zh: '那一座没有住家，楼下是店，楼上没人。' },
   reissue: { en: 'Reissued at the old address. It saves us drawing a new line on the map.', zh: '按旧址补发。省得我们在地图上再画一条线。' },
   review: { en: 'Read it back. Once it is filed, it is the version we keep.', zh: '核对一遍。归档以后，署里就认这一份。' },

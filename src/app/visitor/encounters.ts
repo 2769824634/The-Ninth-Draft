@@ -12,7 +12,7 @@
 import { CAST, type L } from '../../data/gerimis/people';
 import { islandNow, type IslandTime } from '../island';
 import { DOORS, doorText } from './home';
-import { household, previousTenant, type Household } from './households';
+import { household, previousTenant, rebuilt, type Household } from './households';
 import { hash, normCode, type Visitor } from './store';
 
 const KEY = 'n9:visits';
@@ -57,7 +57,10 @@ export function countVisit(at = Date.now()): { before: Visits; now: Visits } {
 }
 
 interface Ctx {
-  v: Pick<Visitor, 'code' | 'origin' | 'district' | 'home'>;
+  v: Pick<Visitor, 'code' | 'origin' | 'district' | 'home' | 'dob'>;
+  /** Born here, and the block was rebuilt on the spot since your childhood. */
+  rebuilt: boolean;
+  built: number;
   t: IslandTime;
   /** Visits before this one. */
   seen: Visits;
@@ -108,7 +111,9 @@ const day = (c: Ctx) => c.t.hours >= 7 && c.t.hours < 21;
 export const ENCOUNTERS: Encounter[] = [
   { id: 'first', who: 'next', when: (c) => c.seen.n === 0 && day(c) && !!c.next,
     scene: (c, f) => ({ en: `${f!.name.en} from ${c.next!.door}, next door, is putting a pair of slippers out on the shoe rack as you come out of the lift.`, zh: `你走出电梯，隔壁 ${c.next!.door} 的${f!.name.zh}正把一双拖鞋摆到门口鞋架上。` }),
-    say: (c) => c.v.origin === 'G' && c.next!.h.since <= 1990
+    say: (c) => c.rebuilt
+      ? { en: `You are the child from the old Blk ${c.v.home!.blk}, aren't you? Same floor as before. When they pulled the old block down, most of us asked to come back to the new one, so a lot of the faces on this corridor are the same. The lifts stop at every floor now, and the rubbish chute is inside the kitchen, no more walking to the staircase. Knock if you need anything.`, zh: `你是以前住旧 ${c.v.home!.blk} 座那家的孩子吧？还是原来那层。旧楼拆的时候，我们大多申请回到新楼，所以这条走廊很多都是老面孔。现在电梯每层都停，垃圾槽就在厨房里，不用再走到楼梯那边去丢。有事就敲门。` }
+      : c.v.origin === 'G' && c.next!.h.since <= 1990
       ? { en: `Eh, you are the child from ${c.door}, right? I remember you riding a tricycle up and down this corridor. Your mother used to bring us kueh at Chinese New Year. Moving back in? Good, the flat has been empty too long. We are still here, same as before, knock if you need anything.`, zh: `咦，你是以前住 ${c.door} 那家的孩子吧？我记得你小时候骑三轮车在这条走廊来来回回。过年你妈妈还会拿糕点过来。搬回来住了？好啊，那间屋空太久了。我们还住这里，跟以前一样，有事就敲门。` }
       : c.v.origin === 'G'
       ? { en: `I heard you grew up in ${c.door}? We only moved in in ${c.next!.h.since}, your family had already left by then. Welcome back. The rubbish chute is still behind the staircase, try not to use it after ten at night. The estate office is open nine to five on weekdays if anything in the flat needs fixing. Knock if you need anything.`, zh: `听说你小时候就住 ${c.door}？我们 ${c.next!.h.since} 年才搬来，那时候你家已经搬走了。欢迎回来。垃圾槽还是在楼梯旁边，晚上十点以后尽量别丢。屋里有什么要修，组屋管理处平日九点到五点有人。有事就敲门。` }
@@ -131,7 +136,7 @@ export const ENCOUNTERS: Encounter[] = [
       : { en: `${c.door}? There is post for ${c.prev.plate} again. If you know their new address, write it on the envelope. If not, write "Not at this address" and drop it in the red postbox, I will send it back. Please don't throw it away, someone may be waiting for an answer.`, zh: `${c.door}？又有寄给 ${c.prev.plate} 的信。知道他们新地址的话就写在信封上；不知道就写「查无此人」，丢进红色邮筒，我拿回去退。别丢掉，说不定有人在等回信。` } },
   { id: 'shop', who: 'shop', when: (c) => c.t.hours >= 8 && c.t.hours < 22,
     scene: (_c, f) => ({ en: `${f!.name.en} is stacking crates of soft drinks outside the provision shop at the foot of the block.`, zh: `${f!.name.zh}在楼下杂货店门口叠汽水箱。` }),
-    say: () => ({ en: 'New here? I am at the shop downstairs. Gas cylinders come on Thursday morning; leave your name and door number with me by Wednesday night. Rice, eggs, soap, I can deliver to your door if it comes to more than twenty dollars. Regulars can write it in my book and pay at the end of the month.', zh: '新来的？我在楼下开店。煤气礼拜四早上到，要的话礼拜三晚上以前把名字和门牌留给我。米、蛋、肥皂，买满二十块我送上门。熟客可以记在本子上，月底再算。' }) },
+    say: (c) => ({ en: `${c.v.origin === 'G' ? 'Moved back? ' : 'New here? '}I am at the shop downstairs. Gas cylinders come on Thursday morning; leave your name and door number with me by Wednesday night. Rice, eggs, soap, I can deliver to your door if it comes to more than twenty dollars. Regulars can write it in my book and pay at the end of the month.`, zh: `${c.v.origin === 'G' ? '搬回来住了？' : '新来的？'}我在楼下开店。煤气礼拜四早上到，要的话礼拜三晚上以前把名字和门牌留给我。米、蛋、肥皂，买满二十块我送上门。熟客可以记在本子上，月底再算。` }) },
   { id: 'evening', who: 'next', when: (c) => c.seen.n >= 1 && c.t.hours >= 17 && c.t.hours < 21 && !!c.next,
     scene: (c, f) => ({ en: `${f!.name.en} from next door, who ${c.next!.h.job.en}, is coming home with dinner in a plastic bag.`, zh: `隔壁的${f!.name.zh}（${c.next!.h.job.zh}）下班回来，手上提着一袋打包的晚饭。` }),
     say: () => ({ en: 'Hot today, the lift was like an oven. Have you seen the notice board this week? Have a look before you go up, sometimes they cut the water and nobody remembers until the tap is dry. We cooked too much curry yesterday, if you want some, knock.', zh: '今天好热，电梯里像烤炉。这礼拜的告示看了没有？上楼前去看一下，有时候停水，大家都是开水龙头才想起来。我们昨天咖喱煮多了，要的话来敲门。' }) },
@@ -166,7 +171,7 @@ export function encounter(v: Ctx['v'], seen: Visits, at = Date.now(), built = 19
     const hh = household(d, built);
     if (hh) { next = { h: hh, door: doorText(d) }; break; }
   }
-  const c: Ctx = { v, t, seen, away: seen.last ? (at - seen.last) / 3.6e6 : Infinity, door: doorText(h), next, prev: previousTenant(h, built) };
+  const c: Ctx = { v, rebuilt: rebuilt(v, built), built, t, seen, away: seen.last ? (at - seen.last) / 3.6e6 : Infinity, door: doorText(h), next, prev: previousTenant(h, built) };
   const seed = `${normCode(v.code)}#${t.month}#${t.day}#${t.hours}`;
   // the special ones first, the everyday ones after, shuffled within each; noticing things comes last
   const rank = (e: Encounter) => (e.id === 'first' || e.id === 'away' ? 0 : e.id === 'chess' ? 2 : 1);

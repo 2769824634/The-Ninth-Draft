@@ -98,7 +98,7 @@ const arrow = '<svg viewBox="0 0 24 12" aria-hidden="true"><path d="M0 6h22M17 1
   import { keepOpened, opened, reseal, sealed } from '../../app/visitor/envelope';
   import { mountStreetMap } from '../../app/map/mount';
   import { reducedMotion } from '../../app/prefs';
-  import { household, letters, notices, previousTenant, type Letter } from '../../app/visitor/households';
+  import { household, letters, notices, previousTenant, rebuilt, type Letter } from '../../app/visitor/households';
   import { countVisit, encounter } from '../../app/visitor/encounters';
 
   const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -154,6 +154,8 @@ const arrow = '<svg viewBox="0 0 24 12" aria-hidden="true"><path d="M0 6h22M17 1
       const prev = previousTenant(h, built);
       $('mbox-note').textContent = !mail.length
         ? zh ? '信箱是空的。邮差平日上午十点以后才来。' : 'Empty. The postman comes after ten on weekdays.'
+        : rebuilt(v!, built)
+          ? zh ? `${mail.length} 封。你小时候住的旧 ${h.blk} 座拆掉重建了，新楼 ${built} 年建好，座号没变。旧楼清空时送不到的信存在管理处，现在连同一张条子放进了你的信箱。` : `${mail.length} letters. The old Blk ${h.blk} you grew up in was pulled down and rebuilt on the spot; the new block, same number, was finished in ${built}. Post that could not be delivered when the old block was cleared went to the estate office, and they have put it in your box with a note.`
         : v!.origin === 'G'
           ? zh ? `${mail.length} 封。你家搬走以后，这里空了一阵，寄给你的信都退到了管理处。你回来了，管理处把信连同一张条子放进信箱。` : `${mail.length} letters. After your family moved out the flat stood empty, and post for you went back to the estate office. Now that you are back, they have put it in your box with a note.`
           : !prev
