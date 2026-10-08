@@ -1273,3 +1273,11 @@ a.cite:hover, a.cite:focus-visible { color: var(--accent); text-decoration-style
 
 /* the sheet being peeled to another draft stays under the light shading (it used to lie over it and show unshaded) */
 .archive[data-pin] .dossier .peel { z-index: 2; }
+
+/* a folder that lies shut on the blotter: the sheet waits under its cover until the reader opens it */
+.archive[data-pin][data-shut] .dossier__sheet { opacity: 0; visibility: hidden; pointer-events: none; }
+.archive[data-pin][data-shut] .dossier__sheet > * { pointer-events: none; }
+.dossier__fold { display: none; }
+.archive[data-pin] .dossier__fold { display: inline-flex; }
+
+.archive[data-shut] .dossier__fold { color: var(--accent); }

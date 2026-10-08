@@ -254,12 +254,19 @@ export function start() {
     };
     // at the table you sit down and read it on the blotter, in the room
     const seated = at === 'table' && stacks.canSit;
-    if (seated) stacks.sit(rec);
+    // the folder lies shut on the blotter and the reader opens it, unless they would rather it opened itself
+    const shutFirst = seated && pinnable() && !prefs.get('openAtOnce');
+    if (seated) stacks.sit(rec, !shutFirst);
     else if (already && wasAt === 'table') stacks.sit(null);
-    if (already) sheet.swap(dir, at === 'table', fill);
-    else {
+    if (shutFirst) setShut(true);
+    else delete root.dataset.shut;
+    if (already && !(shutFirst && wasAt === 'table')) sheet.swap(dir, at === 'table', fill);
+    else if (already) {
       fill();
-      if (seated) sheet.seat(rec);
+      audio.slide();
+    } else {
+      fill();
+      if (seated) sheet.seat(rec, shutFirst ? 'shut' : 'full');
       else sheet.open(stacks.screenPoint(rec, at), rec);
     }
     $('btn-back').querySelector('span')!.textContent = backLabel();
@@ -299,8 +306,35 @@ export function start() {
   };
   if (location.search) history.replaceState(history.state, '', location.pathname + location.hash);
 
+  /** The file on the table lies shut (true) or open (false). */
+  function setShut(v: boolean) {
+    if (v) root.dataset.shut = '';
+    else delete root.dataset.shut;
+    const f = document.getElementById('ds-fold');
+    if (f) f.setAttribute('aria-pressed', String(!v));
+    const l = document.getElementById('ds-fold-l');
+    if (l) l.textContent = t(v ? 'Open the folder' : 'Shut the folder');
+  }
+  function openFolder() {
+    if (!current || root.dataset.shut === undefined) return;
+    setShut(false);
+    stacks.setOpened(true);
+    sheet.seat(current, 'open');
+  }
+  function shutFolder() {
+    if (!current || root.dataset.shut !== undefined) return;
+    sheet.rise();
+    setShut(true);
+    stacks.setOpened(false);
+  }
+  function toggleFolder() {
+    if (root.dataset.shut !== undefined) openFolder();
+    else shutFolder();
+  }
+
   function closeRecord(push = true) {
     if (view !== 'detail') return;
+    delete root.dataset.shut;
     if (returnTo) {
       const to = returnTo;
       returnTo = null;
@@ -646,6 +680,7 @@ export function start() {
   document.querySelectorAll<HTMLButtonElement>('[data-theme-set]').forEach((b) =>
     b.addEventListener('click', () => applyTheme(b.dataset.themeSet as 'day' | 'night')),
   );
+  document.getElementById('ds-fold')?.addEventListener('click', toggleFolder);
   document.querySelectorAll<HTMLButtonElement>('[data-dstep]').forEach((b) => b.addEventListener('click', () => stepRecord(Number(b.dataset.dstep))));
   const goHome = (e: Event) => {
     if ((e as MouseEvent).metaKey || (e as MouseEvent).ctrlKey) return;
@@ -693,6 +728,7 @@ export function start() {
     }
     if (e.key === 'Escape' && dossier.slipOpen) { e.preventDefault(); dossier.closeSlip(); }
     else if (e.key === 'Escape' || e.key === 'Backspace') { e.preventDefault(); closeRecord(); }
+    else if (e.key === 'Enter' && root.dataset.shut !== undefined && !(e.target instanceof HTMLButtonElement)) { e.preventDefault(); openFolder(); }
     else if (e.key === 'ArrowRight') { e.preventDefault(); stepRecord(1); }
     else if (e.key === 'ArrowLeft') { e.preventDefault(); stepRecord(-1); }
     else if (['1', '2', '3'].includes(e.key)) dossier.jump(Number(e.key));
