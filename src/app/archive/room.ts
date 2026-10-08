@@ -97,6 +97,23 @@ export interface DeskLamp {
 
 const std = (o: THREE.MeshStandardMaterialParameters) => new THREE.MeshStandardMaterial({ roughness: 0.8, ...o });
 
+let roundMap: THREE.Texture | null = null;
+/** A round soft glow, white in the middle, gone at the edge: the halo round a lit bulb. */
+function roundGlow() {
+  if (roundMap) return roundMap;
+  const c = document.createElement('canvas');
+  c.width = c.height = 64;
+  const x = c.getContext('2d')!;
+  const g = x.createRadialGradient(32, 32, 0, 32, 32, 32);
+  g.addColorStop(0, 'rgba(255,255,255,1)');
+  g.addColorStop(0.35, 'rgba(255,255,255,.35)');
+  g.addColorStop(1, 'rgba(255,255,255,0)');
+  x.fillStyle = g;
+  x.fillRect(0, 0, 64, 64);
+  roundMap = new THREE.CanvasTexture(c);
+  return roundMap;
+}
+
 /** A folder lying on the reading table, and where it is going. */
 let blobMap: THREE.Texture | null = null;
 /** A soft dark patch, for the shadow where a folder lies on the blotter. */
@@ -539,57 +556,151 @@ export class StacksRoom {
       light.position.set(0.86, -0.2, 0);
       light.target.position.set(0.95, -1.15, 0);
     } else {
-      // weighted foot at the far edge, a stem, the twin-tube head out over the top of the sheet
-      this.rbox(g, 0.2, 0.025, 0.13, 0.01, 0, 0.012, 0, M.steelDark);
-      this.cyl(g, 0.011, 0.011, 0.19, 0, 0.1, 0, M.chrome, 12);
-      this.box(g, 0.02, 0.02, 0.15, 0, 0.2, 0.065, M.chrome);
-      housing = new THREE.Group();
-      housing.position.set(0, 0.195, 0.14);
-      housing.rotation.y = Math.PI / 2;
-      g.add(housing);
-      light.position.set(0, 0.15, 0.15);
-      light.target.position.set(0, -0.6, 0.5);
-      // the lamp and its cord answer a click, like the brass ones
-      const hb = new THREE.Mesh(BOX, new THREE.MeshBasicMaterial({ visible: false }));
-      hb.scale.set(0.6, 0.3, 0.3);
-      hb.position.set(0, 0.15, 0.1);
-      hb.userData = { exam: this.exams.length, key: `exam:${this.exams.length}` };
-      g.add(hb);
-      this.hits.push(hb);
+      this.armLamp(g);
+      return;
     }
     // the head: an enamel trough with an opal tube in it, end caps, a pull cord
     this.rbox(housing, 0.075, 0.045, 0.56, 0.01, 0, 0.012, 0, enamel);
     const t1 = this.cyl(housing, 0.013, 0.013, 0.5, 0, -0.012, 0, tube, 16);
     t1.rotation.x = Math.PI / 2;
     t1.castShadow = false;
-    if (place === 'table') {
-      // the two tubes stand proud of the reflector, so from the chair you see them lit
-      const t2 = this.cyl(housing, 0.014, 0.014, 0.5, 0.046, -0.004, 0, tube, 16);
-      t2.rotation.x = Math.PI / 2;
-      t2.castShadow = false;
-      t1.position.set(-0.046, -0.004, 0);
-    }
     for (const sz of [-1, 1]) this.box(housing, 0.08, 0.05, 0.012, 0, 0.008, sz * 0.27, M.steelDark);
     this.box(housing, 0.002, 0.14, 0.002, 0.03, -0.07, 0.24, M.cream, false);
     const bead = new THREE.Mesh(new THREE.SphereGeometry(0.007, 8, 6), M.black);
     bead.position.set(0.03, -0.14, 0.24);
     housing.add(bead);
-    // at the table the lamp is close over the page: it throws the head's shadow and the folders' across the desk
-    if (place === 'table') {
-      light.castShadow = true;
-      light.shadow.mapSize.set(1024, 1024);
-      light.shadow.camera.near = 0.04;
-      light.shadow.bias = -0.0004;
-      light.shadow.normalBias = 0.006;
-    } else light.castShadow = false;
+    light.castShadow = false;
     g.add(light, light.target);
     const glow = new THREE.SpriteMaterial({ map: hazeTexture(), color: '#dfe9ff', transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false });
     const halo = new THREE.Sprite(glow);
     halo.scale.set(0.78, 0.2, 1);
     // a little in front of the reflector and under it, where the tubes are bare
-    halo.position.set(place === 'table' ? -0.06 : 0, -0.03, 0);
+    halo.position.set(0, -0.03, 0);
     housing.add(halo);
-    this.exams.push({ light, tube, place, ci, glow, gain: place === 'table' ? 0.07 : 1 });
+    this.exams.push({ light, tube, place, ci, glow, gain: 1 });
+  }
+
+  /** The reading table's examination lamp: set by the aim of its arm, which follows the file. */
+  private arm?: { yaw: THREE.Group; head: THREE.Group; g: THREE.Group; aim: THREE.Vector3; ready: boolean };
+
+  /**
+   * A clamp-on swing-arm lamp: clamp at the back edge of the table, a swivel,
+   * two sprung arms and a green enamel shade over an opal bulb. The arm is
+   * solved from where its head should hang (tickArm), so it swings to follow a
+   * file carried across the room and settles over it on the blotter.
+   */
+  private armLamp(g: THREE.Group) {
+    const M = this.M;
+    const enamel = std({ color: '#4f6350', roughness: 0.4, metalness: 0.2, side: THREE.DoubleSide });
+    const bulb = std({ color: '#f4f6f8', emissive: '#e6eeff', emissiveIntensity: 0.02, roughness: 0.2 });
+    // the clamp and the swivel post
+    this.rbox(g, 0.085, 0.03, 0.07, 0.006, 0, 0.015, 0, M.steelDark);
+    this.cyl(g, 0.007, 0.007, 0.06, 0, -0.01, 0.0, M.chrome, 10);
+    this.rbox(g, 0.03, 0.012, 0.04, 0.004, 0, 0.036, 0, M.steelDark);
+    this.cyl(g, 0.026, 0.026, 0.022, 0, 0.05, 0, M.brass, 20);
+    this.cyl(g, 0.011, 0.011, 0.04, 0, 0.08, 0, M.chrome, 12);
+    const yaw = new THREE.Group();
+    yaw.position.set(0, 0.1, 0);
+    g.add(yaw);
+    const L1 = 0.3, L2 = 0.3;
+    // one arm: a pair of rods between two brass knuckles
+    const rods = (len: number, ang: number, at: THREE.Vector3) => {
+      const a = new THREE.Group();
+      a.position.copy(at);
+      a.rotation.x = -ang;
+      for (const sx of [-0.011, 0.011]) {
+        const r = this.cyl(a, 0.0045, 0.0045, len, sx, 0, len / 2, M.chrome, 8);
+        r.rotation.x = Math.PI / 2;
+        r.castShadow = false;
+      }
+      for (const z of [0, len]) {
+        const k = this.cyl(a, 0.015, 0.015, 0.05, 0, 0, z, M.brass, 14);
+        k.rotation.z = Math.PI / 2;
+        k.castShadow = false;
+      }
+      return a;
+    };
+    const lower = rods(L1, 0.9, new THREE.Vector3());
+    const upper = rods(L2, 0.1, new THREE.Vector3());
+    yaw.add(lower, upper);
+    // the return spring along the lower arm
+    const pts: THREE.Vector3[] = [];
+    for (let i = 0; i <= 60; i++) pts.push(new THREE.Vector3(0, 0.024 + 0.011 * Math.sin(i * 1.1), 0.05 + (i / 60) * (L1 - 0.1)).add(new THREE.Vector3(0.011 * Math.cos(i * 1.1), 0, 0)));
+    const spring = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 240, 0.0016, 5), M.chrome);
+    spring.castShadow = false;
+    lower.add(spring);
+    // the head, hung from its joint: shade, rim, bulb, a click target
+    const head = new THREE.Group();
+    yaw.add(head);
+    const prof = [[0.012, -0.02], [0.04, -0.028], [0.072, -0.06], [0.094, -0.108], [0.097, -0.13], [0.091, -0.13], [0.088, -0.108], [0.068, -0.062], [0.036, -0.036], [0.012, -0.032]];
+    const shade = new THREE.Mesh(new THREE.LatheGeometry(prof.map(([r, y]) => new THREE.Vector2(r, y)), 36), enamel);
+    shade.castShadow = false;
+    head.add(shade);
+    const rim = new THREE.Mesh(new THREE.TorusGeometry(0.094, 0.0035, 8, 36), M.brass);
+    rim.rotation.x = Math.PI / 2;
+    rim.position.y = -0.13;
+    head.add(rim);
+    const knob = new THREE.Mesh(new THREE.SphereGeometry(0.014, 12, 10), M.brass);
+    head.add(knob);
+    const glass = new THREE.Mesh(new THREE.SphereGeometry(0.032, 16, 12), bulb);
+    glass.position.y = -0.085;
+    glass.castShadow = false;
+    head.add(glass);
+    const light = new THREE.SpotLight('#d4e2ff', 0, 3.2, 0.78, 0.7, 1.6);
+    light.position.set(0, -0.09, 0);
+    light.target.position.set(0, -1, 0);
+    light.castShadow = true;
+    light.shadow.mapSize.set(1024, 1024);
+    light.shadow.camera.near = 0.04;
+    light.shadow.bias = -0.0004;
+    light.shadow.normalBias = 0.006;
+    head.add(light, light.target);
+    const glow = new THREE.SpriteMaterial({ map: roundGlow(), color: '#dfe9ff', transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false });
+    const halo = new THREE.Sprite(glow);
+    halo.scale.set(0.3, 0.3, 1);
+    halo.position.y = -0.1;
+    head.add(halo);
+    const hb = new THREE.Mesh(BOX, new THREE.MeshBasicMaterial({ visible: false }));
+    hb.scale.set(0.22, 0.17, 0.22);
+    hb.position.y = -0.07;
+    hb.userData = { exam: this.exams.length, key: `exam:${this.exams.length}` };
+    head.add(hb);
+    this.hits.push(hb);
+    this.exams.push({ light, tube: bulb, place: 'table', ci: -1, glow, gain: 0.07 });
+    this.arm = { yaw, head, g, aim: new THREE.Vector3(-0.55, 0.79, 0.11), ready: false };
+    this.armParts = { lower, upper, L1, L2 };
+  }
+
+  private armParts?: { lower: THREE.Group; upper: THREE.Group; L1: number; L2: number };
+
+  /** Swing the arm so its head hangs over `target` (a point in the table's frame); `snap` skips the swing. */
+  private tickArm(dt: number, target: THREE.Vector3, snap: boolean) {
+    const A = this.arm, P = this.armParts;
+    if (!A || !P) return;
+    this.tableTop.updateWorldMatrix(true, false);
+    A.g.updateWorldMatrix(true, false);
+    const want = A.g.worldToLocal(this.tableTop.localToWorld(target.clone()));
+    if (snap || !A.ready) A.aim.copy(want);
+    else A.aim.lerp(want, 1 - Math.exp(-dt * 4.5));
+    A.ready = true;
+    // where the joint of the head hangs: up and behind the paper, so the shade never covers it
+    const jx = A.aim.x, jy = A.aim.y + 0.34 - 0.1, jz = A.aim.z - 0.26;
+    const psi = Math.atan2(jx, jz);
+    const r = Math.max(0.05, Math.hypot(jx, jz)), v = jy;
+    const { L1, L2 } = P;
+    const d = Math.min(L1 + L2 - 0.01, Math.max(Math.abs(L1 - L2) + 0.02, Math.hypot(r, v)));
+    const a = Math.atan2(v, r) + Math.acos(Math.min(1, Math.max(-1, (L1 * L1 + d * d - L2 * L2) / (2 * L1 * d))));
+    const e = new THREE.Vector2(L1 * Math.cos(a), L1 * Math.sin(a));
+    const hr = d * Math.cos(Math.atan2(v, r)), hv = d * Math.sin(Math.atan2(v, r));
+    const b = Math.atan2(hv - e.y, hr - e.x);
+    A.yaw.rotation.y = psi;
+    P.lower.rotation.x = -a;
+    P.upper.position.set(0, e.y, e.x);
+    P.upper.rotation.x = -b;
+    A.head.position.set(0, hv, hr);
+    // the shade tips to look at the paper
+    const to = new THREE.Vector3(0, A.aim.y + 0.02 - (A.yaw.position.y + hv), Math.hypot(A.aim.x, A.aim.z) - hr);
+    A.head.quaternion.setFromUnitVectors(new THREE.Vector3(0, -1, 0), to.normalize());
   }
 
   /** A brass desk lamp with an opal inside to its shade. */
@@ -1596,6 +1707,10 @@ export class StacksRoom {
       // a file laid beside the one being read has only its sheet out: its cover is not in the way
       c.flap.visible = f !== this.aside;
     }
+    // the lamp's arm swings after a file being carried, and rests over the reading place
+    let at = StacksRoom.SEAT;
+    for (const c of this.covers.values()) if (c.carry) at = c.g.position;
+    this.tickArm(dt, at, !motion);
   }
 
   /** Called when a carried file lands on the table. */

@@ -57,6 +57,8 @@ export interface SheetPlace {
 
 /** The width, in CSS pixels, of the page laid over the sheet; its height follows the sheet's own proportions. */
 export const PIN_W = 560;
+/** The room's lamps at one fixed strength, set against the tone-mapped exposure: the same sitting or walking. */
+const LAMP = 0.28;
 
 export interface StacksEvents {
   /** The light on the page being read changed. */
@@ -140,8 +142,6 @@ export class StacksScene {
   private flicker = [0, 0, 0, 0];
   private desks = [false, false, false];
   private deskLevel = [0, 0, 0];
-  /** How strongly the lamps over the table strike, 1 from across the room: sat right under them the eye settles and they read a third as bright. */
-  private eye = 1;
   /** Examination tubes: wanted level, level now, and time since the starter kicked in (-1 = steady). */
   private exam: number[] = [];
   private examLevel: number[] = [];
@@ -160,7 +160,8 @@ export class StacksScene {
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true, powerPreference: 'high-performance' });
     this.renderer.setClearColor(0x000000, 0);
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
-    this.renderer.toneMapping = THREE.NoToneMapping;
+    this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    this.renderer.toneMappingExposure = 1;
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     setStacksAniso(Math.min(8, this.renderer.capabilities.getMaxAnisotropy()));
@@ -198,8 +199,8 @@ export class StacksScene {
   private viewOf(z: StacksZone): View {
     if (this.seated) {
       // in the chair, leaning over the blotter: the sheet in the middle, the brass lamps either side, the tube above
-      if (this.paired) return { at: this.room.readSpot(true).add(new THREE.Vector3(0, 0.04, -0.05)), dir: new THREE.Vector3(0, 1, 0.55).normalize(), w: 0.78, h: 0.4 };
-      return { at: this.room.readSpot().add(new THREE.Vector3(0, 0.04, -0.05)), dir: new THREE.Vector3(0, 1, 0.55).normalize(), w: 0.3, h: 0.4 };
+      if (this.paired) return { at: this.room.readSpot(true).add(new THREE.Vector3(0, 0.04, -0.1)), dir: new THREE.Vector3(0, 1, 0.55).normalize(), w: 0.78, h: 0.56 };
+      return { at: this.room.readSpot().add(new THREE.Vector3(0, 0.04, -0.1)), dir: new THREE.Vector3(0, 1, 0.55).normalize(), w: 0.3, h: 0.58 };
     }
     if (this.drawer) {
       // over the open drawer, looking down into it from the front
@@ -411,8 +412,6 @@ export class StacksScene {
     });
     r.exitMat.emissiveIntensity = 0.3 + L.night * 0.9;
 
-    // sat down at the table, the eye settles to the lamps over it
-    this.eye += ((this.seated ? 0.35 : 1) - this.eye) * (this.reduce ? 1 : Math.min(1, dt * 2.5));
     // lamps
     for (let i = 0; i < 4; i++) {
       let want = this.rows[i] ? 1 : 0;
@@ -424,15 +423,15 @@ export class StacksScene {
     }
     for (const p of r.pendants) {
       const lv = this.rowLevel[p.row];
-      p.light.intensity = L.pendant * lv * this.eye;
+      p.light.intensity = L.pendant * lv * LAMP;
       p.light.visible = p.light.intensity > 0.01;
-      p.fill.intensity = lv * (0.4 + L.night * 0.25) * this.eye;
+      p.fill.intensity = lv * (0.4 + L.night * 0.25) * LAMP;
       p.bulb.emissiveIntensity = 0.05 + lv * (0.6 + L.night * 1.9);
       p.glass.emissiveIntensity = 0.02 + lv * (0.15 + L.night * 0.75);
     }
     r.desks.forEach((d, i) => {
       this.deskLevel[i] += ((this.desks[i] ? 1 : 0) - this.deskLevel[i]) * Math.min(1, dt * (this.desks[i] ? 7 : 4.5));
-      d.light.intensity = L.desk * this.deskLevel[i] * (i === 2 ? 0.38 : i < 2 ? this.eye * 0.9 : 1);
+      d.light.intensity = L.desk * this.deskLevel[i] * (i === 2 ? 0.38 : LAMP);
       d.light.visible = d.light.intensity > 0.01;
       d.inner.emissiveIntensity = 0.05 + this.deskLevel[i] * (0.4 + L.night * 0.8);
     });

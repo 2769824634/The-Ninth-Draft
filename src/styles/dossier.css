@@ -1167,14 +1167,17 @@ a.cite:hover, a.cite:focus-visible { color: var(--accent); text-decoration-style
 .archive[data-pin] .ds-table { position: absolute; left: calc(var(--pw, 560px) * -0.6); top: calc(var(--ph, 780px) - 5.6rem); width: calc(var(--pw, 560px) * .56); margin: 0; }
 .archive[data-pin] .dossier__foot {
   position: absolute;
-  left: calc(50% - 23rem);
-  width: 46rem;
-  bottom: 1.4rem;
-  border-top: 0;
+  left: 50%;
+  bottom: 1.1rem;
+  width: auto;
+  transform: translateX(-50%);
+  gap: 1.6rem;
+  padding: .5rem 1.1rem;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--bg) 86%, transparent);
+  backdrop-filter: blur(4px);
   pointer-events: auto;
-  /* the page runs off the bottom of the screen: the buttons stand on a shade, not on its text */
-  padding: 2.6rem 1rem 0;
-  background: linear-gradient(0deg, rgb(10 9 8 / .9) 52%, transparent);
 }
 .archive[data-pin] .dossier__spine { left: calc(var(--qx0, 0px) - 2.4rem); top: var(--qy0, 0px); }
 .archive[data-pin] .dossier__scan { display: none; }
@@ -1245,3 +1248,9 @@ a.cite:hover, a.cite:focus-visible { color: var(--accent); text-decoration-style
 /* both on the table: the first keeps its place on the left blotter */
 .archive[data-pin]:has(.companion:not([hidden])) .dossier { --w: auto; left: 0; }
 .archive[data-pin]:has(.companion:not([hidden])) .ds-table { display: none; }
+
+/* getting up from the table: the page lets go quickly instead of hanging over the room */
+.archive[data-pin][data-view='browse'] :is(.dossier__sheet, .companion__sheet) {
+  opacity: 0;
+  transition: opacity 220ms var(--ease);
+}
