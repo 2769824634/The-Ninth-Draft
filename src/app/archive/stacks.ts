@@ -11,6 +11,7 @@
  * 19:00, like the day and night choice. What is on the table stays on it
  * (on this device) until it is put back.
  */
+import type { Vector3 } from 'three';
 import type { ArchiveRecord, Category } from '../types';
 import { StacksScene, STACKS_ZONES, type StacksZone, type PaperLit } from './scene';
 import { ROWS, type StacksCategory } from './room';
@@ -150,6 +151,7 @@ export class Stacks {
         bank: (bi) => this.routine(bi),
         rocker: (i) => this.toggleRow(i),
         desk: (i) => this.toggleDesk(i),
+        exam: (i) => this.pullExam(i),
         index: () => this.cards.show(),
         tray: () => this.arrivals(),
         safe: () => this.strongCabinet(),
@@ -167,6 +169,7 @@ export class Stacks {
     this.lights.rows.forEach((on, i) => s.setRow(i, on, true));
     this.lights.desks.forEach((on, i) => s.setDesk(i, on, true));
     s.room.setTankFull(this.tankFull());
+    s.room.landed = () => audio.settle();
     this.markRows();
     void this.layTable();
   }
@@ -372,6 +375,9 @@ export class Stacks {
       const on = this.lights.desks[Number(arg)];
       const what = Number(arg) === 2 ? (zh ? '入库台的灯' : 'Desk lamp at the intake desk') : zh ? '阅档桌台灯' : 'Reading lamp';
       text = zh ? `${what} · 拉一下灯绳${on ? '关掉' : '打开'}` : `${what} · pull the chain to switch it ${on ? 'off' : 'on'}`;
+    } else if (kind === 'exam') {
+      const on = (this.scene?.examWanted[Number(arg)] ?? 0) > 0;
+      text = zh ? `验档灯 · 日光灯管，拉一下灯绳${on ? '关掉' : '打开'}` : `Examination lamp · daylight tube, pull the cord to switch it ${on ? 'off' : 'on'}`;
     } else if (kind === 'index') text = zh ? '索引卡 · 按编号、区、年份翻' : 'Card index · by number, district or year';
     else if (kind === 'tray') {
       const n = this.arrivedToday().length;
@@ -454,11 +460,23 @@ export class Stacks {
       }
       this.examAt = at && i >= 0 ? { i, level, at } : null;
       if (!at) s.setReadPoint(null);
-      else if (at === 'table') s.setReadPoint(s.room.tableCentre());
+      else if (at === 'table') s.setReadPoint(s.room.readSpot());
       else if (this.open) s.setReadPoint(s.room.drawerFront(this.open.ci, this.open.d));
       else s.setReadPoint(null);
       this.markReadSwitches();
     });
+  }
+
+  /** The pull cord on an examination lamp: on at the level of the file under it (or at work strength), or off. */
+  private pullExam(i: number) {
+    const s = this.scene;
+    if (!s) return;
+    const on = (s.examWanted[i] ?? 0) > 0;
+    const lv = on ? 0 : this.examAt?.i === i ? this.examAt.level || 0.6 : 0.6;
+    if (lv > 0) audio.tube();
+    else audio.rocker();
+    s.setExam(i, lv);
+    this.markReadSwitches();
   }
 
   /** The switches in the margin of an open file: the tube here, the pendants over here, the table lamps. */
@@ -721,15 +739,22 @@ export class Stacks {
     }
     this.table.push(rec.file);
     this.saveTable();
+    // where it is now, half out of its drawer, so it can be carried from there
+    const from = this.scene?.room.filePos(rec.file);
     if (this.taken === rec) {
       this.scene?.room.liftFile(rec.file, 0);
       this.taken = null;
       this.$('stacks-choice').hidden = true;
     }
-    this.fillDrawer();
-    this.drawDrawer();
+    // the drawer shuts behind you and you walk the file over to the table
+    if (this.open && from) this.closeCabinet(false);
+    else {
+      this.fillDrawer();
+      this.drawDrawer();
+    }
+    if (from) this.scene?.goZone('reading');
     this.drawTable();
-    void this.layTable();
+    void this.layTable(false, from ? new Map([[rec.file, from]]) : undefined);
     audio.paper();
     this.voice.say(this.table.length === 1 ? 'stacks.table' : this.table.length === TABLE_MAX ? 'stacks.full' : 'stacks.more', { n: String(this.table.length) }, false);
   }
@@ -770,6 +795,20 @@ export class Stacks {
     if (!this.scene) this.markZone('reading');
   }
 
+  /** Sit down at the reading place with this file open on the blotter (null: get up). */
+  sit(rec: ArchiveRecord | null) {
+    const s = this.scene;
+    if (!s) return;
+    if (rec && this.open) this.closeCabinet(false);
+    s.room.seat(rec && this.table.includes(rec.file) ? rec.file : null);
+    s.sit(!!rec && this.table.includes(rec.file));
+  }
+
+  /** Whether reading at the table happens in the room (sat at the blotter) rather than on a sheet held up. */
+  get canSit() {
+    return !!this.scene;
+  }
+
   private readTable(file: string) {
     const rec = this.find(file);
     if (!rec || !this.table.includes(file)) return;
@@ -779,14 +818,14 @@ export class Stacks {
   }
 
   /** The files on the table, put face up in the room. */
-  private async layTable(retype = false) {
+  private async layTable(retype = false, from?: Map<string, Vector3>) {
     await this.ready;
     const s = this.scene;
     if (!s) return;
     const recs = this.onTable;
     await canvasFontsReady(recs.map((r) => r.title).join(''));
     if (retype) s.room.setTable([]);
-    s.room.setTable(recs.map((r) => ({ file: r.file, category: r.category, map: () => fileCover(r.file, r.title, r.stamp, r.category) })));
+    s.room.setTable(recs.map((r) => ({ file: r.file, category: r.category, map: () => fileCover(r.file, r.title, r.stamp, r.category) })), from);
   }
 
   /** The table, as a list in the head column. */

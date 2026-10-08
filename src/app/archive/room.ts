@@ -15,7 +15,7 @@
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 import {
-  INK, KU, DIN, DINB, RED, clockFace, contactShadow, drawerCard, envelopeTops, fileTab, hygroFace, ledgerSpread, louvreLight, mapSheet, panelling, plate, rng, runner, teakFloor, windowView, woodTex,
+  INK, KU, DIN, DINB, RED, clockFace, contactShadow, drawerCard, envelopeTops, fileTab, hygroFace, ledgerSpread, louvreLight, mapSheet, panelling, plate, rng, runner, sheet, teakFloor, windowView, woodTex,
 } from './textures';
 
 export const AR = { x0: -5.6, x1: 5.6, z0: -3.6, z1: 3.6, h: 3.4, wall: 0.22, slab: 0.24 };
@@ -64,6 +64,28 @@ export interface ExamLamp {
   tube: THREE.MeshStandardMaterial;
   place: 'cabinet' | 'table';
   ci: number;
+  /** The cold haze round a lit tube, so it reads as on from any side. */
+  glow: THREE.SpriteMaterial;
+}
+
+let haze: THREE.Texture | null = null;
+/** A soft bar of light, white in the middle, gone at the edges. */
+function hazeTexture() {
+  if (haze) return haze;
+  const c = document.createElement('canvas');
+  c.width = 128;
+  c.height = 32;
+  const x = c.getContext('2d')!;
+  const g = x.createRadialGradient(64, 16, 2, 64, 16, 64);
+  g.addColorStop(0, 'rgba(255,255,255,1)');
+  g.addColorStop(0.35, 'rgba(225,235,255,.45)');
+  g.addColorStop(1, 'rgba(225,235,255,0)');
+  x.fillStyle = g;
+  x.scale(1, 0.25);
+  x.fillRect(0, 0, 128, 128);
+  haze = new THREE.CanvasTexture(c);
+  haze.colorSpace = THREE.SRGBColorSpace;
+  return haze;
 }
 
 export interface DeskLamp {
@@ -72,6 +94,21 @@ export interface DeskLamp {
 }
 
 const std = (o: THREE.MeshStandardMaterialParameters) => new THREE.MeshStandardMaterial({ roughness: 0.8, ...o });
+
+/** A folder lying on the reading table, and where it is going. */
+interface TableFile {
+  g: THREE.Group;
+  flap: THREE.Group;
+  hit: THREE.Mesh;
+  map: THREE.Texture;
+  slot: number;
+  to: THREE.Vector3;
+  toRot: number;
+  open: number;
+  toOpen: number;
+  fresh: boolean;
+  carry?: { from: THREE.Vector3; rot: number; t: number };
+}
 const BOX = new THREE.BoxGeometry(1, 1, 1);
 
 export class StacksRoom {
@@ -477,16 +514,23 @@ export class StacksRoom {
       light.position.set(0.86, -0.2, 0);
       light.target.position.set(0.95, -1.15, 0);
     } else {
-      // weighted foot, a stem, the twin-tube head over the middle of the table
+      // weighted foot at the far edge, a stem, the twin-tube head out over the top of the sheet
       this.rbox(g, 0.2, 0.025, 0.13, 0.01, 0, 0.012, 0, M.steelDark);
-      this.cyl(g, 0.011, 0.011, 0.42, 0, 0.23, 0, M.chrome, 12);
-      this.box(g, 0.02, 0.02, 0.22, 0, 0.44, 0.09, M.chrome);
+      this.cyl(g, 0.011, 0.011, 0.36, 0, 0.2, 0, M.chrome, 12);
+      this.box(g, 0.02, 0.02, 0.15, 0, 0.385, 0.065, M.chrome);
       housing = new THREE.Group();
-      housing.position.set(0, 0.43, 0.2);
+      housing.position.set(0, 0.38, 0.14);
       housing.rotation.y = Math.PI / 2;
       g.add(housing);
-      light.position.set(0, 0.4, 0.2);
-      light.target.position.set(0, -0.8, 0.45);
+      light.position.set(0, 0.36, 0.15);
+      light.target.position.set(0, -0.6, 0.48);
+      // the lamp and its cord answer a click, like the brass ones
+      const hb = new THREE.Mesh(BOX, new THREE.MeshBasicMaterial({ visible: false }));
+      hb.scale.set(0.6, 0.5, 0.3);
+      hb.position.set(0, 0.25, 0.08);
+      hb.userData = { exam: this.exams.length, key: `exam:${this.exams.length}` };
+      g.add(hb);
+      this.hits.push(hb);
     }
     // the head: an enamel trough with an opal tube in it, end caps, a pull cord
     this.rbox(housing, 0.075, 0.045, 0.56, 0.01, 0, 0.012, 0, enamel);
@@ -494,10 +538,11 @@ export class StacksRoom {
     t1.rotation.x = Math.PI / 2;
     t1.castShadow = false;
     if (place === 'table') {
-      const t2 = this.cyl(housing, 0.013, 0.013, 0.5, 0.028, -0.012, 0, tube, 16);
+      // the two tubes stand proud of the reflector, so from the chair you see them lit
+      const t2 = this.cyl(housing, 0.014, 0.014, 0.5, 0.046, -0.004, 0, tube, 16);
       t2.rotation.x = Math.PI / 2;
       t2.castShadow = false;
-      t1.position.x = -0.028;
+      t1.position.set(-0.046, -0.004, 0);
     }
     for (const sz of [-1, 1]) this.box(housing, 0.08, 0.05, 0.012, 0, 0.008, sz * 0.27, M.steelDark);
     this.box(housing, 0.002, 0.14, 0.002, 0.03, -0.07, 0.24, M.cream, false);
@@ -506,7 +551,13 @@ export class StacksRoom {
     housing.add(bead);
     light.castShadow = false;
     g.add(light, light.target);
-    this.exams.push({ light, tube, place, ci });
+    const glow = new THREE.SpriteMaterial({ map: hazeTexture(), color: '#dfe9ff', transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false });
+    const halo = new THREE.Sprite(glow);
+    halo.scale.set(0.78, 0.2, 1);
+    // a little in front of the reflector and under it, where the tubes are bare
+    halo.position.set(place === 'table' ? -0.06 : 0, -0.03, 0);
+    housing.add(halo);
+    this.exams.push({ light, tube, place, ci, glow });
   }
 
   /** A brass desk lamp with an opal inside to its shade. */
@@ -1001,7 +1052,8 @@ export class StacksRoom {
     mag.position.set(0.55, 0.778, -0.35);
     rt.add(mag);
     rt.add(this.tableTop);
-    this.examLamp(rt, 0, 0.765, -0.36, 'table', -1);
+    // the examination lamp stands behind the reading place, its tube low over the far edge of the sheet
+    this.examLamp(rt, -0.55, 0.765, -0.4, 'table', -1);
     this.deskLamp(rt, -0.98, 0.765, -0.28, 0.4, 0);
     this.deskLamp(rt, 0.98, 0.765, -0.28, -0.4, 1);
     this.chair(rt, -0.55, 0.72, Math.PI);
@@ -1305,9 +1357,13 @@ export class StacksRoom {
   }
 
   /* ---------------- the reading table ---------------- */
-  private covers = new Map<string, { g: THREE.Group; hit: THREE.Mesh; map: THREE.Texture }>();
-  /** Where a file lies on the table: x, z, turn. */
-  static readonly SLOTS: [number, number, number][] = [[-0.62, 0.17, -0.05], [0.0, 0.19, 0.03], [0.62, 0.17, 0.06], [-0.6, -0.16, 0.08], [0.02, -0.15, -0.04], [0.6, -0.17, -0.07]];
+  private covers = new Map<string, TableFile>();
+  /** Where a file lies on the table: x, z, turn. The left blotter is kept clear for reading. */
+  static readonly SLOTS: [number, number, number][] = [[0.0, 0.17, -0.04], [0.32, 0.17, 0.05], [0.64, 0.16, -0.06], [0.04, -0.16, 0.07], [0.36, -0.16, -0.05], [0.69, -0.15, 0.04]];
+  /** The reading place: the left blotter, in front of its chair, under the examination lamp. */
+  static readonly SEAT = new THREE.Vector3(-0.55, 0.79, 0.11);
+  /** The file being read at the table, open on the blotter. */
+  private seated: string | null = null;
 
   /** Where a file lies on the table, in the room; null if it is not there. */
   tableSpot(file: string) {
@@ -1317,8 +1373,25 @@ export class StacksRoom {
     return c.g.getWorldPosition(new THREE.Vector3());
   }
 
-  /** Lay these files on the table, in this order; the rest go. */
-  setTable(items: { file: string; category: string; map: () => THREE.Texture }[]) {
+  /** Where a hanging file is in the room, so it can be carried from there. */
+  filePos(file: string) {
+    const h = this.hanging.get(file);
+    if (!h) return null;
+    h.g.updateWorldMatrix(true, false);
+    return h.g.getWorldPosition(new THREE.Vector3()).add(new THREE.Vector3(0, 0.12, 0));
+  }
+
+  /** The middle of the reading place on the table, in the room. */
+  readSpot() {
+    this.tableTop.updateWorldMatrix(true, false);
+    return this.tableTop.localToWorld(StacksRoom.SEAT.clone());
+  }
+
+  /**
+   * Lay these files on the table, in this order; the rest go. A file given a
+   * `from` (a place in the room) is carried over from there and put down.
+   */
+  setTable(items: { file: string; category: string; map: () => THREE.Texture }[], from?: Map<string, THREE.Vector3>) {
     const keep = new Set(items.map((i) => i.file));
     for (const [f, c] of this.covers) {
       if (keep.has(f)) continue;
@@ -1326,40 +1399,119 @@ export class StacksRoom {
       this.unhit(c.hit);
       c.map.dispose();
       this.covers.delete(f);
+      if (this.seated === f) this.seated = null;
     }
-    const M = this.M;
     items.forEach((it, i) => {
-      const [x, z, r] = StacksRoom.SLOTS[i] ?? StacksRoom.SLOTS[0];
       let c = this.covers.get(it.file);
       if (!c) {
-        const g = new THREE.Group();
-        const body = it.category === 'events' ? M.kraft : it.category === 'programs' ? std({ color: '#9aa197', roughness: 0.85 }) : M.manila;
-        this.rbox(g, 0.235, 0.012, 0.32, 0.003, 0, 0.006, 0, body);
-        const map = it.map();
-        const face = new THREE.Mesh(new THREE.PlaneGeometry(0.23, 0.315), std({ map, roughness: 0.85 }));
-        face.rotation.x = -Math.PI / 2;
-        face.position.y = 0.0125;
-        face.receiveShadow = true;
-        g.add(face);
-        const hit = new THREE.Mesh(BOX, new THREE.MeshBasicMaterial({ visible: false }));
-        hit.scale.set(0.25, 0.06, 0.33);
-        hit.position.y = 0.02;
-        hit.userData = { table: it.file, key: `table:${it.file}` };
-        g.add(hit);
-        this.hits.push(hit);
-        this.tableTop.add(g);
-        c = { g, hit, map };
+        c = this.makeTableFile(it.file, it.category, it.map());
+        const w = from?.get(it.file);
+        if (w) {
+          this.tableTop.updateWorldMatrix(true, false);
+          c.carry = { from: this.tableTop.worldToLocal(w.clone()), rot: Math.PI / 2, t: 0 };
+        }
         this.covers.set(it.file, c);
       }
-      c.g.position.set(x, 0.772 + i * 0.0015, z);
-      c.g.rotation.y = r;
+      c.slot = i;
     });
+    this.aimTable(true);
   }
 
-  /** The middle of the table top, in the room. */
-  tableCentre() {
-    return new THREE.Vector3(3.65, 0.78, -2.45);
+  /** Sit down to read `file` at the reading place (null: get up, it goes back to its spot). */
+  seat(file: string | null) {
+    this.seated = file && this.covers.has(file) ? file : null;
+    this.aimTable(false);
   }
+
+  /** Where each file on the table should be: at its spot shut, or open on the blotter. */
+  private aimTable(snapNew: boolean) {
+    for (const [f, c] of this.covers) {
+      const [x, z, r] = StacksRoom.SLOTS[c.slot] ?? StacksRoom.SLOTS[0];
+      if (f === this.seated) {
+        c.to.copy(StacksRoom.SEAT).setY(0.772 + 0.012);
+        c.toRot = 0;
+        c.toOpen = 1;
+      } else {
+        c.to.set(x, 0.772 + c.slot * 0.0015, z);
+        c.toRot = r;
+        c.toOpen = 0;
+      }
+      if (snapNew && c.fresh && !c.carry) {
+        c.g.position.copy(c.to);
+        c.g.rotation.y = c.toRot;
+      }
+      c.fresh = false;
+    }
+  }
+
+  /**
+   * A folder as it lies on the table: the back board with the sheet on it,
+   * and the front cover hinged along its left edge, so it can be opened flat.
+   */
+  private makeTableFile(file: string, category: string, map: THREE.Texture): TableFile {
+    const M = this.M;
+    const W = 0.235, D = 0.32;
+    const g = new THREE.Group();
+    const body = category === 'events' ? M.kraft : category === 'programs' ? std({ color: '#55625a', roughness: 0.85 }) : M.manila;
+    this.rbox(g, W, 0.006, D, 0.002, 0, 0.003, 0, body);
+    // the sheet inside, a little smaller than the board
+    const leaf = new THREE.Mesh(new THREE.PlaneGeometry(W - 0.02, D - 0.02), std({ map: sheet(file.length * 7 + file.charCodeAt(file.length - 1), '', false), roughness: 0.9 }));
+    leaf.rotation.x = -Math.PI / 2;
+    leaf.position.set(0.004, 0.0068, 0);
+    leaf.receiveShadow = true;
+    g.add(leaf);
+    // the cover, hinged on the left
+    const flap = new THREE.Group();
+    flap.position.set(-W / 2, 0.008, 0);
+    g.add(flap);
+    this.rbox(flap, W, 0.004, D, 0.002, W / 2, 0.002, 0, body);
+    const face = new THREE.Mesh(new THREE.PlaneGeometry(W - 0.005, D - 0.005), std({ map, roughness: 0.85 }));
+    face.rotation.x = -Math.PI / 2;
+    face.position.set(W / 2, 0.0042, 0);
+    face.receiveShadow = true;
+    flap.add(face);
+    const hit = new THREE.Mesh(BOX, new THREE.MeshBasicMaterial({ visible: false }));
+    hit.scale.set(W + 0.015, 0.06, D + 0.01);
+    hit.position.y = 0.02;
+    hit.userData = { table: file, key: `table:${file}` };
+    g.add(hit);
+    this.hits.push(hit);
+    this.tableTop.add(g);
+    return { g, flap, hit, map, slot: 0, to: new THREE.Vector3(), toRot: 0, open: 0, toOpen: 0, fresh: true };
+  }
+
+  private tickTable(dt: number, motion: number) {
+    const k = motion ? Math.min(1, dt * 6) : 1;
+    for (const c of this.covers.values()) {
+      if (c.carry && motion) {
+        // carried over from the cabinets: up, across the room, down on its spot
+        const cr = c.carry;
+        cr.t = Math.min(1, cr.t + dt / 1.15);
+        const e = cr.t < 0.5 ? 4 * cr.t ** 3 : 1 - (-2 * cr.t + 2) ** 3 / 2;
+        c.g.position.lerpVectors(cr.from, c.to, e);
+        c.g.position.y += Math.sin(Math.PI * cr.t) * 0.45;
+        c.g.rotation.y = cr.rot + (c.toRot - cr.rot) * e;
+        c.g.rotation.z = Math.sin(Math.PI * cr.t) * 0.25;
+        if (cr.t >= 1) {
+          c.carry = undefined;
+          c.g.rotation.z = 0;
+          this.landed?.();
+        }
+      } else {
+        c.carry = undefined;
+        c.g.position.lerp(c.to, k);
+        c.g.rotation.y += (c.toRot - c.g.rotation.y) * k;
+      }
+      // the cover follows once the folder is nearly in place
+      const near = c.g.position.distanceTo(c.to) < 0.03;
+      const want = near ? c.toOpen : Math.min(c.open, c.toOpen);
+      c.open += (want - c.open) * (motion ? Math.min(1, dt * 5) : 1);
+      c.flap.rotation.z = c.open * Math.PI * 0.985;
+    }
+  }
+
+  /** Called when a carried file lands on the table. */
+  landed?: () => void;
 
   private tickDrawers(dt: number) {
     const k = Math.min(1, dt * 7);
@@ -1418,6 +1570,7 @@ export class StacksRoom {
     }
     if (this.fanBlades) this.fanBlades.rotation.z -= dt * 14 * fan;
     this.tickDrawers(dt);
+    this.tickTable(dt, fan);
     void t;
   }
 }

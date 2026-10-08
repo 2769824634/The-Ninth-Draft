@@ -183,6 +183,7 @@ export function start() {
     const already = view === 'detail';
     const dir = stepDir;
     stepDir = 0;
+    const wasAt = readAt;
     view = 'detail';
     current = rec;
     readAt = at;
@@ -199,10 +200,15 @@ export function start() {
       markLight();
       markTable();
     };
+    // at the table you sit down and read it on the blotter, in the room
+    const seated = at === 'table' && stacks.canSit;
+    if (seated) stacks.sit(rec);
+    else if (already && wasAt === 'table') stacks.sit(null);
     if (already) sheet.swap(dir, at === 'table', fill);
     else {
       fill();
-      sheet.open(stacks.screenPoint(rec, at), rec);
+      if (seated) sheet.seat(rec);
+      else sheet.open(stacks.screenPoint(rec, at), rec);
     }
     $('btn-back').querySelector('span')!.textContent = backLabel();
     const notes = dossier.noteSpan();
@@ -251,7 +257,10 @@ export function start() {
       return;
     }
     const was = current;
-    if (was) sheet.close(stacks.screenPoint(was, readAt), was);
+    if (was && readAt === 'table' && stacks.canSit) {
+      sheet.rise();
+      stacks.sit(null);
+    } else if (was) sheet.close(stacks.screenPoint(was, readAt), was);
     view = 'browse';
     current = null;
     root.dataset.view = 'browse';
