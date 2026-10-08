@@ -157,6 +157,7 @@ const links = new Set(records.flatMap((r) => r.related.filter((f) => records.som
           ))}
         </div>
         <div class="stackshud__desks">
+          <button type="button" data-blinds aria-pressed="false"><i></i><span data-l="en">Window blinds</span><span data-l="zh">窗帘</span></button>
           {[0, 1, 2].map((i) => (
             <button type="button" data-desk={i} aria-pressed="false"><i></i><span data-l="en">{['Reading lamp 1', 'Reading lamp 2', 'Intake lamp'][i]}</span><span data-l="zh">{['阅档台灯 1', '阅档台灯 2', '入库台灯'][i]}</span></button>
           ))}

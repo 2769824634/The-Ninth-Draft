@@ -160,6 +160,7 @@ export class Stacks {
         tray: () => this.arrivals(),
         safe: () => this.strongCabinet(),
         dehumidifier: () => this.emptyTank(),
+        blinds: () => this.toggleBlinds(),
         paper: (v) => this.hooks.paper(v),
         sheet: (v) => this.hooks.sheet(v),
         side: (v) => this.hooks.side(v),
@@ -279,6 +280,7 @@ export class Stacks {
     document.querySelectorAll<HTMLButtonElement>('#stacks-zones [data-zone]').forEach((b) => b.addEventListener('click', () => this.goZone(b.dataset.zone as StacksZone)));
     document.querySelectorAll<HTMLButtonElement>('#stacks-cats [data-cat]').forEach((b) => b.addEventListener('click', () => this.openCabinet(Number(b.dataset.cat))));
     document.querySelectorAll<HTMLButtonElement>('.stackshud__rockers [data-row]').forEach((b) => b.addEventListener('click', () => this.toggleRow(Number(b.dataset.row))));
+    document.querySelectorAll<HTMLButtonElement>('[data-blinds]').forEach((b) => b.addEventListener('click', () => this.toggleBlinds()));
     document.querySelectorAll<HTMLButtonElement>('.stackshud__desks [data-desk]').forEach((b) => b.addEventListener('click', () => this.toggleDesk(Number(b.dataset.desk))));
     const bright = document.querySelector<HTMLInputElement>('#ds-bright');
     if (bright) {
@@ -354,7 +356,18 @@ export class Stacks {
     audio.flick();
   }
 
+  /** The cord on the wall (or the switch): every window opens or shuts, and stays so. */
+  private toggleBlinds() {
+    if (!this.scene) return;
+    this.scene.blindsShut = !this.scene.blindsShut;
+    prefs.set('blindsShut', this.scene.blindsShut);
+    this.scene.room.pullCord(this.scene.blindsShut);
+    audio.rocker();
+    this.markRows();
+  }
+
   private markRows() {
+    document.querySelectorAll<HTMLButtonElement>('[data-blinds]').forEach((b) => b.setAttribute('aria-pressed', String(!!this.scene?.blindsShut)));
     document.querySelectorAll<HTMLButtonElement>('.stackshud__rockers [data-row]').forEach((b) => {
       const i = Number(b.dataset.row);
       b.setAttribute('aria-pressed', String(this.lights.rows[i]));
@@ -403,7 +416,9 @@ export class Stacks {
     else if (kind === 'tray') {
       const n = this.arrivedToday().length;
       text = zh ? `今日入库 · ${n} 份` : `Received today · ${n}`;
-    } else if (kind === 'safe') text = zh ? '绝密柜 · 锁着' : 'Strong cabinet · locked';
+    } else if (kind === 'blinds') text = zh ? `窗帘拉绳 · 拉一下${this.scene?.blindsShut ? '拉开' : '合上'}四扇窗` : `Window cord · pull to ${this.scene?.blindsShut ? 'open' : 'shut'} all four windows`;
+    else if (kind === 'blinds') text = zh ? `窗帘拉绳 · 拉一下${this.scene?.blindsShut ? '拉开' : '合上'}四扇窗` : `Window cord · pull to ${this.scene?.blindsShut ? 'open' : 'shut'} all four windows`;
+    else if (kind === 'safe') text = zh ? '绝密柜 · 锁着' : 'Strong cabinet · locked';
     else if (kind === 'dehumidifier') text = this.tankFull() ? (zh ? '除湿机 · 水箱满了，倒一下' : 'Dehumidifier · the tank is full, empty it') : zh ? '除湿机 · 在转' : 'Dehumidifier · running';
     else if (kind === 'zone') text = arg === 'reading' ? (zh ? `阅档桌 · 桌上 ${this.table.length} 份` : `Reading table · ${this.table.length} on it`) : zh ? '入库台' : 'Intake desk';
     this.callout.textContent = text;
@@ -524,10 +539,8 @@ export class Stacks {
     } else if (which === 'atonce') {
       prefs.set('openAtOnce', !prefs.get('openAtOnce'));
       audio.rocker();
-    } else if (which === 'blinds' && this.scene) {
-      this.scene.blindsShut = !this.scene.blindsShut;
-      audio.rocker();
-    } else if (which === 'desks') {
+    } else if (which === 'blinds') this.toggleBlinds();
+    else if (which === 'desks') {
       const on = !(this.lights.desks[0] || this.lights.desks[1]);
       for (const i of [0, 1]) if (this.lights.desks[i] !== on) this.toggleDesk(i);
     }

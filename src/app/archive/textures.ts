@@ -365,6 +365,22 @@ export function louvreLight() {
   return tex(c);
 }
 
+/** A shaft of daylight seen from the side: the louvre blades' stripes across its width, fading out at both ends. */
+export function beamLight() {
+  const [c, g] = cv(64, 128);
+  g.fillStyle = '#000';
+  g.fillRect(0, 0, 64, 128);
+  const grad = g.createLinearGradient(0, 0, 0, 128);
+  grad.addColorStop(0, 'rgba(255,244,214,0)');
+  grad.addColorStop(0.18, 'rgba(255,244,214,.9)');
+  grad.addColorStop(0.7, 'rgba(255,244,214,.7)');
+  grad.addColorStop(1, 'rgba(255,244,214,0)');
+  g.fillStyle = grad;
+  for (let i = 0; i < 4; i++) g.fillRect(2 + i * 16, 0, 11, 128);
+  const t = tex(c);
+  return t;
+}
+
 export function runner() {
   const [c, g] = cv(128, 384);
   g.fillStyle = '#7a2f2a';
