@@ -386,3 +386,64 @@ export function contactShadow() {
   g.fillRect(34, 40, 188, 176);
   return new THREE.CanvasTexture(c);
 }
+
+/** Stamp ink by clearance, as on the paper. */
+export const CLR_INK: Record<string, string> = { 'TOP SECRET': '#b3271c', SECRET: '#a8720b', CONFIDENTIAL: '#1f4fa3', RESTRICTED: '#4f5f3e' };
+
+/** The tab of a hanging file: its number, and a stripe of the clearance ink. */
+export function fileTab(file: string, stamp: string) {
+  const [c, g] = cv(256, 96);
+  grain(g, 256, 96, '#f1ece0', file.charCodeAt(2) * 7 + file.length, 0.2);
+  g.fillStyle = CLR_INK[stamp] ?? INK;
+  g.fillRect(0, 0, 256, 14);
+  g.fillStyle = INK;
+  g.font = `700 54px ${DINB}`;
+  g.fillText(file, 18, 76, 224);
+  return tex(c);
+}
+
+/**
+ * The cover of a file lying on the reading table: manila for personnel, kraft
+ * for events, grey board for programs; the clearance band across the top,
+ * the number large, the title typed underneath, the stamp at a slant.
+ */
+export function fileCover(file: string, title: string, stamp: string, category: string) {
+  const W = 300, H = 410;
+  const [c, g] = cv(W, H);
+  const base = category === 'events' ? '#c29d68' : category === 'programs' ? '#9aa197' : '#d8c79c';
+  grain(g, W, H, base, file.charCodeAt(2) * 13 + title.length, 0.9);
+  const ink = CLR_INK[stamp] ?? INK;
+  g.fillStyle = ink;
+  g.fillRect(0, 0, W, 22);
+  g.fillStyle = 'rgba(29,27,23,.55)';
+  g.font = `600 15px ${DIN}`;
+  g.fillText('GERIMIS RECORDS OFFICE · ARCHIVE', 18, 50, W - 36);
+  g.fillStyle = INK;
+  g.font = `700 64px ${DINB}`;
+  g.fillText(file, 18, 122, W - 36);
+  g.font = `22px ${SONG}`;
+  const words = [...title];
+  let line = '', y = 168;
+  for (const ch of words) {
+    if (g.measureText(line + ch).width > W - 40 && line) {
+      g.fillText(line, 20, y);
+      line = ch.trimStart();
+      y += 30;
+      if (y > 260) break;
+    } else line += ch;
+  }
+  if (y <= 260) g.fillText(line, 20, y);
+  g.save();
+  g.translate(W / 2, H - 80);
+  g.rotate(-0.12);
+  g.strokeStyle = ink;
+  g.fillStyle = ink;
+  g.lineWidth = 4;
+  g.font = `700 30px ${DINB}`;
+  const sw = g.measureText(stamp).width + 28;
+  g.globalAlpha = 0.85;
+  g.strokeRect(-sw / 2, -26, sw, 44);
+  g.fillText(stamp, -sw / 2 + 14, 8);
+  g.restore();
+  return tex(c);
+}
