@@ -182,6 +182,11 @@ export class StacksRoom {
   readonly sunPatches: THREE.Mesh<THREE.PlaneGeometry, THREE.MeshBasicMaterial>[] = [];
   /** Shafts of daylight from each window to its patch on the floor, and the dust hanging in them. */
   private beams: { g: THREE.Group; mats: THREE.MeshBasicMaterial[]; dust: THREE.Points }[] = [];
+  /** The envelopes in the in-tray at the intake desk: as many as there are arrivals still to be filed. */
+  private trayFiles: THREE.Object3D[] = [];
+  setTray(n: number) {
+    this.trayFiles.forEach((e, i) => (e.visible = i < Math.min(7, n)));
+  }
   /** The cord on the wall that opens and shuts all four windows. */
   private cord: THREE.Group | null = null;
   private cordPull = 0;
@@ -987,6 +992,12 @@ export class StacksRoom {
     spread.position.y = 0.017;
     spread.receiveShadow = true;
     book.add(spread);
+    const bookHit = new THREE.Mesh(BOX, new THREE.MeshBasicMaterial({ visible: false }));
+    bookHit.scale.set(0.56, 0.08, 0.4);
+    bookHit.position.y = 0.04;
+    bookHit.userData = { ledger: true, key: 'ledger' };
+    book.add(bookHit);
+    this.hits.push(bookHit);
     // the ribbon marker and a pen laid in the gutter
     this.box(book, 0.006, 0.002, 0.24, 0.004, 0.026, 0.12, std({ color: '#8e2a22' }), false);
     const pen = new THREE.Group();
@@ -1185,6 +1196,7 @@ export class StacksRoom {
     for (let i = 0; i < 7; i++) {
       const e = this.rbox(tray, 0.3, 0.012, 0.22, 0.002, (i % 2) * 0.01, 0.055 + i * 0.013, ((i * 7) % 3) * 0.005 - 0.005, i % 3 ? M.kraft : M.kraftD);
       e.rotation.y = ((i % 3) - 1) * 0.05;
+      this.trayFiles.push(e);
     }
     this.quad(tray, 0.24, 0.1, plate([[`700 44px ${KU}`, '今日入库', 18, 58], [`600 20px ${DIN}`, `RECEIVED · ${dd}.${mm}.99`, 20, 90]], 256, 108, '#efe9da', INK, INK), 0, 0.03, 0.142, 0, 0);
     const hb = new THREE.Mesh(BOX, new THREE.MeshBasicMaterial({ visible: false }));

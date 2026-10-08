@@ -22,6 +22,7 @@ import { islandHumidity, islandMoon, islandRaining } from '../weather';
 import { isZh } from '../i18n';
 import { audio } from '../audio';
 import { prefs, reducedMotion } from '../prefs';
+import { intake } from './intake';
 import { canvasFontsReady } from '../scene/textures';
 import { esc } from '../ui/text';
 import { clearanceKey } from '../clearance';
@@ -161,6 +162,7 @@ export class Stacks {
         safe: () => this.strongCabinet(),
         dehumidifier: () => this.emptyTank(),
         blinds: () => this.toggleBlinds(),
+        ledger: () => this.loanBook(),
         paper: (v) => this.hooks.paper(v),
         sheet: (v) => this.hooks.sheet(v),
         side: (v) => this.hooks.side(v),
@@ -184,6 +186,7 @@ export class Stacks {
     };
     this.markRows();
     void this.layTable();
+    void this.ready.then(() => this.setTray());
   }
 
   /* ---------------- show / hide ---------------- */
@@ -297,6 +300,14 @@ export class Stacks {
     this.slip.addEventListener('click', (e) => {
       const el = e.target as HTMLElement;
       if (el.closest('.x')) return this.closeSlip();
+      if (el.closest('[data-act="file-all"]')) return this.fileArrivals();
+      const tk = el.closest<HTMLElement>('[data-take]')?.dataset.take;
+      const tr = tk ? this.find(tk) : null;
+      if (tr) {
+        this.closeSlip();
+        this.toTable(tr, true);
+        return;
+      }
       const f = el.closest<HTMLElement>('[data-file]')?.dataset.file;
       const rec = f ? this.find(f) : null;
       if (rec) {
@@ -415,9 +426,11 @@ export class Stacks {
     } else if (kind === 'index') text = zh ? '索引卡 · 按编号、区、年份翻' : 'Card index · by number, district or year';
     else if (kind === 'tray') {
       const n = this.arrivedToday().length;
-      text = zh ? `今日入库 · ${n} 份` : `Received today · ${n}`;
+      const n2 = this.onTray().length;
+      text = zh ? `今日收件 · ${n} 份${n2 ? `，${n2} 份还没归档` : '，已归档'}` : `Received today · ${n}${n2 ? `, ${n2} still to file` : ', all filed'}`;
     } else if (kind === 'blinds') text = zh ? `窗帘拉绳 · 拉一下${this.scene?.blindsShut ? '拉开' : '合上'}四扇窗` : `Window cord · pull to ${this.scene?.blindsShut ? 'open' : 'shut'} all four windows`;
     else if (kind === 'blinds') text = zh ? `窗帘拉绳 · 拉一下${this.scene?.blindsShut ? '拉开' : '合上'}四扇窗` : `Window cord · pull to ${this.scene?.blindsShut ? 'open' : 'shut'} all four windows`;
+    else if (kind === 'ledger') text = zh ? '登记簿 · 借阅记录' : 'Register · loan ledger';
     else if (kind === 'safe') text = zh ? '绝密柜 · 锁着' : 'Strong cabinet · locked';
     else if (kind === 'dehumidifier') text = this.tankFull() ? (zh ? '除湿机 · 水箱满了，倒一下' : 'Dehumidifier · the tank is full, empty it') : zh ? '除湿机 · 在转' : 'Dehumidifier · running';
     else if (kind === 'zone') text = arg === 'reading' ? (zh ? `阅档桌 · 桌上 ${this.table.length} 份` : `Reading table · ${this.table.length} on it`) : zh ? '入库台' : 'Intake desk';
@@ -821,6 +834,7 @@ export class Stacks {
     if (i < 0) return;
     this.table.splice(i, 1);
     this.saveTable();
+    intake.giveBack(this.today, file, this.stamp());
     if (this.open) {
       this.fillDrawer();
       this.drawDrawer();
@@ -828,6 +842,7 @@ export class Stacks {
     this.drawTable();
     void this.layTable(false, undefined, this.homeOf([file]));
     audio.paper();
+    window.setTimeout(() => audio.stamp(), 700);
   }
 
   /** Where each of these files goes back to: the front of its cabinet. */
@@ -899,6 +914,7 @@ export class Stacks {
     if (!rec || !this.table.includes(file)) return;
     if (this.open) this.closeCabinet(false);
     if (this.scene && this.scene.zone !== 'reading') this.scene.goZone('reading');
+    intake.lend(this.today, file, this.stamp());
     this.hooks.read(rec, 'table');
   }
 
@@ -964,11 +980,61 @@ export class Stacks {
     return `<ul>${recs.map((r) => `<li><button type="button" data-file="${esc(r.file)}">${esc(r.file)} · ${esc(r.title)}</button> <span class="micro">${esc(this.shelfMark(r))}</span></li>`).join('')}</ul>`;
   }
 
+  /** "1999-10-09 10:32", as the ledger writes it. */
+  private stamp() {
+    const t = islandNow();
+    return `${this.today} ${String(t.hours).padStart(2, '0')}:${String(t.minutes).padStart(2, '0')}`;
+  }
+
+  /** Today's arrivals still lying in the in-tray. */
+  private onTray() {
+    const day = this.arrivedToday();
+    const w = new Set(intake.waiting(this.today, day.map((r) => r.file)));
+    return day.filter((r) => w.has(r.file));
+  }
+
+  private setTray() {
+    this.scene?.room.setTray(this.onTray().length);
+  }
+
+  /** The clerk shelves the tray into the drawers. */
+  private fileArrivals() {
+    const zh = isZh();
+    const list = this.onTray();
+    if (!list.length) return;
+    intake.fileAll(this.today, list.map((r) => r.file));
+    this.setTray();
+    audio.stamp();
+    this.stats();
+    this.showSlip(`<h3>${zh ? '已归档' : 'Filed'}</h3><p>${zh ? '盖了章，放进抽屉了：' : 'Stamped and put away in the drawers:'}</p>${this.list(list)}`);
+  }
+
+  /** The accession ledger: what has been taken to the table, and handed back. */
+  private loanBook() {
+    const zh = isZh();
+    const rows = intake.loans(this.today).slice(0, 8).filter((l) => this.find(l.file));
+    this.voice.say('stacks.ledger', {}, false);
+    const li = rows
+      .map((l) => {
+        const r = this.find(l.file)!;
+        const back = l.back ? (zh ? `还 ${l.back.slice(5)}` : `back ${l.back.slice(5)}`) : this.table.includes(l.file) ? (zh ? '还在桌上' : 'still on the table') : zh ? '还没还' : 'not returned yet';
+        return `<li><button type="button" data-file="${esc(r.file)}">${esc(r.file)} · ${esc(r.title)}</button> <span class="micro">${esc(l.out.slice(5))} · ${esc(back)}</span></li>`;
+      })
+      .join('');
+    this.showSlip(`<h3>${zh ? '借阅记录' : 'Loan ledger'}</h3>${rows.length ? `<ul>${li}</ul>` : `<p>${zh ? '这一页还是空的。拿一份到桌上读，这里就会记上。' : 'This page is still blank. Take a file to the table and it goes in here.'}</p>`}<p class="micro">${zh ? '只记在这台设备上。' : 'Kept on this device only.'}</p>`);
+  }
+
   private arrivals() {
     const zh = isZh();
+    const tray = this.onTray();
+    if (tray.length) {
+      const li = tray.map((r) => `<li><button type="button" data-take="${esc(r.file)}">${esc(r.file)} · ${esc(r.title)}</button> <span class="micro">${zh ? '在入库台上，点开拿到桌上读' : 'in the tray, take it to the table'}</span></li>`).join('');
+      this.showSlip(`<h3>${zh ? '今日收件' : 'Received today'}</h3><ul>${li}</ul><p><button type="button" class="stackshud__slipbtn" data-act="file-all">${zh ? '归档 · 放进抽屉' : 'File them · into the drawers'}</button></p>`);
+      return;
+    }
     const today = this.arrivedToday();
     if (today.length) {
-      this.showSlip(`<h3>${zh ? '今日入库' : 'Received today'}</h3>${this.list(today)}`);
+      this.showSlip(`<h3>${zh ? '今日收件' : 'Received today'}</h3><p>${zh ? '今天的已经归好档：' : 'Today’s are filed already:'}</p>${this.list(today)}`);
       return;
     }
     const recent = this.records.filter((r) => islandDay(r.date)).sort((a, b) => (b.date ?? '').localeCompare(a.date ?? '')).slice(0, 3);
