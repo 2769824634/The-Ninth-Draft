@@ -13,6 +13,7 @@
  * brass-and-opal-glass pendants in four rows, one switch each.
  */
 import * as THREE from 'three';
+import { reducedMotion } from '../prefs';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 import {
   INK, KU, DIN, DINB, RED, clockFace, contactShadow, drawerCard, envelopeTops, fileTab, hygroFace, ledgerSpread, louvreLight, mapSheet, panelling, plate, rng, runner, sheet, teakFloor, windowView, woodTex,
@@ -440,11 +441,20 @@ export class StacksRoom {
       }
       const mid = (z0 + cz) / 2;
       const sign = plate([[`700 64px ${KU}`, c.zh, 28, 82], [`600 28px ${DIN}`, c.en.toUpperCase(), 160, 80], [`600 22px ${DIN}`, c.range || '—', 162, 112, '#c9c1ad']], 512, 140, '#26302a', '#efe8d6', '#c9c1ad');
-      this.rbox(this.group, 0.62, 0.17, 0.015, 0.006, AR.x0 + 0.008, 1.62, mid, M.cream, false).rotation.y = Math.PI / 2;
-      this.quad(this.group, 0.6, 0.164, sign, AR.x0 + 0.017, 1.62, mid, Math.PI / 2);
+      // a slanted enamel sign standing on top of the bank, at its front edge (a wall sign would sink into the panelling)
+      const fs = new THREE.Group();
+      fs.position.set(AR.x0 + 0.03 + CAB.d - 0.1, CAB.h, mid);
+      fs.rotation.y = Math.PI / 2;
+      this.group.add(fs);
+      const tilt = new THREE.Group();
+      tilt.position.set(0, 0.11, 0);
+      tilt.rotation.x = -0.95;
+      fs.add(tilt);
+      this.rbox(tilt, 0.62, 0.17, 0.015, 0.006, 0, 0, 0, M.cream);
+      this.quad(tilt, 0.6, 0.164, sign, 0, 0, 0.009);
+      for (const sx of [-0.26, 0.26]) this.box(fs, 0.03, 0.025, 0.2, sx, 0.0125, -0.02, M.brass, false);
       const cx = AR.x0 + 0.03 + CAB.d / 2;
       this.catCentre.push(new THREE.Vector3(cx, 0.75, mid));
-      this.examLamp(this.group, AR.x0 + 0.02, 2.02, mid, 'cabinet', ci);
       this.hit({ cat: ci, key: `cat:${c.id}` }, CAB.d + 0.2, CAB.h + 0.45, cz - z0, cx + 0.1, (CAB.h + 0.45) / 2, mid);
       cz += 0.32;
     });
@@ -703,6 +713,8 @@ export class StacksRoom {
     A.head.quaternion.setFromUnitVectors(new THREE.Vector3(0, -1, 0), to.normalize());
   }
 
+  private readLamp?: { g: THREE.Group; sp: THREE.SpotLight };
+
   /** A brass desk lamp with an opal inside to its shade. */
   private deskLamp(p: THREE.Object3D, x: number, y: number, z: number, ry: number, index: number) {
     const M = this.M;
@@ -730,6 +742,12 @@ export class StacksRoom {
     const sp = new THREE.SpotLight('#ffe2b0', 0, 2.5, 0.8, 0.6, 1.5);
     sp.position.set(0, 0.35, 0.19);
     sp.target.position.set(0, -0.8, 0.25);
+    // the right-hand reading lamp is turned in over its blotter and throws its light on the file there
+    if (index === 1) {
+      sp.target.position.set(0, 0.03, 0.52);
+      sp.angle = 0.7;
+      this.readLamp = { g: l, sp };
+    }
     sp.shadow.mapSize.set(1024, 1024);
     sp.shadow.bias = -0.0005;
     // the two brass lamps on the reading table sit close over the files: their shadows fall across the blotters
@@ -741,6 +759,11 @@ export class StacksRoom {
     }
     l.add(sp, sp.target);
     this.desks.push({ light: sp, inner });
+    if (index === 0) {
+      // not on the table any more: it is built only so the desk numbering holds
+      l.visible = false;
+      return;
+    }
     // the lamp and its chain answer a click
     const hb = new THREE.Mesh(BOX, new THREE.MeshBasicMaterial({ visible: false }));
     hb.scale.set(0.3, 0.55, 0.42);
@@ -1204,8 +1227,9 @@ export class StacksRoom {
     rt.add(this.tableTop);
     // the examination lamp stands behind the reading place, its tube low over the far edge of the sheet
     this.examLamp(rt, -0.55, 0.765, -0.3, 'table', -1);
+    // desk 0 is the old left lamp: the swing-arm lamp stands there now, so it is not built; desk 1 is the reading lamp over the right blotter
     this.deskLamp(rt, -0.98, 0.765, -0.28, 0.4, 0);
-    this.deskLamp(rt, 0.98, 0.765, -0.28, -0.4, 1);
+    this.deskLamp(rt, 0.95, 0.765, -0.22, -0.88, 1);
     this.chair(rt, -0.55, 0.72, Math.PI);
     this.chair(rt, 0.55, 0.72, Math.PI);
     this.chair(rt, -0.55, -0.72, 0);
@@ -1515,7 +1539,12 @@ export class StacksRoom {
   /** How much larger the file is when it is drawn up to read: the sheet then fills the screen with the lamp still in view. */
   static readonly LEAN = 1.3;
   /** The place for a second file, open on the right blotter beside the one being read. */
-  static readonly SEAT2 = new THREE.Vector3(-0.1, 0.79, 0.11);
+  static readonly SEAT_R = new THREE.Vector3(0.55, 0.79, 0.11);
+  /** With two files out, they are drawn in towards each other a little so both can be read at once. */
+  static readonly PAIR_L = new THREE.Vector3(-0.3, 0.79, 0.11);
+  static readonly PAIR_R = new THREE.Vector3(0.3, 0.79, 0.11);
+  /** Which blotter the file being read is on: the left under the swing-arm lamp, the right under the reading lamp. */
+  private side: 'l' | 'r' = 'l';
   /** The file being read at the table, open on the blotter. */
   private seated: string | null = null;
   /** The file laid open beside it, to read across. */
@@ -1554,9 +1583,39 @@ export class StacksRoom {
   /** The middle of the reading place on the table, in the room. */
   readSpot(pair = false) {
     this.tableTop.updateWorldMatrix(true, false);
-    const at = StacksRoom.SEAT.clone();
-    if (pair) at.lerp(StacksRoom.SEAT2, 0.5);
+    const at = (this.side === 'l' ? StacksRoom.SEAT : StacksRoom.SEAT_R).clone();
+    if (pair) at.set(0, at.y, at.z);
     return this.tableTop.localToWorld(at);
+  }
+
+  /** Where the file being read lies, in the room. */
+  mainSpot() {
+    this.tableTop.updateWorldMatrix(true, false);
+    return this.tableTop.localToWorld(this.seatFor(true).clone());
+  }
+
+  get sideNow() {
+    return this.side;
+  }
+
+  /** Sit at the other blotter. */
+  setSide(side: 'l' | 'r') {
+    this.side = side;
+    this.aimTable(false);
+  }
+
+  /** Whether a file is open on the left blotter (under the swing-arm lamp) or the right (under the reading lamp). */
+  occupied(which: 'l' | 'r') {
+    const main = this.seated ? this.side : null;
+    const other = this.aside ? (this.side === 'l' ? 'r' : 'l') : null;
+    return main === which || other === which;
+  }
+
+  private seatFor(main: boolean) {
+    const paired = !!this.aside;
+    const left = main === (this.side === 'l');
+    if (paired) return left ? StacksRoom.PAIR_L : StacksRoom.PAIR_R;
+    return left ? StacksRoom.SEAT : StacksRoom.SEAT_R;
   }
 
   /** Lay this file open on the right blotter, beside the one being read (null: put it back). */
@@ -1569,13 +1628,21 @@ export class StacksRoom {
    * Lay these files on the table, in this order; the rest go. A file given a
    * `from` (a place in the room) is carried over from there and put down.
    */
-  setTable(items: { file: string; category: string; map: () => THREE.Texture }[], from?: Map<string, THREE.Vector3>) {
+  setTable(items: { file: string; category: string; map: () => THREE.Texture }[], from?: Map<string, THREE.Vector3>, back?: Map<string, THREE.Vector3>) {
     const keep = new Set(items.map((i) => i.file));
     for (const [f, c] of this.covers) {
       if (keep.has(f)) continue;
-      this.tableTop.remove(c.g, c.blob);
-      this.unhit(c.hit);
-      c.map.dispose();
+      const to = back?.get(f);
+      if (to && !this.still) {
+        // sent back: picked up, carried to its cabinet and let down into it
+        this.tableTop.updateWorldMatrix(true, false);
+        this.leaving.push({ c, from: c.g.position.clone(), to: this.tableTop.worldToLocal(to.clone()), rot: c.g.rotation.y, t: 0 });
+        this.unhit(c.hit);
+      } else {
+        this.tableTop.remove(c.g, c.blob);
+        this.unhit(c.hit);
+        c.map.dispose();
+      }
       this.covers.delete(f);
       if (this.seated === f) this.seated = null;
       if (this.aside === f) this.aside = null;
@@ -1607,12 +1674,12 @@ export class StacksRoom {
     for (const [f, c] of this.covers) {
       const [x, z, r] = StacksRoom.SLOTS[c.slot] ?? StacksRoom.SLOTS[0];
       if (f === this.seated) {
-        c.to.copy(StacksRoom.SEAT).setY(0.772 + 0.012);
+        c.to.copy(this.seatFor(true)).setY(0.772 + 0.012);
         c.toRot = 0;
         c.toOpen = 1;
         c.toS = StacksRoom.LEAN;
       } else if (f === this.aside) {
-        c.to.copy(StacksRoom.SEAT2).setY(0.772 + 0.012);
+        c.to.copy(this.seatFor(false)).setY(0.772 + 0.012);
         c.toRot = 0;
         c.toOpen = 1;
         c.toS = StacksRoom.LEAN;
@@ -1709,8 +1776,55 @@ export class StacksRoom {
     }
     // the lamp's arm swings after a file being carried, and rests over the reading place
     let at = StacksRoom.SEAT;
+    const leftFile = this.side === 'l' ? this.seated : this.aside;
+    if (leftFile) at = this.seatFor(leftFile === this.seated);
     for (const c of this.covers.values()) if (c.carry) at = c.g.position;
+    for (const l of this.leaving) at = l.c.g.position;
+    this.tickLeaving(motion ? dt : 1);
     this.tickArm(dt, at, !motion);
+    // the reading lamp on the right turns to the file on that blotter
+    const R = this.readLamp;
+    if (R) {
+      const rightFile = this.side === 'r' ? this.seated : this.aside;
+      const spot = rightFile ? this.seatFor(rightFile === this.seated) : StacksRoom.SEAT_R;
+      this.tableTop.updateWorldMatrix(true, false);
+      R.g.updateWorldMatrix(true, false);
+      const loc = R.g.worldToLocal(this.tableTop.localToWorld(spot.clone()));
+      if (!motion) R.sp.target.position.copy(loc);
+      else R.sp.target.position.lerp(loc, 1 - Math.exp(-dt * 4));
+    }
+  }
+
+  /** Files on their way back to a cabinet. */
+  private leaving: { c: TableFile; from: THREE.Vector3; to: THREE.Vector3; rot: number; t: number }[] = [];
+  /** With motion reduced nothing is carried: files just go. */
+  private get still() {
+    return reducedMotion();
+  }
+
+  private tickLeaving(dt: number) {
+    for (let i = this.leaving.length - 1; i >= 0; i--) {
+      const l = this.leaving[i], c = l.c;
+      l.t = Math.min(1, l.t + dt / 1.0);
+      const e = l.t < 0.5 ? 4 * l.t ** 3 : 1 - (-2 * l.t + 2) ** 3 / 2;
+      c.g.position.lerpVectors(l.from, l.to, e);
+      c.g.position.y += Math.sin(Math.PI * l.t) * 0.4;
+      c.g.rotation.y = l.rot * (1 - e);
+      c.g.rotation.z = Math.sin(Math.PI * l.t) * 0.25;
+      // the cover shuts first, and the file sinks as it goes into the drawer
+      c.open += (0 - c.open) * Math.min(1, dt * 9);
+      c.flap.rotation.z = c.open * Math.PI * 0.985;
+      c.g.scale.setScalar(c.s * (1 - 0.6 * Math.max(0, (l.t - 0.75) / 0.25)));
+      const m = c.blob.material as THREE.MeshBasicMaterial;
+      m.opacity = 0.75 * (1 - Math.min(1, l.t * 3));
+      c.blob.position.set(c.g.position.x, 0.7727, c.g.position.z);
+      if (l.t >= 1) {
+        this.tableTop.remove(c.g, c.blob);
+        c.map.dispose();
+        this.leaving.splice(i, 1);
+        this.landed?.();
+      }
+    }
   }
 
   /** Called when a carried file lands on the table. */
