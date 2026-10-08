@@ -56,6 +56,8 @@ export interface StacksEvents {
   bank(bi: number): void;
   rocker(i: number): void;
   desk(i: number): void;
+  /** An examination lamp (its tube or its pull cord) clicked. */
+  exam(i: number): void;
   index(): void;
   tray(): void;
   safe(): void;
@@ -97,6 +99,8 @@ export class StacksScene {
   private zoneNow: StacksZone = 'overview';
   /** The formal group the camera is up close to, and the drawer pulled out there. */
   private push: number | null = null;
+  /** Sat down at the reading place, leaning over the blotter. */
+  private seated = false;
   private drawer: { ci: number; d: number } | null = null;
   /** Moonlight through the louvres tonight, 0–1. */
   private moonK = 0;
@@ -169,6 +173,10 @@ export class StacksScene {
 
   /* ---------------- views ---------------- */
   private viewOf(z: StacksZone): View {
+    if (this.seated) {
+      // in the chair, leaning over the blotter: the sheet in the middle, the brass lamps either side, the tube above
+      return { at: this.room.readSpot().add(new THREE.Vector3(0, 0, -0.08)), dir: new THREE.Vector3(0, 1, 0.55).normalize(), w: 1.25, h: 0.8 };
+    }
     if (this.drawer) {
       // over the open drawer, looking down into it from the front
       const f = this.room.drawerFront(this.drawer.ci, this.drawer.d);
@@ -203,6 +211,7 @@ export class StacksScene {
 
   goZone(z: StacksZone) {
     if (this.drawer) this.closeDrawer();
+    this.seated = false;
     if (z === this.zoneNow) return;
     this.zoneNow = z;
     this.on.zone(z);
@@ -230,6 +239,20 @@ export class StacksScene {
     this.room.dropAll();
     this.drawer = null;
     this.push = null;
+  }
+
+  /** Sit down at the reading place (or get up and step back to see the table). */
+  sit(on: boolean) {
+    if (on && this.drawer) this.closeDrawer();
+    this.seated = on;
+    if (on && this.zoneNow !== 'reading') {
+      this.zoneNow = 'reading';
+      this.on.zone('reading');
+    }
+  }
+
+  get isSeated() {
+    return this.seated;
   }
 
   get openAt() {
@@ -401,6 +424,7 @@ export class StacksScene {
       e.light.intensity = (1.4 + L.night * 9) * lv;
       e.light.visible = e.light.intensity > 0.01;
       e.tube.emissiveIntensity = 0.02 + lv * (0.7 + L.night * 1.6);
+      e.glow.opacity = lv * (0.25 + L.night * 0.45);
     });
     if (this.readPoint) this.reportPaper(dt);
 
@@ -421,14 +445,14 @@ export class StacksScene {
     const at = this.view.at.update(dt);
     const dir = this.view.dir.update(dt).clone().normalize();
     const dist = this.view.dist.update(dt);
-    this.parallax.lerp(this.push !== null ? new THREE.Vector2() : this.pointer.clone().clampScalar(-1, 1), damp(2, dt));
+    this.parallax.lerp(this.push !== null || this.seated ? new THREE.Vector2() : this.pointer.clone().clampScalar(-1, 1), damp(2, dt));
     const right = new THREE.Vector3().crossVectors(UP, dir).normalize();
     const tan = Math.tan(THREE.MathUtils.degToRad(this.camera.fov / 2));
     const visW = 2 * dist * tan * this.camera.aspect;
     const portrait = this.camera.aspect < 0.85;
     // the head column sits on the left: the subject sits right of it
-    const look = at.clone().addScaledVector(right, portrait || this.push !== null ? 0 : -visW * 0.12);
-    if (portrait) look.addScaledVector(UP, 2 * dist * tan * 0.07);
+    const look = at.clone().addScaledVector(right, portrait || this.push !== null || this.seated ? 0 : -visW * 0.12);
+    if (portrait && !this.seated) look.addScaledVector(UP, 2 * dist * tan * 0.07);
     const camDir = dir.clone().applyQuaternion(new THREE.Quaternion().setFromAxisAngle(UP, this.parallax.x * 0.02));
     camDir.y -= this.parallax.y * 0.012;
     this.camera.position.copy(look).addScaledVector(camDir.normalize(), dist);
@@ -556,6 +580,7 @@ export class StacksScene {
       else if (typeof p.bank === 'number') this.on.bank(p.bank);
       else if (typeof p.rocker === 'number') this.on.rocker(p.rocker);
       else if (typeof p.desk === 'number') this.on.desk(p.desk);
+      else if (typeof p.exam === 'number') this.on.exam(p.exam);
       else if (p.index) this.on.index();
       else if (p.tray) this.on.tray();
       else if (p.safe) this.on.safe();

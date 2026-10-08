@@ -191,6 +191,9 @@ export class Cards {
     const n = this.deck.length;
     const recs = this.deck.filter((c) => 'rec' in c).length;
     const behind = this.deck.slice(this.at + 1, this.at + 4);
+    // the pager counts files, as the header does; a divider reads as the file behind it
+    const before = this.deck.slice(0, this.at + 1).filter((c) => 'rec' in c).length;
+    const pos = Math.min(recs, this.deck[this.at] && 'rec' in this.deck[this.at] ? before : before + 1);
     this.el.innerHTML = `
       <div class="icards__top">
         <span class="micro">${zh ? `索引卡 · ${recs} 张` : `Card index · ${recs} cards`}</span>
@@ -205,7 +208,7 @@ export class Cards {
       </div>
       <div class="icards__nav">
         <button type="button" data-act="prev" ${this.at === 0 ? 'disabled' : ''} aria-label="${zh ? '往前翻' : 'Back a card'}">←</button>
-        <span class="micro">${String(this.at + 1).padStart(2, '0')} / ${String(n).padStart(2, '0')}</span>
+        <span class="micro">${String(pos).padStart(2, '0')} / ${String(recs).padStart(2, '0')}</span>
         <button type="button" data-act="next" ${this.at >= n - 1 ? 'disabled' : ''} aria-label="${zh ? '往后翻' : 'On a card'}">→</button>
       </div>`;
     const now = this.el.querySelector<HTMLElement>('.icards__now');

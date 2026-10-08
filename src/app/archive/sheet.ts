@@ -12,6 +12,7 @@ import { reducedMotion } from '../prefs';
 import { clearanceKey } from '../clearance';
 import { esc } from '../ui/text';
 import { audio } from '../audio';
+import { coverHtml } from './covers';
 
 type Pt = { x: number; y: number } | null;
 const EASE_OUT = 'cubic-bezier(.16,1,.3,1)';
@@ -33,18 +34,10 @@ export class Sheet {
     const el = document.createElement('div');
     const top = rec.stamp === 'TOP SECRET';
     el.className = `ds-cover ds-cover--${rec.category}${top ? ' ds-cover--string' : ''} clr-${clearanceKey(rec.stamp)}`;
+    el.style.setProperty('--cw', `${r.width}px`);
     el.setAttribute('aria-hidden', 'true');
     Object.assign(el.style, { left: `${r.left}px`, top: `${r.top}px`, width: `${r.width}px`, height: `${r.height}px` });
-    el.innerHTML = `<div class="ds-cover__flap">
-        <div class="ds-cover__face">
-          <span class="ds-cover__tab">${esc(rec.file)}</span>
-          <i class="ds-cover__band"></i>
-          <p class="ds-cover__title">${esc(rec.title)}</p>
-          <b class="ds-cover__stamp">${esc(rec.stamp)}</b>
-          ${top ? '<i class="ds-cover__washer"></i><i class="ds-cover__washer ds-cover__washer--b"></i>' : ''}
-        </div>
-        <div class="ds-cover__inside"></div>
-      </div>`;
+    el.innerHTML = coverHtml(rec);
     this.root.appendChild(el);
     this.cover = el;
     return el;
@@ -52,24 +45,32 @@ export class Sheet {
 
   /** Bring a file up from `from` (its place on the screen) and open it. */
   open(from: Pt, rec: ArchiveRecord) {
-    this.root.classList.add('is-arriving');
-    window.clearTimeout(this.arrive);
-    this.arrive = window.setTimeout(() => this.root.classList.remove('is-arriving'), 1700);
-    if (reducedMotion()) return;
+    if (reducedMotion()) {
+      this.root.classList.add('is-arriving');
+      window.clearTimeout(this.arrive);
+      this.arrive = window.setTimeout(() => this.root.classList.remove('is-arriving'), 1700);
+      return;
+    }
     const paper = this.paper;
     const r = paper.getBoundingClientRect();
     const cx = r.left + r.width / 2, cy = r.top + r.height / 2;
     const fx = from?.x ?? cx, fy = from?.y ?? r.bottom + r.height * 0.4;
     const cover = this.make(rec, r);
     const flap = cover.firstElementChild as HTMLElement;
+    // held up a moment so its front can be read; a TOP SECRET envelope is unwound first
+    const top = rec.stamp === 'TOP SECRET';
+    const at = 1050 + (top ? 420 : 0);
+    this.root.classList.add('is-arriving');
+    window.clearTimeout(this.arrive);
+    this.arrive = window.setTimeout(() => this.root.classList.remove('is-arriving'), at + 650);
     // the sheet waits under the cover until the cover opens
     const pa = paper.animate(
       [
         { opacity: 0, transform: 'translateY(.8rem) scale(.985)' },
-        { opacity: 0, transform: 'translateY(.8rem) scale(.985)', offset: 0.62 },
+        { opacity: 0, transform: 'translateY(.8rem) scale(.985)', offset: (at + 120) / (at + 520) },
         { opacity: 1, transform: 'none' },
       ],
-      { duration: 1250, easing: EASE_OUT, fill: 'both' },
+      { duration: at + 520, easing: EASE_OUT, fill: 'both' },
     );
     pa.onfinish = () => pa.cancel();
     // up out of the room and onto the screen
@@ -81,13 +82,49 @@ export class Sheet {
       ],
       { duration: 560, delay: 240, easing: 'cubic-bezier(.2,.85,.25,1)', fill: 'both' },
     );
+    if (top) {
+      const thread = cover.querySelector<SVGPathElement>('.cv-thread');
+      thread?.animate([{ strokeDashoffset: 0 }, { strokeDashoffset: 1 }], { duration: 380, delay: at - 420, easing: 'ease-in', fill: 'both' });
+      window.setTimeout(() => audio.pluck(), at - 400);
+    }
     // the cover swings open on its spine, then is set aside
-    flap.animate([{ transform: 'perspective(1800px) rotateY(0deg)' }, { transform: 'perspective(1800px) rotateY(-168deg)' }], { duration: 440, delay: 800, easing: 'cubic-bezier(.55,0,.25,1)', fill: 'both' });
-    window.setTimeout(() => audio.flap(), 800);
-    window.setTimeout(() => audio.slide(), 980);
-    window.setTimeout(() => audio.settle(), 1230);
-    const out = cover.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 240, delay: 1200, fill: 'forwards' });
+    flap.animate([{ transform: 'perspective(1800px) rotateY(0deg)' }, { transform: 'perspective(1800px) rotateY(-168deg)' }], { duration: 440, delay: at, easing: 'cubic-bezier(.55,0,.25,1)', fill: 'both' });
+    window.setTimeout(() => audio.flap(), at);
+    window.setTimeout(() => audio.slide(), at + 180);
+    window.setTimeout(() => audio.settle(), at + 430);
+    const out = cover.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 240, delay: at + 400, fill: 'forwards' });
     out.onfinish = () => cover.remove();
+  }
+
+  /**
+   * Sat down at the table: the folder slides over and opens on the blotter in
+   * the room itself, and the sheet comes up out of it once it lies open.
+   */
+  seat(rec: ArchiveRecord) {
+    const wait = reducedMotion() ? 0 : 1150 + (rec.stamp === 'TOP SECRET' ? 300 : 0);
+    this.root.classList.add('is-arriving', 'is-seating');
+    window.clearTimeout(this.arrive);
+    this.arrive = window.setTimeout(() => this.root.classList.remove('is-arriving', 'is-seating'), wait + 700);
+    if (reducedMotion()) return;
+    const pa = this.paper.animate(
+      [
+        { opacity: 0, transform: 'translateY(1.2rem) scale(.94)' },
+        { opacity: 0, transform: 'translateY(1.2rem) scale(.94)', offset: wait / (wait + 560) },
+        { opacity: 1, transform: 'none' },
+      ],
+      { duration: wait + 560, easing: EASE_OUT, fill: 'both' },
+    );
+    pa.onfinish = () => pa.cancel();
+    if (rec.stamp === 'TOP SECRET') window.setTimeout(() => audio.pluck(), 500);
+    window.setTimeout(() => audio.slide(), 250);
+    window.setTimeout(() => audio.flap(), wait - 450);
+  }
+
+  /** Getting up from the table: the sheet goes back down into the folder, which shuts in the room. */
+  rise() {
+    this.root.classList.remove('is-arriving', 'is-seating');
+    if (reducedMotion()) return;
+    audio.flap();
   }
 
   /** Close the file over the sheet and send it back to `to`. */

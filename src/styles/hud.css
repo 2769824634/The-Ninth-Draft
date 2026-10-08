@@ -34,6 +34,9 @@
   transition: opacity var(--t-3) var(--ease);
 }
 .archive[data-view='detail'] .veil::after { opacity: 1; }
+/* sat at the reading table the room is not stepped back: the table, its lamps and the tube are what you read by */
+.archive[data-view='detail'][data-readat='table'] .veil { opacity: .55; }
+.archive[data-view='detail'][data-readat='table'] .veil::after { opacity: .12; }
 
 /* Everything HUD sits above the canvas and fades with the view state. */
 .brand, .tools, .foot, .inspect, .dossier {
