@@ -280,6 +280,16 @@ export class Stacks {
     document.querySelectorAll<HTMLButtonElement>('#stacks-cats [data-cat]').forEach((b) => b.addEventListener('click', () => this.openCabinet(Number(b.dataset.cat))));
     document.querySelectorAll<HTMLButtonElement>('.stackshud__rockers [data-row]').forEach((b) => b.addEventListener('click', () => this.toggleRow(Number(b.dataset.row))));
     document.querySelectorAll<HTMLButtonElement>('.stackshud__desks [data-desk]').forEach((b) => b.addEventListener('click', () => this.toggleDesk(Number(b.dataset.desk))));
+    const bright = document.querySelector<HTMLInputElement>('#ds-bright');
+    if (bright) {
+      const apply = () => document.documentElement.style.setProperty('--paper-b', String(+bright.value / 100));
+      try { bright.value = localStorage.getItem('n9:paper-b') ?? bright.value; } catch {}
+      apply();
+      bright.addEventListener('input', () => {
+        apply();
+        try { localStorage.setItem('n9:paper-b', bright.value); } catch {}
+      });
+    }
     document.querySelectorAll<HTMLButtonElement>('#ds-switches [data-ls]').forEach((b) => b.addEventListener('click', () => this.readSwitch(b.dataset.ls!)));
     this.$('stacks-cards-btn').addEventListener('click', () => this.cards.show());
     this.slip.addEventListener('click', (e) => {
