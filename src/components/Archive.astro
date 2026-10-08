@@ -229,6 +229,8 @@ const links = new Set(records.flatMap((r) => r.related.filter((f) => records.som
   <article class="dossier" id="dossier" aria-hidden="true">
     <span class="dossier__spine micro" id="ds-spine" aria-hidden="true">Archive terminal // Gerimis</span>
     <i class="dossier__scan" aria-hidden="true"></i>
+    <!-- The sheet and what goes with it. At the reading table this is the part laid over the sheet on the blotter. -->
+    <div class="dossier__sheet">
     <!-- Earlier drafts lie under the final; their tabs stick out past its edge -->
     <nav class="sheaf" id="ds-sheaf" aria-label="Earlier drafts" hidden></nav>
     <div class="dossier__scroll dossier__paper" id="ds-scroll">
@@ -255,9 +257,11 @@ const links = new Set(records.flatMap((r) => r.related.filter((f) => records.som
       <section class="pane pane--attach" id="ds-attach"></section>
       <p class="dossier__see" id="ds-see"></p>
     </div>
-    <div class="cite-slip" id="ds-slip" role="dialog" aria-label="File reference" hidden></div>
+    <i class="dossier__shade" aria-hidden="true"></i>
     <!-- what else is lying on the reading table -->
     <div class="ds-table" id="ds-table" hidden data-no-i18n></div>
+    </div>
+    <div class="cite-slip" id="ds-slip" role="dialog" aria-label="File reference" hidden></div>
     <footer class="dossier__foot">
       <button type="button" class="dossier__step" data-dstep="-1"><svg viewBox="0 0 24 12" aria-hidden="true"><path d="M24 6H2M7 1 2 6l5 5" /></svg><span>Previous</span></button>
       <span class="micro" id="ds-count">01 / 04</span>
