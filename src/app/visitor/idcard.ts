@@ -7,7 +7,7 @@
 import { halftone } from '../scene/halftone';
 import { islandNow } from '../island';
 import { birthplace, cardNo, codeRow, doorText } from './home';
-import { hash, passNo, type Pass, type Visitor } from './store';
+import { dobText, hash, passNo, type Pass, type Visitor } from './store';
 
 const esc = (s: string) => s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
 /** "08.10.99", by the island's calendar. */
@@ -45,7 +45,10 @@ export function cardHTML(v: Partial<Visitor> & { code?: string }, o: { reissued?
       <div class="idc__photo"><canvas width="150" height="188" aria-hidden="true"></canvas></div>
       <dl class="idc__fields">
         ${row('Name', '姓名', name, ' idc__name')}
-        ${row('Date of birth', '出生日期', 'NOT DECLARED · 未申报')}
+        <div class="idc__pair">
+          ${row('Date of birth', '出生日期', v.dob ? dobText(v.dob) : v.at && v.origin ? 'NOT DECLARED' : dash)}
+          ${row('Sex', '性别', v.sex ?? (v.at && v.origin ? '—' : dash))}
+        </div>
         <div class="idc__code" aria-label="Code">${code ? esc(code) : '<span class="idc__dash">—</span>'}</div>
         ${row('Place of birth', '出生地', v.origin ? esc(birthplace(v, false)) : dash)}
       </dl>

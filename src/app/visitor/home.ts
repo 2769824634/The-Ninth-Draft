@@ -59,7 +59,7 @@ export function ballot(blocks: HomeBlock[], code: string, d: DistrictId): { bloc
 }
 
 /** Doors along one corridor, for picking your own. */
-export const DOORS = 8;
+export const DOORS = 8; // the phrase keeps the door in three bits
 
 /** The number on the door: each block numbers its corridor from its own hundred, "#07-311". */
 export const unitNo = (h: Pick<Home, 'postcode' | 'stack'>) => String((1 + (hash(`unit#${h.postcode}`) % 8)) * 100 + 1 + h.stack * 2);
@@ -97,6 +97,8 @@ export async function restoreHome(p: HomePhrase, base: string): Promise<Visitor 
     district: b.district,
     origin: p.origin,
     ...(p.since ? { since: p.since } : {}),
+    ...(p.dob ? { dob: p.dob } : {}),
+    ...(p.sex ? { sex: p.sex } : {}),
     home: { postcode: b.postcode, blk: b.no, street: b.street, floor: p.floor, stack: p.stack },
     at: Date.now(),
   };

@@ -97,10 +97,11 @@ const arrow = '<svg viewBox="0 0 24 12" aria-hidden="true"><path d="M0 6h22M17 1
       </div>
       <form class="side__box" id="restore" novalidate>
         <h3>Restore a file</h3>
-        <p><span data-l="en">Registered on another device? Enter the same codename and your words (six, or four from before).</span><span data-l="zh">在别的设备登记过？输入同一个代号和口令（六个词，以前的是四个）。</span></p>
+        <p><span data-l="en">Registered on another device? Enter the same codename, your words (six, or four from before) and the date of birth on your card.</span><span data-l="zh">在别的设备登记过？输入同一个代号、口令（六个词，以前的是四个）和证上的出生日期。</span></p>
         <input class="f-input" id="rs-code" maxlength="24" autocomplete="off" spellcheck="false" placeholder="Codename" />
         <input class="f-input" id="rs-phrase" autocomplete="off" spellcheck="false" placeholder="Your words" />
-        <p class="f-err" id="err-restore" hidden>No such file. Check the codename and the words.</p>
+        <input class="f-input" id="rs-dob" inputmode="numeric" autocomplete="off" spellcheck="false" placeholder="Date of birth, DD-MM-YYYY" />
+        <p class="f-err" id="err-restore" hidden>No such file. Check the codename, the words and the date of birth.</p>
         <button class="f-btn f-btn--ghost" type="submit"><span>Restore</span></button>
       </form>
     </aside>
@@ -114,7 +115,7 @@ const arrow = '<svg viewBox="0 0 24 12" aria-hidden="true"><path d="M0 6h22M17 1
   import { reducedMotion } from '../../../app/prefs';
   import { islandNow } from '../../../app/island';
   import { toPhrase, fromPhrase } from '../../../app/visitor/phrase';
-  import { fileNo, homeFileNo, loadPass, loadVisitor, savePass, saveVisitor, type Home, type Origin, type Visitor } from '../../../app/visitor/store';
+  import { dobText, fileNo, homeFileNo, loadPass, loadVisitor, parseDob, savePass, saveVisitor, type Home, type Origin, type Sex, type Visitor } from '../../../app/visitor/store';
   import { district, districtName, REGIONS, RESIDENTIAL, DISTRICTS, type DistrictId } from '../../../app/visitor/districts';
   import { mountStreetMap } from '../../../app/map/mount';
   import { COUNTER, DISTRICT_TEXT, FILING, INTERVIEW, sinceLine, type L } from '../../../app/visitor/counter';
@@ -139,6 +140,8 @@ const arrow = '<svg viewBox="0 0 24 12" aria-hidden="true"><path d="M0 6h22M17 1
     code: pass?.code ?? '',
     origin: null as Origin | null,
     since: '',
+    dob: ['', '', ''] as [string, string, string],
+    sex: null as Sex | null,
     from: pass?.from ?? '',
     region: null as string | null,
     district: null as DistrictId | null,
@@ -159,11 +162,16 @@ const arrow = '<svg viewBox="0 0 24 12" aria-hidden="true"><path d="M0 6h22M17 1
   };
   const sinceYear = () => (st.origin === 'R' && /^\d{4}$/.test(st.since) ? Number(st.since) : 0);
   const sinceOk = () => sinceYear() >= 1900 && sinceYear() <= thisYear;
+  /** "1971-03-09" once all three boxes are filled with a real day; '' while not; null when it is no such day. */
+  const dobValue = () => (st.dob.some((x) => !x) ? '' : parseDob(st.dob.join('-'), islandNow()));
+  const birthYear = () => Number((dobValue() || '0').slice(0, 4));
   const fileNumber = () => (st.home && st.code.trim() ? homeFileNo(st.code, st.home) : 0);
   const asVisitor = (): Partial<Visitor> => ({
     code: st.code,
     origin: st.origin ?? undefined,
     since: sinceYear() || undefined,
+    dob: dobValue() || undefined,
+    sex: st.sex ?? undefined,
     from: st.from,
     home: st.home ?? undefined,
     no: fileNumber() || undefined,
@@ -414,14 +422,24 @@ const arrow = '<svg viewBox="0 0 24 12" aria-hidden="true"><path d="M0 6h22M17 1
     if (st.step === 'form') {
       panel.innerHTML = `<label class="f-qlabel" for="code">${zh ? '1. 署里怎么称呼你？' : '1. What should the Office call you?'}</label>
         <input class="f-input" id="code" maxlength="24" autocomplete="off" spellcheck="false" value="${esc(st.code)}" placeholder="${zh ? '真名、昵称、代号都行' : 'A name, a nickname, a codename'}" />
-        <p class="f-qlabel" style="margin-top:1.4rem">${zh ? '2. 在适用的一格内打勾（只勾一格）' : '2. Tick the box that applies (one only)'}</p>
+        <p class="f-qlabel" style="margin-top:1.4rem">${zh ? '2. 出生日期（日-月-年）' : '2. Date of birth (day-month-year)'}</p>
+        <div class="dob">
+          <input class="f-input" id="dob-0" inputmode="numeric" maxlength="2" value="${esc(st.dob[0])}" placeholder="DD" aria-label="${zh ? '日' : 'Day'}" /><span>-</span>
+          <input class="f-input" id="dob-1" inputmode="numeric" maxlength="2" value="${esc(st.dob[1])}" placeholder="MM" aria-label="${zh ? '月' : 'Month'}" /><span>-</span>
+          <input class="f-input dob__y" id="dob-2" inputmode="numeric" maxlength="4" value="${esc(st.dob[2])}" placeholder="YYYY" aria-label="${zh ? '年' : 'Year'}" />
+        </div>
+        <p class="f-qlabel" style="margin-top:1.4rem">${zh ? '3. 性别' : '3. Sex'}</p>
+        <div class="tick tick--row" role="radiogroup">
+          ${(['M', 'F'] as Sex[]).map((x) => `<label class="tick__o${st.sex === x ? ' is-on' : ''}" data-s="${x}"><input type="radio" name="s" value="${x}"${st.sex === x ? ' checked' : ''} /><i></i><b>${x === 'M' ? (zh ? '男' : 'Male') : zh ? '女' : 'Female'}</b><small>${x}</small></label>`).join('')}
+        </div>
+        <p class="f-qlabel" style="margin-top:1.4rem">${zh ? '4. 在适用的一格内打勾（只勾一格）' : '4. Tick the box that applies (one only)'}</p>
         <div class="tick" role="radiogroup">
           <label class="tick__o${st.origin === 'G' ? ' is-on' : ''}" data-o="G"><input type="radio" name="o" value="G"${st.origin === 'G' ? ' checked' : ''} /><i></i><b>${zh ? '在本岛出生' : 'Born in Gerimis'}</b></label>
           <label class="tick__o${st.origin === 'R' ? ' is-on' : ''}" data-o="R"><input type="radio" name="o" value="R"${st.origin === 'R' ? ' checked' : ''} /><i></i><b>${zh ? '通常居于本岛，自' : 'Ordinarily resident since'}<input class="f-input tick__year" id="since" inputmode="numeric" maxlength="4" value="${esc(st.since)}" placeholder="19__" aria-label="${zh ? '年份' : 'Year'}" />${zh ? '年起' : ''}</b></label>
           <label class="tick__o${st.origin === 'N' ? ' is-on' : ''}" data-o="N"><input type="radio" name="o" value="N"${st.origin === 'N' ? ' checked' : ''} /><i></i><b>${zh ? '新抵岛人士' : 'New arrival'}</b><small>${zh ? '须先在渡轮码头填入境卡' : 'Arrival card at the ferry terminal first'}</small></label>
         </div>
         <div class="ro9__from"${st.origin === 'R' ? '' : ' hidden'} id="from-wrap">
-          <label class="f-qlabel" for="from">${zh ? '3. 之前在哪？（出生地，选填）' : '3. Where were you before? (Place of birth, optional)'}</label>
+          <label class="f-qlabel" for="from">${zh ? '5. 之前在哪？（出生地，选填）' : '5. Where were you before? (Place of birth, optional)'}</label>
           <input class="f-input" id="from" maxlength="32" autocomplete="off" spellcheck="false" value="${esc(st.from)}" placeholder="${zh ? '照实写，或者空着' : 'As it is, or leave it blank'}" />
         </div>
         <p class="f-help">${zh ? '不用填真实信息。勾选项只是岛上的写法，不对应任何现实身份。' : 'Not your real details. The boxes are the island’s own; they stand for no status anywhere else.'}</p>`;
@@ -440,7 +458,38 @@ const arrow = '<svg viewBox="0 0 24 12" aria-hidden="true"><path d="M0 6h22M17 1
           say(name.length > 14 ? COUNTER.codeLong : COUNTER.code, { name });
         }, 600);
       });
-      panel.querySelectorAll<HTMLLabelElement>('.tick__o').forEach((el) =>
+      // date of birth: three boxes, the cursor moves on when one is full
+      let dr = 0;
+      [0, 1, 2].forEach((k) => {
+        const el = $<HTMLInputElement>(`dob-${k}`);
+        el.addEventListener('input', () => {
+          st.dob[k] = el.value.replace(/\D/g, '').slice(0, k === 2 ? 4 : 2);
+          el.value = st.dob[k];
+          if (k < 2 && st.dob[k].length === 2) $<HTMLInputElement>(`dob-${k + 1}`).focus();
+          renderCard();
+          window.clearTimeout(dr);
+          dr = window.setTimeout(() => {
+            const d = dobValue();
+            if (d === null) return say(COUNTER.dobBad);
+            if (d) say(COUNTER.dob, { date: dobText(d) });
+          }, 600);
+        });
+        el.addEventListener('blur', () => {
+          if (k < 2 && st.dob[k].length === 1) { st.dob[k] = st.dob[k].padStart(2, '0'); el.value = st.dob[k]; renderCard(); }
+        });
+        el.addEventListener('keydown', (e) => { if (e.key === 'Backspace' && !el.value && k > 0) $<HTMLInputElement>(`dob-${k - 1}`).focus(); });
+      });
+      panel.querySelectorAll<HTMLLabelElement>('.tick__o[data-s]').forEach((el) =>
+        el.addEventListener('click', () => {
+          const x = el.dataset.s as Sex;
+          if (st.sex === x) return;
+          st.sex = x;
+          panel.querySelectorAll<HTMLElement>('.tick__o[data-s]').forEach((o) => o.classList.toggle('is-on', o.dataset.s === x));
+          audio.click();
+          renderCard();
+        }),
+      );
+      panel.querySelectorAll<HTMLLabelElement>('.tick__o[data-o]').forEach((el) =>
         el.addEventListener('click', (e) => {
           const o = el.dataset.o as Origin;
           if (e.target instanceof HTMLInputElement && e.target.id === 'since' && st.origin === 'R') return;
@@ -535,6 +584,8 @@ const arrow = '<svg viewBox="0 0 24 12" aria-hidden="true"><path d="M0 6h22M17 1
       panel.innerHTML = `<p class="f-qlabel">${zh ? '核对一遍，归档以后署里就认这一份。' : 'Read it back. Once filed, this is the version we keep.'}</p>
         <ul class="readback">${[
           row(t('Codename'), st.code.trim(), 'form'),
+          row(zh ? '出生日期' : 'Date of birth', dobText(dobValue() || ''), 'form'),
+          row(zh ? '性别' : 'Sex', st.sex === 'M' ? (zh ? '男 M' : 'Male, M') : zh ? '女 F' : 'Female, F', 'form'),
           row(zh ? '勾选' : 'Ticked', box, 'form'),
           ...(st.origin !== 'G' ? [row(zh ? '从哪来' : 'From', st.from.trim() || (zh ? '（没写）' : '(not given)'), st.origin === 'N' ? 'ferry' : 'form')] : []),
           row(zh ? '住址' : 'Address', `${addressLine(v.home!, zh)} · ${postLine(v.home!, zh)}`, 'home'),
@@ -557,8 +608,8 @@ const arrow = '<svg viewBox="0 0 24 12" aria-hidden="true"><path d="M0 6h22M17 1
     // a different box: a different way to a flat
     if (was && (was === 'G') !== (o === 'G')) { st.home = null; st.block = null; st.district = null; }
     if (o !== 'N') st.landed = false;
-    panel.querySelectorAll<HTMLElement>('.tick__o').forEach((el) => el.classList.toggle('is-on', el.dataset.o === o));
-    panel.querySelectorAll<HTMLInputElement>('.tick__o input[type=radio]').forEach((el) => (el.checked = el.value === o));
+    panel.querySelectorAll<HTMLElement>('.tick__o[data-o]').forEach((el) => el.classList.toggle('is-on', el.dataset.o === o));
+    panel.querySelectorAll<HTMLInputElement>('.tick__o[data-o] input[type=radio]').forEach((el) => (el.checked = el.value === o));
     $('from-wrap').hidden = o !== 'R';
     audio.click();
     say(o === 'G' ? COUNTER.tickG : o === 'R' ? COUNTER.tickR : COUNTER.tickN);
@@ -660,8 +711,11 @@ const arrow = '<svg viewBox="0 0 24 12" aria-hidden="true"><path d="M0 6h22M17 1
     }
     if (st.step === 'form') {
       if (!st.code.trim()) return complaint({ en: 'A name is required.', zh: '代号必填。' });
+      if (!dobValue()) return complaint(COUNTER.dobBad);
+      if (!st.sex) return complaint(COUNTER.sex);
       if (!st.origin) return complaint({ en: 'Tick one box.', zh: '勾一格。' });
       if (st.origin === 'R' && !sinceOk()) return complaint({ en: 'Write the year, between 1900 and 1999.', zh: '写上年份，1900 到 1999 之间。' });
+      if (st.origin === 'R' && sinceYear() < birthYear()) return complaint(COUNTER.sinceEarly);
       if (st.origin === 'G') st.from = '';
     }
     if (st.step === 'ferry' && !st.landed) { await land(); }
@@ -696,6 +750,8 @@ const arrow = '<svg viewBox="0 0 24 12" aria-hidden="true"><path d="M0 6h22M17 1
       district: st.district!,
       origin: st.origin!,
       ...(st.origin === 'R' ? { since: sinceYear() } : {}),
+      dob: dobValue() || undefined,
+      sex: st.sex ?? undefined,
       ...(st.from.trim() && st.origin !== 'G' ? { from: st.from.trim().slice(0, 32) } : {}),
       home: h,
       at: Date.now(),
@@ -753,7 +809,8 @@ const arrow = '<svg viewBox="0 0 24 12" aria-hidden="true"><path d="M0 6h22M17 1
   $('restore').addEventListener('submit', async (e) => {
     e.preventDefault();
     const code = $<HTMLInputElement>('rs-code').value;
-    const got = fromPhrase(code, $<HTMLInputElement>('rs-phrase').value);
+    const dob = parseDob($<HTMLInputElement>('rs-dob').value, islandNow());
+    const got = dob === null ? null : fromPhrase(code, $<HTMLInputElement>('rs-phrase').value, dob);
     let v: Visitor | null = null;
     if (got && 'postcode' in got) v = await restoreHome(got, base).catch(() => null);
     else if (got) v = { ...got, at: Date.now() };

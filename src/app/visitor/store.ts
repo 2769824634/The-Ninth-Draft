@@ -13,6 +13,26 @@ import type { DistrictId } from './districts';
 /** Born in Gerimis, ordinarily resident since a year, or a new arrival. */
 export type Origin = 'G' | 'R' | 'N';
 
+export type Sex = 'M' | 'F';
+
+/**
+ * A date of birth as typed (09-03-1971, 9/3/1971, 09031971) → "1971-03-09";
+ * '' when blank; null when it is no day of 1900–1999 up to today on the island.
+ */
+export function parseDob(s: string, today: { month: number; day: number }): string | null {
+  const t = s.trim();
+  if (!t) return '';
+  const m = t.match(/^(\d{1,2})\D+(\d{1,2})\D+(\d{4})$/) ?? t.match(/^(\d{2})(\d{2})(\d{4})$/);
+  if (!m) return null;
+  const [d, mo, y] = [Number(m[1]), Number(m[2]), Number(m[3])];
+  if (y < 1900 || y > 1999 || mo < 1 || mo > 12 || d < 1) return null;
+  if (d > new Date(Date.UTC(y, mo, 0)).getUTCDate()) return null;
+  if (y === 1999 && (mo - 1 > today.month || (mo - 1 === today.month && d > today.day))) return null;
+  return `${y}-${String(mo).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+}
+/** "1971-03-09" → "09-03-1971", the way the card prints it. */
+export const dobText = (dob: string) => dob.split('-').reverse().join('-');
+
 /** The flat the Office gave out, or reissued at the old address. */
 export interface Home {
   postcode: string;
@@ -35,6 +55,9 @@ export interface Visitor {
   origin?: Origin;
   /** "Ordinarily resident since ____": the year. */
   since?: number;
+  /** Date of birth, "1971-03-09". Registrations from before it was asked have none. */
+  dob?: string;
+  sex?: Sex;
   /** Where they came from, as written (optional, not in the phrase). */
   from?: string;
   home?: Home;

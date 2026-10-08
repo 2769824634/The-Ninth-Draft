@@ -38,6 +38,8 @@
 .idc__body { display: grid; grid-template-columns: 31% 1fr; gap: .7rem; }
 .idc__photo canvas { display: block; width: 100%; aspect-ratio: 4 / 5; border: 1px solid rgb(0 0 0 / .35); background: #ddd2b8; filter: sepia(.25) contrast(1.05); }
 .idc__fields { margin: 0; display: grid; gap: .32rem; align-content: start; }
+.idc__pair { display: grid; grid-template-columns: 1fr auto; gap: .8rem; }
+.idc__pair .idc__f:last-child dd { text-align: center; }
 .idc__f dt { display: flex; gap: .5em; font-family: var(--f-mono); font-size: .78em; letter-spacing: .08em; text-transform: uppercase; color: #6d6253; }
 .idc__f dt span + span { font-family: var(--f-sans); letter-spacing: .04em; }
 .idc__f dd { margin: .05rem 0 0; font-family: var(--f-mono); font-size: 1.12em; letter-spacing: .06em; line-height: 1.25; overflow-wrap: anywhere; }
@@ -216,3 +218,12 @@
   .home { grid-template-columns: 1fr; }
   .home__side { position: static; order: -1; }
 }
+
+/* ---------- RO-9: date of birth in three boxes, sex in two ---------- */
+.dob { display: flex; align-items: baseline; gap: .45rem; }
+.dob .f-input { width: 3.4rem; text-align: center; font-family: var(--f-mono); letter-spacing: .12em; }
+.dob .f-input.dob__y { width: 5.2rem; }
+.dob span { font-family: var(--f-mono); color: var(--ink-3); }
+.tick--row { grid-template-columns: 1fr 1fr; }
+.tick--row .tick__o small { grid-column: auto; justify-self: end; }
+.tick--row .tick__o { grid-template-columns: 1.3rem 1fr auto; }

@@ -30,6 +30,10 @@ export const COUNTER = {
   tickG: { en: 'Born here. Then you do not ballot. We find the block you grew up in and reissue at the old address.', zh: '本岛出生的不用抽签。找到你小时候住的那一座，按旧址补发。' },
   tickR: { en: 'Since what year? Write the year, not “a long time”.', zh: '自哪一年起？写年份，别写「很久了」。' },
   tickN: { en: 'New arrival. They should have given you a card at the ferry terminal. No? Then fill it in now.', zh: '新抵岛的。渡轮码头应该给过你一张入境卡。没有？那就现在补填。' },
+  dobBad: { en: 'Day, month, year. A day that happened, this century, and not after today.', zh: '日、月、年。要是本世纪真有过的一天，而且不能晚过今天。' },
+  dob: { en: 'Born {date}. Nobody here checks it against anything. Write it the same way next time.', zh: '{date} 出生。署里没东西可对，下回照样写就行。' },
+  sex: { en: 'M or F, one box. The card has room for one letter.', zh: '男或女，勾一格。证上只留一个字母的位置。' },
+  sinceEarly: { en: 'Resident since before you were born? That would be your mother. Your own year, please.', zh: '还没出生就住在岛上了？那是你妈妈。写你自己的。' },
   sinceBad: { en: 'A year between 1900 and this one, please.', zh: '写 1900 年到今年之间的年份。' },
   from: { en: 'Where were you before? The form has a line for it. You can leave it blank.', zh: '之前在哪？表上有一行。空着也行。' },
   // ferry terminal, new arrivals only
