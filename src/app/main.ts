@@ -158,7 +158,13 @@ export function start() {
    */
   const flat = window.matchMedia('(max-width: 900px), (max-aspect-ratio: 1/1)');
   const pinnable = () => !flat.matches;
-  function layPage(v: { pin: string; w: number; h: number; box: [number, number, number, number]; shade: [number, number, number, number] } | null) {
+  /** The colour the page takes from what lights it: orange under the street lamp, blue under the moon, nothing under a bright lamp. */
+  const tintOf = () => {
+    if (!lit) return 'transparent';
+    const n = parseInt(lit.color.slice(1), 16);
+    return `rgb(${n >> 16} ${(n >> 8) & 255} ${n & 255} / ${(0.4 * Math.pow(1 - Math.min(1, lit.b * 1.15), 1.3)).toFixed(3)})`;
+  };
+  function layPage(v: { pin: string; w: number; h: number; box: [number, number, number, number]; shade: [number, number, number, number]; dim: number } | null) {
     // getting up: the page stays where it was while it fades, and is let go when the file is shut
     if (!v || !pinnable() || view !== 'detail' || readAt !== 'table') return;
     const st = root.style;
@@ -170,10 +176,12 @@ export function start() {
     st.setProperty('--qx1', `${v.box[2].toFixed(1)}px`);
     st.setProperty('--qy1', `${v.box[3].toFixed(1)}px`);
     (['t', 'b', 'l', 'r'] as const).forEach((k, i) => st.setProperty(`--sd-${k}`, v.shade[i].toFixed(3)));
+    st.setProperty('--sd-all', v.dim.toFixed(3));
+    st.setProperty('--sd-tint', tintOf());
     root.dataset.pinned = '';
   }
 
-  function layAside(v: { pin: string; w: number; h: number; box: [number, number, number, number]; shade: [number, number, number, number] } | null) {
+  function layAside(v: { pin: string; w: number; h: number; box: [number, number, number, number]; shade: [number, number, number, number]; dim: number } | null) {
     if (!v || !pinnable() || view !== 'detail' || readAt !== 'table' || !companion.rec) return;
     const st = root.style;
     st.setProperty('--pin2', v.pin);
@@ -182,6 +190,8 @@ export function start() {
     st.setProperty('--bx', `${v.box[0].toFixed(1)}px`);
     st.setProperty('--by', `${v.box[3].toFixed(1)}px`);
     (['t', 'b', 'l', 'r'] as const).forEach((k, i) => st.setProperty(`--sd2-${k}`, v.shade[i].toFixed(3)));
+    st.setProperty('--sd2-tint', tintOf());
+    st.setProperty('--sd2-all', v.dim.toFixed(3));
     root.dataset.paired = '';
   }
 

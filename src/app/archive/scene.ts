@@ -53,6 +53,8 @@ export interface SheetPlace {
   box: [number, number, number, number];
   /** How much darker the sheet is at the middle of its top, bottom, left and right edges than where it is fully lit, 0–1. */
   shade: [number, number, number, number];
+  /** How dark the whole sheet is for want of light, 0 (fully lit) – 1, from the lamps' strength at its middle. */
+  dim: number;
 }
 
 /** The width, in CSS pixels, of the page laid over the sheet; its height follows the sheet's own proportions. */
@@ -104,7 +106,7 @@ interface Look {
   desk: number;
 }
 const LOOKS: Record<'day' | 'night', Look> = {
-  day: { hemi: 0.75, sun: 3.6, env: 0.35, street: 0, night: 0, pendant: 3, desk: 1.5 },
+  day: { hemi: 0.5, sun: 3.6, env: 0.24, street: 0, night: 0, pendant: 3, desk: 1.5 },
   night: { hemi: 0.05, sun: 0, env: 0.035, street: 6, night: 1, pendant: 34, desk: 9 },
 };
 
@@ -145,6 +147,9 @@ export class StacksScene {
   /** Examination tubes: wanted level, level now, and time since the starter kicked in (-1 = steady). */
   private exam: number[] = [];
   private examLevel: number[] = [];
+  private hush = 0;
+  private blindK = 0;
+  blindsShut = false;
   private examFlick: number[] = [];
   /** Where a page is being read, if one is. */
   private readPoint: THREE.Vector3 | null = null;
@@ -176,7 +181,7 @@ export class StacksScene {
     // reading table, the desk. Phones get fewer.
     const lite = matchMedia('(pointer: coarse)').matches;
     this.room.pendants.forEach((p, i) => (p.light.castShadow = lite ? p.row === 1 && i === 0 : p.row === 1 || p.row === 3));
-    this.room.desks.forEach((d, i) => (d.light.castShadow = i === 0));
+    this.room.desks.forEach((d, i) => (d.light.castShadow = i === 1));
 
     this.sun.position.set(-4, 9, 6);
     this.sun.castShadow = true;
@@ -199,7 +204,7 @@ export class StacksScene {
   private viewOf(z: StacksZone): View {
     if (this.seated) {
       // in the chair, leaning over the blotter: the sheet in the middle, the brass lamps either side, the tube above
-      if (this.paired) return { at: this.room.readSpot(true).add(new THREE.Vector3(0, 0.04, -0.1)), dir: new THREE.Vector3(0, 1, 0.55).normalize(), w: 0.78, h: 0.56 };
+      if (this.paired) return { at: this.room.readSpot(true).add(new THREE.Vector3(0, 0.04, -0.1)), dir: new THREE.Vector3(0, 1, 0.55).normalize(), w: 1.0, h: 0.56 };
       return { at: this.room.readSpot().add(new THREE.Vector3(0, 0.04, -0.1)), dir: new THREE.Vector3(0, 1, 0.55).normalize(), w: 0.3, h: 0.58 };
     }
     if (this.drawer) {
@@ -389,22 +394,26 @@ export class StacksScene {
     // the sky: grey and soft on a wet day, warmer towards evening
     const hour = islandNow().hours + islandNow().minutes / 60;
     const dusk = Math.max(0, Math.min(1, (hour - 16.5) / 2.5));
-    this.hemi.intensity = L.hemi * (1 - wet * 0.2);
-    this.sun.intensity = L.sun * (1 - wet * 0.4);
+    // louvres: the blades turn shut and the daylight, moon and street light stop at the window
+    this.blindK += ((this.blindsShut ? 1 : 0) - this.blindK) * Math.min(1, dt * 3);
+    r.setBlades(this.blindK);
+    const open = 1 - 0.72 * this.blindK;
+    this.hemi.intensity = L.hemi * (1 - wet * 0.2) * open * (1 - 0.6 * this.hush);
+    this.sun.intensity = L.sun * (1 - wet * 0.4) * open;
     this.sun.visible = this.sun.intensity > 0.05;
     this.sun.color.set('#fff1d8').lerp(new THREE.Color('#dfe6ee'), wet).lerp(new THREE.Color('#ffc890'), dusk * (1 - wet) * 0.7);
-    this.scene.environmentIntensity = L.env * (1 - wet * 0.2);
+    this.scene.environmentIntensity = L.env * (1 - wet * 0.2) * open * (1 - 0.6 * this.hush);
     // outside at night: the sodium lamp always, the moon when it is up and the sky is clear
     const moon = this.moonK * L.night;
-    r.street.intensity = L.street * (this.moonK > 0.18 ? 0.5 : 1);
+    r.street.intensity = L.street * (this.moonK > 0.18 ? 0.5 : 1) * open;
     r.street.visible = r.street.intensity > 0.1;
-    r.moon.intensity = moon * 0.9;
+    r.moon.intensity = moon * 0.9 * open;
     r.moon.visible = r.moon.intensity > 0.01;
     r.paperShadow.opacity = 0.3 + L.night * 0.3;
     const patch = new THREE.Color('#fff3d6').lerp(new THREE.Color('#ffb46a'), dusk);
     const nightPatch = new THREE.Color('#ff9a3c').lerp(new THREE.Color('#9fb2e6'), Math.min(1, this.moonK * 1.6));
     r.sunPatches.forEach((m, i) => {
-      const dayOp = day * (0.22 - wet * 0.17), nightOp = L.night * (0.07 + this.moonK * 0.12) * (1 - wet * 0.4);
+      const dayOp = open * day * (0.22 - wet * 0.17), nightOp = open * L.night * (0.07 + this.moonK * 0.12) * (1 - wet * 0.4);
       m.material.opacity = dayOp + nightOp;
       m.material.color.copy(patch).lerp(nightPatch, nightOp / Math.max(1e-4, dayOp + nightOp));
       // the patches creep across the floor with the sun
@@ -421,8 +430,15 @@ export class StacksScene {
         this.rowLevel[i] = want;
       } else this.rowLevel[i] += (want - this.rowLevel[i]) * Math.min(1, dt * (want ? 7 : 4.5));
     }
+    // reading a classified file under the swing-arm lamp: the rest of the room fades out
+    let hush = 0;
+    r.exams.forEach((e, i) => {
+      if (e.place === 'table' && this.seated && r.occupied('l') && (this.exam[i] ?? 0) >= 0.4) hush = Math.max(hush, this.examLevel[i] ?? 0);
+    });
+    this.hush += (hush - this.hush) * Math.min(1, dt * 2.2);
+    const quiet = 1 - 0.92 * this.hush;
     for (const p of r.pendants) {
-      const lv = this.rowLevel[p.row];
+      const lv = this.rowLevel[p.row] * quiet;
       p.light.intensity = L.pendant * lv * LAMP;
       p.light.visible = p.light.intensity > 0.01;
       p.fill.intensity = lv * (0.4 + L.night * 0.25) * LAMP;
@@ -430,8 +446,10 @@ export class StacksScene {
       p.glass.emissiveIntensity = 0.02 + lv * (0.15 + L.night * 0.75);
     }
     r.desks.forEach((d, i) => {
-      this.deskLevel[i] += ((this.desks[i] ? 1 : 0) - this.deskLevel[i]) * Math.min(1, dt * (this.desks[i] ? 7 : 4.5));
-      d.light.intensity = L.desk * this.deskLevel[i] * (i === 2 ? 0.38 : LAMP);
+      // the old left lamp is gone; the right one comes on by itself when a file is open under it
+      const wanted = i === 0 ? false : this.desks[i] || (i === 1 && this.seated && r.occupied('r'));
+      this.deskLevel[i] += ((wanted ? 1 : 0) - this.deskLevel[i]) * Math.min(1, dt * (wanted ? 7 : 4.5));
+      d.light.intensity = L.desk * this.deskLevel[i] * (i === 1 ? 1 : quiet) * (i === 2 ? 0.38 : i === 1 ? LAMP * 1.7 : LAMP);
       d.light.visible = d.light.intensity > 0.01;
       d.inner.emissiveIntensity = 0.05 + this.deskLevel[i] * (0.4 + L.night * 0.8);
     });
@@ -451,11 +469,16 @@ export class StacksScene {
         } else lv = seq * want;
       } else lv += (want - lv) * Math.min(1, dt * (want > lv ? 5 : 16));
       this.examLevel[i] = lv;
-      e.light.intensity = (1.4 + L.night * 9) * lv * e.gain;
+      // the swing-arm lamp is for the left blotter: it is not lit for a file read at the right one
+      const live = e.place === 'table' && this.seated && !r.occupied('l') ? 0 : 1;
+      e.light.intensity = (1.4 + L.night * 9) * lv * e.gain * live;
       e.light.visible = e.light.intensity > 0.01;
+      // the same warm white as the reading lamp; cold only for a classified file
+      if (e.place === 'table') e.light.color.set('#ffe3b8').lerp(new THREE.Color('#d4e2ff'), Math.min(1, Math.max(0, (want - 0.3) / 0.7)));
       e.tube.emissiveIntensity = 0.02 + lv * (0.7 + L.night * 1.6);
       e.glow.opacity = lv * (0.08 + L.night * 0.22);
     });
+    if (this.readPoint && this.seated) this.readPoint.copy(this.room.mainSpot());
     if (this.readPoint) this.reportPaper(dt);
     this.reportSheet();
 
@@ -497,6 +520,7 @@ export class StacksScene {
   private v1 = new THREE.Vector3();
   private v2 = new THREE.Vector3();
   private v3 = new THREE.Vector3();
+  private v4 = new THREE.Vector3();
   private bestAt = new THREE.Vector3();
 
   /** Everything that reaches a point in the room: its colour sum, strength, and what share is lamps, street, moon and day. */
@@ -535,10 +559,13 @@ export class StacksScene {
     }
     for (const d of room.desks) lamps += spot(d.light);
     for (const e of room.exams) lamps += spot(e.light);
-    const street = add(room.street.color, room.street.intensity * 0.07, null);
-    const moon = add(room.moon.color, room.moon.intensity * 0.75, null);
+    // what comes in at the windows (the back wall) is stronger near it and thins out across the room
+    const win = this.v4.set(p.x, 2.4, AR.z0);
+    const near = 0.5 + 1.85 * Math.exp(-(p.z - AR.z0) / 2.6);
+    const street = add(room.street.color, room.street.intensity * 0.07 * near, win);
+    const moon = add(room.moon.color, room.moon.intensity * 0.75 * near, win);
     const dayW = (this.hemi.intensity * 3 + (this.sun.visible ? this.sun.intensity * 0.6 : 0)) * (1 - this.rainK * 0.3);
-    const day = add(this.sun.color, dayW, null);
+    const day = add(this.sun.color, dayW * (0.7 + 0.3 * near), win);
     return { r, g, b, lux, lamps, street, moon, day, best };
   }
 
@@ -597,9 +624,11 @@ export class StacksScene {
       const lit = 1 - Math.exp(-this.gather(e).lux / 2.4);
       return Math.min(0.6, (1 - lit) * 0.62);
     }) as [number, number, number, number];
-    const key = pts.map(([x, y]) => `${x.toFixed(1)},${y.toFixed(1)}`).join('|') + `|${h}|` + shade.map((v) => v.toFixed(2)).join();
+    const mid4 = q[0].clone().add(q[2]).multiplyScalar(0.5).add(this.v1.set(0, 0.004, 0));
+    const dim = Math.min(0.8, Math.exp(-this.gather(mid4).lux / 1.3) * 0.9);
+    const key = pts.map(([x, y]) => `${x.toFixed(1)},${y.toFixed(1)}`).join('|') + `|${h}|` + shade.map((v) => v.toFixed(2)).join() + `|${dim.toFixed(2)}`;
     const xs = pts.map((p) => p[0]), ys = pts.map((p) => p[1]);
-    return { pin: laidOver(w, h, pts), w, h, box: [Math.min(...xs), Math.min(...ys), Math.max(...xs), Math.max(...ys)], shade, key };
+    return { pin: laidOver(w, h, pts), w, h, box: [Math.min(...xs), Math.min(...ys), Math.max(...xs), Math.max(...ys)], shade, dim, key };
   }
 
   private reportSheet() {

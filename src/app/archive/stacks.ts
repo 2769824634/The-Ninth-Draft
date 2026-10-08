@@ -175,7 +175,12 @@ export class Stacks {
     this.lights.rows.forEach((on, i) => s.setRow(i, on, true));
     this.lights.desks.forEach((on, i) => s.setDesk(i, on, true));
     s.room.setTankFull(this.tankFull());
-    s.room.landed = () => audio.settle();
+    s.room.landed = () => {
+      audio.settle();
+      const f = this.readAfter;
+      this.readAfter = null;
+      if (f) this.readTable(f);
+    };
     this.markRows();
     void this.layTable();
   }
@@ -275,6 +280,16 @@ export class Stacks {
     document.querySelectorAll<HTMLButtonElement>('#stacks-cats [data-cat]').forEach((b) => b.addEventListener('click', () => this.openCabinet(Number(b.dataset.cat))));
     document.querySelectorAll<HTMLButtonElement>('.stackshud__rockers [data-row]').forEach((b) => b.addEventListener('click', () => this.toggleRow(Number(b.dataset.row))));
     document.querySelectorAll<HTMLButtonElement>('.stackshud__desks [data-desk]').forEach((b) => b.addEventListener('click', () => this.toggleDesk(Number(b.dataset.desk))));
+    const bright = document.querySelector<HTMLInputElement>('#ds-bright');
+    if (bright) {
+      const apply = () => document.documentElement.style.setProperty('--paper-b', String(+bright.value / 100));
+      try { bright.value = localStorage.getItem('n9:paper-b') ?? bright.value; } catch {}
+      apply();
+      bright.addEventListener('input', () => {
+        apply();
+        try { localStorage.setItem('n9:paper-b', bright.value); } catch {}
+      });
+    }
     document.querySelectorAll<HTMLButtonElement>('#ds-switches [data-ls]').forEach((b) => b.addEventListener('click', () => this.readSwitch(b.dataset.ls!)));
     this.$('stacks-cards-btn').addEventListener('click', () => this.cards.show());
     this.slip.addEventListener('click', (e) => {
@@ -383,7 +398,7 @@ export class Stacks {
       text = zh ? `${what} · 拉一下灯绳${on ? '关掉' : '打开'}` : `${what} · pull the chain to switch it ${on ? 'off' : 'on'}`;
     } else if (kind === 'exam') {
       const on = (this.scene?.examWanted[Number(arg)] ?? 0) > 0;
-      text = zh ? `验档灯 · 日光灯管，拉一下灯绳${on ? '关掉' : '打开'}` : `Examination lamp · daylight tube, pull the cord to switch it ${on ? 'off' : 'on'}`;
+      text = zh ? `摇臂灯 · 拉一下灯绳${on ? '关掉' : '打开'}` : `Swing-arm lamp · pull the cord to switch it ${on ? 'off' : 'on'}`;
     } else if (kind === 'index') text = zh ? '索引卡 · 按编号、区、年份翻' : 'Card index · by number, district or year';
     else if (kind === 'tray') {
       const n = this.arrivedToday().length;
@@ -495,7 +510,13 @@ export class Stacks {
       else audio.rocker();
       this.scene.setExam(this.examAt.i, lv);
     } else if (which === 'row' && at) this.toggleRow(at === 'drawer' ? 1 : 3);
-    else if (which === 'desks') {
+    else if (which === 'seat' && this.scene) {
+      this.scene.room.setSide(this.scene.room.sideNow === 'l' ? 'r' : 'l');
+      audio.paper();
+    } else if (which === 'blinds' && this.scene) {
+      this.scene.blindsShut = !this.scene.blindsShut;
+      audio.rocker();
+    } else if (which === 'desks') {
       const on = !(this.lights.desks[0] || this.lights.desks[1]);
       for (const i of [0, 1]) if (this.lights.desks[i] !== on) this.toggleDesk(i);
     }
@@ -515,7 +536,9 @@ export class Stacks {
     };
     set('exam', !!this.examAt && (this.scene?.examWanted[this.examAt.i] ?? 0) > 0);
     set('row', at === 'drawer' ? this.lights.rows[1] : this.lights.rows[3]);
-    set('desks', this.lights.desks[0] || this.lights.desks[1], at === 'table');
+    set('desks', this.lights.desks[1], at === 'table');
+    set('blinds', !!this.scene?.blindsShut);
+    set('seat', this.scene?.room.sideNow === 'r', at === 'table');
   }
 
   /* ---------------- the formal cabinets ---------------- */
@@ -615,8 +638,7 @@ export class Stacks {
     audio.paper();
     this.drawDrawer();
     if (read) {
-      this.$('stacks-choice').hidden = true;
-      this.hooks.read(rec, 'drawer');
+      this.toTable(rec, true);
       return;
     }
     this.drawChoice();
@@ -643,12 +665,8 @@ export class Stacks {
     const rec = this.taken;
     if (!rec) return;
     if (act === 'back') return this.putBack();
-    if (act === 'read') {
-      this.$('stacks-choice').hidden = true;
-      this.hooks.read(rec, 'drawer');
-      return;
-    }
-    this.toTable(rec);
+    // a file is read at the table, sat down to it: there is no reading it held up in the aisle
+    this.toTable(rec, true);
   }
 
   private drawDrawer() {
@@ -701,8 +719,7 @@ export class Stacks {
     el.innerHTML = `
       <p class="stackshud__choicehead"><b>${esc(rec.file)}</b><span>${esc(rec.title)}</span><em class="clr-${clearanceKey(rec.stamp)}">${esc(rec.stamp)}</em></p>
       <div class="stackshud__choicebtns">
-        <button type="button" data-act="read">${zh ? '就地翻看' : 'Read it here'} <span class="kbd">Enter</span></button>
-        <button type="button" data-act="table"${full ? ' disabled' : ''}>${zh ? '拿到桌上' : 'Take it to the table'} <span class="kbd">T</span></button>
+        <button type="button" data-act="table"${full ? ' disabled' : ''}>${zh ? '拿到桌上读' : 'Take it to the table'} <span class="kbd">Enter</span></button>
         <button type="button" data-act="back">${zh ? '放回' : 'Put it back'}</button>
       </div>
       ${full ? `<p class="stackshud__choicenote">${zh ? `桌上已经摊了 ${TABLE_MAX} 份，再放就看不过来了。先还一份。` : `There are ${TABLE_MAX} on the table already; no room to spread another. Put one back first.`}</p>` : ''}`;
@@ -737,7 +754,7 @@ export class Stacks {
   }
 
   /** Carry the file out of its drawer and lay it on the table. */
-  toTable(rec: ArchiveRecord) {
+  toTable(rec: ArchiveRecord, read = false) {
     if (this.table.includes(rec.file)) return;
     if (this.table.length >= TABLE_MAX) {
       this.voice.say('stacks.full', {}, false);
@@ -760,10 +777,18 @@ export class Stacks {
     }
     if (from) this.scene?.goZone('reading');
     this.drawTable();
-    void this.layTable(false, from ? new Map([[rec.file, from]]) : undefined);
+    const laid = this.layTable(false, from ? new Map([[rec.file, from]]) : undefined);
+    if (read) {
+      // sit down to it once it has been carried over and put down
+      if (from && !reducedMotion()) this.readAfter = rec.file;
+      else void laid.then(() => this.readTable(rec.file));
+    }
     audio.paper();
     this.voice.say(this.table.length === 1 ? 'stacks.table' : this.table.length === TABLE_MAX ? 'stacks.full' : 'stacks.more', { n: String(this.table.length) }, false);
   }
+
+  /** A file being carried to the table to be read: sat down to when it lands. */
+  private readAfter: string | null = null;
 
   /** Back to its drawer. */
   returnFile(file: string) {
@@ -776,12 +801,27 @@ export class Stacks {
       this.drawDrawer();
     }
     this.drawTable();
-    void this.layTable();
+    void this.layTable(false, undefined, this.homeOf([file]));
     audio.paper();
+  }
+
+  /** Where each of these files goes back to: the front of its cabinet. */
+  private homeOf(files: string[]) {
+    const m = new Map<string, Vector3>();
+    const room = this.scene?.room;
+    if (!room) return m;
+    for (const f of files) {
+      const rec = this.records.find((r) => r.file === f);
+      const ci = rec ? this.categories.findIndex((c) => c.id === rec.category) : -1;
+      const at = room.catCentre[ci];
+      if (at) m.set(f, at.clone().setY(at.y + 0.2));
+    }
+    return m;
   }
 
   private returnAll() {
     if (!this.table.length) return;
+    const back = this.homeOf(this.table);
     this.table = [];
     this.saveTable();
     if (this.open) {
@@ -789,7 +829,7 @@ export class Stacks {
       this.drawDrawer();
     }
     this.drawTable();
-    void this.layTable();
+    void this.layTable(false, undefined, back);
     audio.drawer();
     this.voice.say('stacks.cleared', {}, false);
   }
@@ -833,14 +873,14 @@ export class Stacks {
   }
 
   /** The files on the table, put face up in the room. */
-  private async layTable(retype = false, from?: Map<string, Vector3>) {
+  private async layTable(retype = false, from?: Map<string, Vector3>, back?: Map<string, Vector3>) {
     await this.ready;
     const s = this.scene;
     if (!s) return;
     const recs = this.onTable;
     await canvasFontsReady(recs.map((r) => r.title).join(''));
     if (retype) s.room.setTable([]);
-    s.room.setTable(recs.map((r) => ({ file: r.file, category: r.category, map: () => fileCover(r.file, r.title, r.stamp, r.category) })), from);
+    s.room.setTable(recs.map((r) => ({ file: r.file, category: r.category, map: () => fileCover(r.file, r.title, r.stamp, r.category) })), from, back);
   }
 
   /** The table, as a list in the head column. */

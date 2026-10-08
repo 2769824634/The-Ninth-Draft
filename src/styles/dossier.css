@@ -1189,11 +1189,13 @@ a.cite:hover, a.cite:focus-visible { color: var(--accent); text-decoration-style
   inset: 0;
   z-index: 3;
   pointer-events: none;
-  opacity: 1 !important;
+  opacity: .8 !important;
   transition: opacity 600ms var(--ease);
   background:
-    linear-gradient(180deg, rgb(10 7 4 / var(--sd-t, 0)), rgb(10 7 4 / var(--sd-b, 0))),
-    linear-gradient(90deg, rgb(10 7 4 / var(--sd-l, 0)), transparent 38%, transparent 62%, rgb(10 7 4 / var(--sd-r, 0)));
+    linear-gradient(var(--sd-tint, transparent), var(--sd-tint, transparent)),
+    linear-gradient(rgb(10 7 4 / var(--sd-all, 0)), rgb(10 7 4 / var(--sd-all, 0))),
+    linear-gradient(180deg, rgb(10 7 4 / var(--sd-t, 0)), rgb(10 7 4 / calc(var(--sd-t, 0) * .4)) 25%, rgb(10 7 4 / calc(var(--sd-b, 0) * .4)) 75%, rgb(10 7 4 / var(--sd-b, 0))),
+    linear-gradient(90deg, rgb(10 7 4 / var(--sd-l, 0)), rgb(10 7 4 / calc(var(--sd-l, 0) * .5)) 14%, rgb(10 7 4 / calc(var(--sd-l, 0) * .16)) 30%, transparent 50%, rgb(10 7 4 / calc(var(--sd-r, 0) * .16)) 70%, rgb(10 7 4 / calc(var(--sd-r, 0) * .5)) 86%, rgb(10 7 4 / var(--sd-r, 0)));
 }
 .archive.is-seating[data-pin] .dossier__shade { opacity: 0 !important; transition: none; }
 
@@ -1241,9 +1243,12 @@ a.cite:hover, a.cite:focus-visible { color: var(--accent); text-decoration-style
   inset: 0;
   z-index: 3;
   pointer-events: none;
+  opacity: .8;
   background:
-    linear-gradient(180deg, rgb(10 7 4 / var(--sd2-t, 0)), rgb(10 7 4 / var(--sd2-b, 0))),
-    linear-gradient(90deg, rgb(10 7 4 / var(--sd2-l, 0)), transparent 38%, transparent 62%, rgb(10 7 4 / var(--sd2-r, 0)));
+    linear-gradient(var(--sd2-tint, transparent), var(--sd2-tint, transparent)),
+    linear-gradient(rgb(10 7 4 / var(--sd2-all, 0)), rgb(10 7 4 / var(--sd2-all, 0))),
+    linear-gradient(180deg, rgb(10 7 4 / var(--sd2-t, 0)), rgb(10 7 4 / calc(var(--sd2-t, 0) * .4)) 25%, rgb(10 7 4 / calc(var(--sd2-b, 0) * .4)) 75%, rgb(10 7 4 / var(--sd2-b, 0))),
+    linear-gradient(90deg, rgb(10 7 4 / var(--sd2-l, 0)), rgb(10 7 4 / calc(var(--sd2-l, 0) * .5)) 14%, rgb(10 7 4 / calc(var(--sd2-l, 0) * .16)) 30%, transparent 50%, rgb(10 7 4 / calc(var(--sd2-r, 0) * .16)) 70%, rgb(10 7 4 / calc(var(--sd2-r, 0) * .5)) 86%, rgb(10 7 4 / var(--sd2-r, 0)));
 }
 /* both on the table: the first keeps its place on the left blotter */
 .archive[data-pin]:has(.companion:not([hidden])) .dossier { --w: auto; left: 0; }
@@ -1254,3 +1259,14 @@ a.cite:hover, a.cite:focus-visible { color: var(--accent); text-decoration-style
   opacity: 0;
   transition: opacity 220ms var(--ease);
 }
+
+/* the reader's own brightness for the sheet on the table */
+.archive[data-pin] :is(.dossier__paper, .companion__paper) { filter: brightness(var(--paper-b, .88)); }
+.dsv__bright { display: grid; gap: .3rem; margin-top: .6rem; font: 600 .62rem/1 var(--mono, monospace); letter-spacing: .08em; text-transform: uppercase; opacity: .85; }
+.dsv__bright input { width: 100%; accent-color: var(--accent, currentColor); }
+
+/* the sheet lies on the folder: a tight contact shadow and a wider soft one, a hair of thickness at the lower edge */
+.archive[data-pin] :is(.dossier__sheet, .companion__sheet) {
+  filter: drop-shadow(1px 2px 1.5px rgb(0 0 0 / .55)) drop-shadow(5px 9px 9px rgb(0 0 0 / .35));
+}
+.archive[data-pin] :is(.dossier__paper, .companion__paper) { box-shadow: inset 0 -1px 0 rgb(0 0 0 / .18), 0 1px 0 rgb(255 255 255 / .1); }
