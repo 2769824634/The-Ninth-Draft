@@ -66,6 +66,8 @@ export interface ExamLamp {
   ci: number;
   /** The cold haze round a lit tube, so it reads as on from any side. */
   glow: THREE.SpriteMaterial;
+  /** How strong the tube is for how near it hangs to the page: the table's is a hand's breadth away. */
+  gain: number;
 }
 
 let haze: THREE.Texture | null = null;
@@ -96,8 +98,31 @@ export interface DeskLamp {
 const std = (o: THREE.MeshStandardMaterialParameters) => new THREE.MeshStandardMaterial({ roughness: 0.8, ...o });
 
 /** A folder lying on the reading table, and where it is going. */
+let blobMap: THREE.Texture | null = null;
+/** A soft dark patch, for the shadow where a folder lies on the blotter. */
+function blobTexture() {
+  if (blobMap) return blobMap;
+  const c = document.createElement('canvas');
+  c.width = c.height = 64;
+  const x = c.getContext('2d')!;
+  const g = x.createRadialGradient(32, 32, 14, 32, 32, 32);
+  g.addColorStop(0, 'rgba(0,0,0,.55)');
+  g.addColorStop(1, 'rgba(0,0,0,0)');
+  x.fillStyle = g;
+  x.fillRect(0, 0, 64, 64);
+  blobMap = new THREE.CanvasTexture(c);
+  return blobMap;
+}
+
 interface TableFile {
   g: THREE.Group;
+  /** The sheet lying in it, which the page in the DOM is laid over when it is read. */
+  leaf: THREE.Mesh;
+  /** Its size now and where it is headed: the file opened to read is a little larger than one lying shut. */
+  s: number;
+  toS: number;
+  /** The soft shadow it lays on the blotter. */
+  blob: THREE.Mesh;
   flap: THREE.Group;
   hit: THREE.Mesh;
   map: THREE.Texture;
@@ -516,18 +541,18 @@ export class StacksRoom {
     } else {
       // weighted foot at the far edge, a stem, the twin-tube head out over the top of the sheet
       this.rbox(g, 0.2, 0.025, 0.13, 0.01, 0, 0.012, 0, M.steelDark);
-      this.cyl(g, 0.011, 0.011, 0.36, 0, 0.2, 0, M.chrome, 12);
-      this.box(g, 0.02, 0.02, 0.15, 0, 0.385, 0.065, M.chrome);
+      this.cyl(g, 0.011, 0.011, 0.19, 0, 0.1, 0, M.chrome, 12);
+      this.box(g, 0.02, 0.02, 0.15, 0, 0.2, 0.065, M.chrome);
       housing = new THREE.Group();
-      housing.position.set(0, 0.38, 0.14);
+      housing.position.set(0, 0.195, 0.14);
       housing.rotation.y = Math.PI / 2;
       g.add(housing);
-      light.position.set(0, 0.36, 0.15);
-      light.target.position.set(0, -0.6, 0.48);
+      light.position.set(0, 0.15, 0.15);
+      light.target.position.set(0, -0.6, 0.5);
       // the lamp and its cord answer a click, like the brass ones
       const hb = new THREE.Mesh(BOX, new THREE.MeshBasicMaterial({ visible: false }));
-      hb.scale.set(0.6, 0.5, 0.3);
-      hb.position.set(0, 0.25, 0.08);
+      hb.scale.set(0.6, 0.3, 0.3);
+      hb.position.set(0, 0.15, 0.1);
       hb.userData = { exam: this.exams.length, key: `exam:${this.exams.length}` };
       g.add(hb);
       this.hits.push(hb);
@@ -549,7 +574,14 @@ export class StacksRoom {
     const bead = new THREE.Mesh(new THREE.SphereGeometry(0.007, 8, 6), M.black);
     bead.position.set(0.03, -0.14, 0.24);
     housing.add(bead);
-    light.castShadow = false;
+    // at the table the lamp is close over the page: it throws the head's shadow and the folders' across the desk
+    if (place === 'table') {
+      light.castShadow = true;
+      light.shadow.mapSize.set(1024, 1024);
+      light.shadow.camera.near = 0.04;
+      light.shadow.bias = -0.0004;
+      light.shadow.normalBias = 0.006;
+    } else light.castShadow = false;
     g.add(light, light.target);
     const glow = new THREE.SpriteMaterial({ map: hazeTexture(), color: '#dfe9ff', transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false });
     const halo = new THREE.Sprite(glow);
@@ -557,7 +589,7 @@ export class StacksRoom {
     // a little in front of the reflector and under it, where the tubes are bare
     halo.position.set(place === 'table' ? -0.06 : 0, -0.03, 0);
     housing.add(halo);
-    this.exams.push({ light, tube, place, ci, glow });
+    this.exams.push({ light, tube, place, ci, glow, gain: place === 'table' ? 0.07 : 1 });
   }
 
   /** A brass desk lamp with an opal inside to its shade. */
@@ -589,6 +621,13 @@ export class StacksRoom {
     sp.target.position.set(0, -0.8, 0.25);
     sp.shadow.mapSize.set(1024, 1024);
     sp.shadow.bias = -0.0005;
+    // the two brass lamps on the reading table sit close over the files: their shadows fall across the blotters
+    if (index < 2) {
+      sp.castShadow = true;
+      sp.shadow.mapSize.set(512, 512);
+      sp.shadow.camera.near = 0.05;
+      sp.shadow.normalBias = 0.006;
+    }
     l.add(sp, sp.target);
     this.desks.push({ light: sp, inner });
     // the lamp and its chain answer a click
@@ -1053,7 +1092,7 @@ export class StacksRoom {
     rt.add(mag);
     rt.add(this.tableTop);
     // the examination lamp stands behind the reading place, its tube low over the far edge of the sheet
-    this.examLamp(rt, -0.55, 0.765, -0.4, 'table', -1);
+    this.examLamp(rt, -0.55, 0.765, -0.3, 'table', -1);
     this.deskLamp(rt, -0.98, 0.765, -0.28, 0.4, 0);
     this.deskLamp(rt, 0.98, 0.765, -0.28, -0.4, 1);
     this.chair(rt, -0.55, 0.72, Math.PI);
@@ -1362,8 +1401,14 @@ export class StacksRoom {
   static readonly SLOTS: [number, number, number][] = [[0.0, 0.17, -0.04], [0.32, 0.17, 0.05], [0.64, 0.16, -0.06], [0.04, -0.16, 0.07], [0.36, -0.16, -0.05], [0.69, -0.15, 0.04]];
   /** The reading place: the left blotter, in front of its chair, under the examination lamp. */
   static readonly SEAT = new THREE.Vector3(-0.55, 0.79, 0.11);
+  /** How much larger the file is when it is drawn up to read: the sheet then fills the screen with the lamp still in view. */
+  static readonly LEAN = 1.3;
+  /** The place for a second file, open on the right blotter beside the one being read. */
+  static readonly SEAT2 = new THREE.Vector3(-0.1, 0.79, 0.11);
   /** The file being read at the table, open on the blotter. */
   private seated: string | null = null;
+  /** The file laid open beside it, to read across. */
+  private aside: string | null = null;
 
   /** Where a file lies on the table, in the room; null if it is not there. */
   tableSpot(file: string) {
@@ -1381,10 +1426,32 @@ export class StacksRoom {
     return h.g.getWorldPosition(new THREE.Vector3()).add(new THREE.Vector3(0, 0.12, 0));
   }
 
+  /**
+   * The four corners of the sheet lying open in the file being read, in the
+   * room: top-left, top-right, bottom-right, bottom-left as seen from the chair.
+   */
+  sheetCorners(side = false): THREE.Vector3[] | null {
+    const f = side ? this.aside : this.seated;
+    const c = f ? this.covers.get(f) : null;
+    if (!c) return null;
+    c.g.updateWorldMatrix(true, true);
+    const gm = c.leaf.geometry as THREE.PlaneGeometry;
+    const w = gm.parameters.width / 2, h = gm.parameters.height / 2;
+    return [[-w, h], [w, h], [w, -h], [-w, -h]].map(([x, y]) => c.leaf.localToWorld(new THREE.Vector3(x, y, 0)));
+  }
+
   /** The middle of the reading place on the table, in the room. */
-  readSpot() {
+  readSpot(pair = false) {
     this.tableTop.updateWorldMatrix(true, false);
-    return this.tableTop.localToWorld(StacksRoom.SEAT.clone());
+    const at = StacksRoom.SEAT.clone();
+    if (pair) at.lerp(StacksRoom.SEAT2, 0.5);
+    return this.tableTop.localToWorld(at);
+  }
+
+  /** Lay this file open on the right blotter, beside the one being read (null: put it back). */
+  setAside(file: string | null) {
+    this.aside = file && file !== this.seated && this.covers.has(file) ? file : null;
+    this.aimTable(false);
   }
 
   /**
@@ -1395,11 +1462,12 @@ export class StacksRoom {
     const keep = new Set(items.map((i) => i.file));
     for (const [f, c] of this.covers) {
       if (keep.has(f)) continue;
-      this.tableTop.remove(c.g);
+      this.tableTop.remove(c.g, c.blob);
       this.unhit(c.hit);
       c.map.dispose();
       this.covers.delete(f);
       if (this.seated === f) this.seated = null;
+      if (this.aside === f) this.aside = null;
     }
     items.forEach((it, i) => {
       let c = this.covers.get(it.file);
@@ -1431,10 +1499,17 @@ export class StacksRoom {
         c.to.copy(StacksRoom.SEAT).setY(0.772 + 0.012);
         c.toRot = 0;
         c.toOpen = 1;
+        c.toS = StacksRoom.LEAN;
+      } else if (f === this.aside) {
+        c.to.copy(StacksRoom.SEAT2).setY(0.772 + 0.012);
+        c.toRot = 0;
+        c.toOpen = 1;
+        c.toS = StacksRoom.LEAN;
       } else {
         c.to.set(x, 0.772 + c.slot * 0.0015, z);
         c.toRot = r;
         c.toOpen = 0;
+        c.toS = 1;
       }
       if (snapNew && c.fresh && !c.carry) {
         c.g.position.copy(c.to);
@@ -1476,13 +1551,16 @@ export class StacksRoom {
     hit.userData = { table: file, key: `table:${file}` };
     g.add(hit);
     this.hits.push(hit);
-    this.tableTop.add(g);
-    return { g, flap, hit, map, slot: 0, to: new THREE.Vector3(), toRot: 0, open: 0, toOpen: 0, fresh: true };
+    const blob = new THREE.Mesh(new THREE.PlaneGeometry(W + 0.09, D + 0.09), new THREE.MeshBasicMaterial({ map: blobTexture(), transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, fog: false }));
+    blob.rotation.x = -Math.PI / 2;
+    blob.renderOrder = 1;
+    this.tableTop.add(blob, g);
+    return { g, leaf, s: 1, toS: 1, blob, flap, hit, map, slot: 0, to: new THREE.Vector3(), toRot: 0, open: 0, toOpen: 0, fresh: true };
   }
 
   private tickTable(dt: number, motion: number) {
     const k = motion ? Math.min(1, dt * 6) : 1;
-    for (const c of this.covers.values()) {
+    for (const [f, c] of this.covers) {
       if (c.carry && motion) {
         // carried over from the cabinets: up, across the room, down on its spot
         const cr = c.carry;
@@ -1502,11 +1580,21 @@ export class StacksRoom {
         c.g.position.lerp(c.to, k);
         c.g.rotation.y += (c.toRot - c.g.rotation.y) * k;
       }
+      c.s += (c.toS - c.s) * (motion ? Math.min(1, dt * 5) : 1);
+      c.g.scale.setScalar(c.s);
+      // its shadow stays on the blotter: tight and dark when it lies there, wide and faint while it is carried
+      const up = Math.min(1, Math.max(0, (c.g.position.y - 0.772) / 0.4));
+      c.blob.position.set(c.g.position.x, 0.7727, c.g.position.z);
+      c.blob.rotation.z = c.g.rotation.y;
+      c.blob.scale.setScalar((1 + up * 1.2) * c.s);
+      (c.blob.material as THREE.MeshBasicMaterial).opacity = 0.75 * (1 - up);
       // the cover follows once the folder is nearly in place
       const near = c.g.position.distanceTo(c.to) < 0.03;
       const want = near ? c.toOpen : Math.min(c.open, c.toOpen);
       c.open += (want - c.open) * (motion ? Math.min(1, dt * 5) : 1);
       c.flap.rotation.z = c.open * Math.PI * 0.985;
+      // a file laid beside the one being read has only its sheet out: its cover is not in the way
+      c.flap.visible = f !== this.aside;
     }
   }
 

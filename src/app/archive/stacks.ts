@@ -13,7 +13,7 @@
  */
 import type { Vector3 } from 'three';
 import type { ArchiveRecord, Category } from '../types';
-import { StacksScene, STACKS_ZONES, type StacksZone, type PaperLit } from './scene';
+import { StacksScene, STACKS_ZONES, type StacksZone, type PaperLit, type SheetPlace } from './scene';
 import { ROWS, type StacksCategory } from './room';
 import { fileCover } from './textures';
 import { Cards } from './cards';
@@ -91,6 +91,10 @@ export interface StacksHooks {
   lights(): void;
   /** The light on the page being read, worked out from the room. */
   paper(v: PaperLit): void;
+  /** Where the sheet being read at the table lies on the screen, or null. */
+  sheet(v: SheetPlace | null): void;
+  /** Where the second sheet, beside it, lies on the screen, or null. */
+  side(v: SheetPlace | null): void;
   search(): void;
 }
 
@@ -157,6 +161,8 @@ export class Stacks {
         safe: () => this.strongCabinet(),
         dehumidifier: () => this.emptyTank(),
         paper: (v) => this.hooks.paper(v),
+        sheet: (v) => this.hooks.sheet(v),
+        side: (v) => this.hooks.side(v),
       });
     } catch (err) {
       console.error('[stacks] WebGL unavailable', err);
@@ -802,6 +808,15 @@ export class Stacks {
     if (rec && this.open) this.closeCabinet(false);
     s.room.seat(rec && this.table.includes(rec.file) ? rec.file : null);
     s.sit(!!rec && this.table.includes(rec.file));
+  }
+
+  /** Lay a second file open beside the one being read (null: put it back). */
+  sitAside(rec: ArchiveRecord | null) {
+    const s = this.scene;
+    if (!s) return;
+    const on = !!rec && this.table.includes(rec.file);
+    s.room.setAside(on ? rec!.file : null);
+    s.pair(on);
   }
 
   /** Whether reading at the table happens in the room (sat at the blotter) rather than on a sheet held up. */

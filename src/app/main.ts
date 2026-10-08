@@ -150,6 +150,41 @@ export function start() {
     note.hidden = !note.textContent;
   }
 
+  /**
+   * Sat at the table, the page is laid over the sheet on the blotter: the
+   * room says where that sheet is on the screen, and the page takes its
+   * place, its perspective and its size from it. On a phone there is no table
+   * to see, and the page is a plain sheet.
+   */
+  const flat = window.matchMedia('(max-width: 900px), (max-aspect-ratio: 1/1)');
+  const pinnable = () => !flat.matches;
+  function layPage(v: { pin: string; w: number; h: number; box: [number, number, number, number]; shade: [number, number, number, number] } | null) {
+    // getting up: the page stays where it was while it fades, and is let go when the file is shut
+    if (!v || !pinnable() || view !== 'detail' || readAt !== 'table') return;
+    const st = root.style;
+    st.setProperty('--pin', v.pin);
+    st.setProperty('--pw', `${v.w}px`);
+    st.setProperty('--ph', `${v.h}px`);
+    st.setProperty('--qx0', `${v.box[0].toFixed(1)}px`);
+    st.setProperty('--qy0', `${v.box[1].toFixed(1)}px`);
+    st.setProperty('--qx1', `${v.box[2].toFixed(1)}px`);
+    st.setProperty('--qy1', `${v.box[3].toFixed(1)}px`);
+    (['t', 'b', 'l', 'r'] as const).forEach((k, i) => st.setProperty(`--sd-${k}`, v.shade[i].toFixed(3)));
+    root.dataset.pinned = '';
+  }
+
+  function layAside(v: { pin: string; w: number; h: number; box: [number, number, number, number]; shade: [number, number, number, number] } | null) {
+    if (!v || !pinnable() || view !== 'detail' || readAt !== 'table' || !companion.rec) return;
+    const st = root.style;
+    st.setProperty('--pin2', v.pin);
+    st.setProperty('--pw2', `${v.w}px`);
+    st.setProperty('--ph2', `${v.h}px`);
+    st.setProperty('--bx', `${v.box[0].toFixed(1)}px`);
+    st.setProperty('--by', `${v.box[3].toFixed(1)}px`);
+    (['t', 'b', 'l', 'r'] as const).forEach((k, i) => st.setProperty(`--sd2-${k}`, v.shade[i].toFixed(3)));
+    root.dataset.paired = '';
+  }
+
   /* ---------------- the stacks: the one room ---------------- */
   const stacks = new Stacks(root, categories, records, prefs.get('theme'), voice, {
     read: (rec, at) => openRecord(rec, at),
@@ -165,6 +200,8 @@ export function start() {
       lit = v;
       markLight();
     },
+    sheet: (v) => layPage(v),
+    side: (v) => layAside(v),
     search: () => search.show(),
   });
 
@@ -189,6 +226,11 @@ export function start() {
     readAt = at;
     root.dataset.view = 'detail';
     root.dataset.readat = at;
+    if (at === 'table' && stacks.canSit && pinnable()) root.dataset.pin = '';
+    else {
+      delete root.dataset.pin;
+      delete root.dataset.pinned;
+    }
     companion.hide();
     $('dossier').setAttribute('aria-hidden', 'false');
     const ci = categories.findIndex((c) => c.id === rec.category);
@@ -265,6 +307,11 @@ export function start() {
     current = null;
     root.dataset.view = 'browse';
     delete root.dataset.light;
+    window.setTimeout(() => {
+      if (view === 'detail') return;
+      delete root.dataset.pin;
+      delete root.dataset.pinned;
+    }, 700);
     $('dossier').setAttribute('aria-hidden', 'true');
     dossier.reset();
     companion.hide();
@@ -309,6 +356,7 @@ export function start() {
 
   /* ---------------- the file alongside ---------------- */
   const companion = new Companion({
+    aside: (rec) => stacks.sitAside(pinnable() && readAt === 'table' ? rec : null),
     swap: (rec) => {
       companion.hide();
       openRecord(rec, 'table');
