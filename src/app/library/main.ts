@@ -13,7 +13,7 @@ import { audio } from '../audio';
 import { isZh } from '../i18n';
 import { prefs, reducedMotion } from '../prefs';
 import { Archivist } from '../ui/archivist';
-import { loadVisitor } from '../visitor/store';
+import { whoami } from '../visitor/store';
 import { hash } from '../scene/textures';
 import { LibraryScene, ZONES, type Zone } from './scene';
 import { monthOf, Paper } from './paper';
@@ -93,8 +93,8 @@ export function library() {
   const dueSlip = (book: LibBook, times: number): LibPage => {
     const h = hash(book.id);
     const stamps = Array.from({ length: 1 + (h % 4) }, (_, i) => `09 ${MON[(h >>> (i * 3)) % 11]} 1999`).sort((a, b) => MON.indexOf(a.slice(3, 6)) - MON.indexOf(b.slice(3, 6)));
-    const v = loadVisitor();
-    const who = (zh: boolean) => (v ? (zh ? `借阅人：${esc(v.code)}` : `Borrower: ${esc(v.code)}`) : zh ? '借阅人：未登记访客' : 'Borrower: unregistered visitor');
+    const v = whoami();
+    const who = (zh: boolean) => (v ? (zh ? `借阅人：${esc(v)}` : `Borrower: ${esc(v)}`) : zh ? '借阅人：未登记访客' : 'Borrower: unregistered visitor');
     const li = (s: string, mine: boolean, zh: boolean) => `<li${mine ? ' class="is-mine"' : ''}><b class="lib-stamp">${s}</b>${mine ? `<span>${who(zh)}</span>` : ''}</li>`;
     const list = (zh: boolean) => stamps.map((s) => li(s, false, zh)).join('') + Array.from({ length: Math.min(times, 3) }, () => li(today(), true, zh)).join('');
     return {
@@ -411,8 +411,8 @@ export function library() {
           .join('')
       : `<li class="is-empty">${isZh() ? '你还没借过书。' : 'You have not borrowed anything yet.'}</li>`;
     $('desk-stamps').innerHTML = s.stamps.slice(-6).map((t) => `<b class="lib-stamp">${t}</b>`).join('');
-    const v = loadVisitor();
-    $('desk-who').textContent = v ? (isZh() ? `借阅人：${v.code}` : `Borrower: ${v.code}`) : isZh() ? '借阅人：未登记访客' : 'Borrower: unregistered visitor';
+    const v = whoami();
+    $('desk-who').textContent = v ? (isZh() ? `借阅人：${v}` : `Borrower: ${v}`) : isZh() ? '借阅人：未登记访客' : 'Borrower: unregistered visitor';
     panel(deskPanel);
   };
   $('desk-stamp').addEventListener('click', () => {

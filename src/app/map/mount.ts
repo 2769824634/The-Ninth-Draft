@@ -25,6 +25,8 @@ export interface MountOptions {
   records?: () => RecordSpot[];
   /** Blocks can be tapped for their address (on by default where there is a card). */
   blocks?: boolean;
+  /** A block tapped close up (null: let go), for a page that wants it for itself (registration: the old address). */
+  onBlock?: (b: Block | null) => void;
 }
 
 /** A record at its address, as the page lists it. */
@@ -192,7 +194,9 @@ export function mountStreetMap(root: HTMLElement, opt: MountOptions) {
       const r = opt.records?.().find((r) => r.file === key);
       if (r) { audio.click(); showRecord(r); }
     },
-    onBlock: opt.blocks ?? opt.card !== false ? (b) => { if (b) audio.click(); showBlock(b); } : undefined,
+    onBlock: opt.onBlock
+      ? (b) => { if (b) audio.click(); if (opt.card !== false) showBlock(b); opt.onBlock!(b); }
+      : opt.blocks ?? opt.card !== false ? (b) => { if (b) audio.click(); showBlock(b); } : undefined,
     onFacility: opt.card !== false ? (f) => { if (f) audio.click(); showFacility(f); } : undefined,
   });
 
@@ -214,6 +218,8 @@ export function mountStreetMap(root: HTMLElement, opt: MountOptions) {
     /** Go to a place at a printed scale (1 : n), ringed in red, or with its block inked. */
     goto: map.goto,
     blocks: map.blocks,
+    /** Let the block go. */
+    unchoose: () => map.unchoose(),
     facilities: map.facilities,
     /** After the language changes. */
     relang: () => {

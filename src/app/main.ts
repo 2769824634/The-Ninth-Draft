@@ -17,7 +17,7 @@ import { System } from './ui/system';
 import { Dossier } from './ui/dossier';
 import { Archivist } from './ui/archivist';
 import { quirks } from './ui/quirks';
-import { fileNo, loadVisitor } from './visitor/store';
+import { fileNo, loadPass, loadVisitor, passNo } from './visitor/store';
 import { clearanceKey } from './clearance';
 import { Search } from './ui/search';
 import { boot } from './ui/boot';
@@ -452,12 +452,12 @@ export function start() {
 
   /* ---------------- the visitor's own file ---------------- */
   const markMe = () => {
-    const v = loadVisitor();
+    const v = loadVisitor(), p = loadPass();
     const a = document.getElementById('btn-me') as HTMLAnchorElement | null;
     if (!a) return;
     a.href = `${base}${v ? 'me/' : 'register/'}`;
-    a.classList.toggle('is-new', !v);
-    $('me-label').textContent = v ? `${t('My file')} · ${fileNo(v)}` : t('Register');
+    a.classList.toggle('is-new', !v && !p);
+    $('me-label').textContent = v ? `${t('My home')} · ${fileNo(v)}` : p ? `${t("Reader's pass")} · ${passNo(p)}` : t('Sign in');
   };
   markMe();
 
@@ -657,9 +657,9 @@ export function start() {
     // Unregistered visitors hear about the form once per session
     let nagged = false;
     try { nagged = sessionStorage.getItem('n9:nag') === '1'; } catch { /* ignore */ }
-    if (!resident && !nagged) {
+    if (!resident && !loadPass() && !nagged) {
       setTimeout(() => {
-        if (loadVisitor()) return;
+        if (loadVisitor() || loadPass()) return;
         voice.say('unregistered', {}, false);
         try { sessionStorage.setItem('n9:nag', '1'); } catch { /* ignore */ }
       }, 35000);

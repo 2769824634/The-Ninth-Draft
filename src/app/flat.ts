@@ -6,7 +6,7 @@ import { fileSlips } from './ui/fileslip';
 import { audio } from './audio';
 import { isZh, markDocument, onLang, setLang, t, translateDom } from './i18n';
 import { prefs, reducedMotion } from './prefs';
-import { fileNo, loadVisitor } from './visitor/store';
+import { fileNo, loadPass, loadVisitor, passNo } from './visitor/store';
 import { hideFuture, hms, islandDateLabel, islandNow, visitorClock } from './island';
 
 export function flat(relang?: () => void) {
@@ -30,12 +30,12 @@ export function flat(relang?: () => void) {
   // Registered visitors get their own file in the nav
   const me = document.getElementById('nav-me') as HTMLAnchorElement | null;
   const markMe = () => {
-    const v = loadVisitor();
+    const v = loadVisitor(), p = loadPass();
     if (!me) return;
     me.href = v ? `${base}me/` : `${base}register/`;
-    me.querySelector('span')!.textContent = v ? `${t('My file')} · ${fileNo(v)}` : t('Register');
+    me.querySelector('span')!.textContent = v ? `${t('My home')} · ${fileNo(v)}` : p ? `${t("Reader's pass")} · ${passNo(p)}` : t('Sign in');
     soundLabel();
-    me.classList.toggle('is-new', !v);
+    me.classList.toggle('is-new', !v && !p);
   };
 
   // Sound: same switch as in the archive room

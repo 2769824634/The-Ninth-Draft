@@ -75,7 +75,7 @@ const arrow = '<svg viewBox="0 0 24 12" aria-hidden="true"><path d="M0 6h22M17 1
   import { canvasFontsReady } from '../../app/scene/textures';
   import { Scan } from '../../app/baseline/scan';
   import { MAX_POINTS, POINTS, REMARKS, ROUNDS, VERDICTS, loadBaseline, saveBaseline, verdictOf, type Dev } from '../../app/baseline/rounds';
-  import type { L } from '../../app/visitor/questions';
+  import type { L } from '../../app/visitor/counter';
 
   const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
   const tx = (l: L) => (isZh() ? l.zh : l.en);

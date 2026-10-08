@@ -1,0 +1,772 @@
+---
+import Flat from '../../../layouts/Flat.astro';
+import StreetMap from '../../../components/StreetMap.astro';
+import { REGIONS, RESIDENTIAL } from '../../../app/visitor/districts';
+import '../../../styles/idcard.css';
+
+const base = import.meta.env.BASE_URL;
+const arrow = '<svg viewBox="0 0 24 12" aria-hidden="true"><path d="M0 6h22M17 1l5 5-5 5" /></svg>';
+---
+
+<Flat title="Residents' register — The Ninth Draft" description="Form RO-9: register as a resident of Gerimis. Tick a box, take a number, get a flat, a card and the keys." page="register">
+  <div class="reg">
+    <div>
+      <p class="f-kicker micro"><b>Form RO-9</b><span>Records Office · Residents' Register</span></p>
+      <h1 class="f-title"><span data-l="en">Application for residence</span><span data-l="zh">居民登记申请表</span></h1>
+      <p class="f-lede">
+        <span data-l="en">Every resident of Gerimis has a flat, a card and a letterbox. Fill in the form, take a number, and Window 3 will see you. Born here, you get your old address back; otherwise the drum decides.</span>
+        <span data-l="zh">霏微的每个居民都有一间屋子、一张身份证和一个信箱。填好表，取个号，三号窗口叫到你。本岛出生的按旧址补发，其余的抽签。</span>
+      </p>
+
+      <div class="receipt" id="already" hidden>
+        <p class="micro"><span>Already on file</span></p>
+        <p class="receipt__no" id="already-no">V-0000</p>
+        <p class="f-lede" style="margin-top:0"><span data-l="en">You are registered as</span><span data-l="zh">你已登记，代号</span> <b id="already-code"></b>.</p>
+        <div class="receipt__acts">
+          <a class="f-btn" href={`${base}me/`}><span>Go home</span><Fragment set:html={arrow} /></a>
+          <button class="f-btn f-btn--ghost" type="button" id="again"><span>Register again</span></button>
+        </div>
+        <p class="f-help"><span data-l="en">Registering again replaces your card and your flat. The old ones go back to the Office.</span><span data-l="zh">重新登记会换掉你的身份证和屋子，旧的交回署里。</span></p>
+      </div>
+
+      <div class="desk" id="desk">
+        <div class="clerk" aria-live="polite">
+          <p class="clerk__tag micro"><i></i><span id="clerk-tag">Clerk · Window 3</span></p>
+          <p class="clerk__line" id="clerk-line"></p>
+        </div>
+
+        <ol class="steps" id="steps" aria-hidden="true"></ol>
+
+        <form class="form wiz" id="form" novalidate>
+          <div class="form__top micro"><span class="form__no" id="form-no">RO-9 / 1999</span><span id="step-label"></span></div>
+          <div class="wiz__panel" id="panel"></div>
+          <div class="wiz__map" id="map-wrap" hidden>
+            <div class="wiz__regions" role="group" aria-label="Part of the island">
+              {REGIONS.map((g, i) => (
+                <button type="button" class="wiz__reg" data-r={g.id}><i>{String(i + 1).padStart(2, '0')}</i><span data-l="en">{g.en}</span><span data-l="zh">{g.zh}</span><small class="micro">{RESIDENTIAL.filter((d) => d.region === g.id).length}</small></button>
+              ))}
+            </div>
+            <StreetMap id="reg-map" />
+            <p class="wiz__blurb" id="blurb"></p>
+            <div class="wiz__picks" id="picks">
+              <p class="f-help wiz__hint" id="picks-hint"><span data-l="en">Choose a part of the island above, or tap the sheet.</span><span data-l="zh">先在上面选一片，或者直接点地图。</span></p>
+              {REGIONS.map((g) => (
+                <div class="wiz__region" data-r={g.id} hidden>
+                  <p class="micro"><span data-l="en">{g.en}</span><span data-l="zh">{g.zh}</span></p>
+                  <div>{RESIDENTIAL.filter((d) => d.region === g.id).map((d) => <button type="button" class="wiz__pick" data-d={d.id}><span data-l="en">{d.en}</span><span data-l="zh">{d.zh}</span></button>)}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div id="after-map"></div>
+          <p class="f-err" id="err" hidden></p>
+          <div class="wiz__nav">
+            <button class="f-btn f-btn--ghost" type="button" id="back"><span>Back</span></button>
+            <button class="f-btn" type="submit" id="next"><span>Next step</span><Fragment set:html={arrow} /></button>
+          </div>
+        </form>
+
+        <div class="filing" id="filing" hidden aria-live="polite">
+          <p class="micro"><span>Processing</span></p>
+          <ul id="filing-log"></ul>
+        </div>
+
+        <div class="receipt" id="receipt" hidden aria-live="polite">
+          <p class="micro"><span>Filed · Resident</span></p>
+          <p class="receipt__no" id="rc-door">#00-000</p>
+          <p class="f-lede" style="margin-top:0" id="rc-addr"></p>
+          <div class="keytag" id="rc-key" aria-hidden="true"><svg viewBox="0 0 46 20"><circle cx="9" cy="10" r="7" /><circle cx="9" cy="10" r="2.4" /><path d="M16 10h28M36 10v5M40 10v4" /></svg><span id="rc-keyno"></span></div>
+          <p class="f-lede"><span data-l="en">Your recovery phrase. Write it down with your codename: together they open your home on any other device.</span><span data-l="zh">这是你的恢复口令。和代号一起抄下来，换手机、换电脑都能用它回家。</span></p>
+          <ol class="phrase" id="rc-phrase"></ol>
+          <div class="receipt__acts">
+            <a class="f-btn" href={`${base}me/`}><span>Go home</span><Fragment set:html={arrow} /></a>
+            <a class="f-btn f-btn--ghost" href={base}><span>Back to the archive</span></a>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <aside class="side">
+      <div>
+        <div class="idc" id="card" role="button" tabindex="0" aria-label="Your identity card, as it stands. Tap to turn it over."><div class="idc__in" id="card-in"></div></div>
+        <p class="idc__flip micro"><span data-l="en">Tap the card to turn it over.</span><span data-l="zh">点一下身份证翻面。</span></p>
+      </div>
+      <div class="side__box">
+        <h3>Nothing leaves your browser</h3>
+        <p><span data-l="en">Your card and your flat are kept only on this device. No email, no password, no real names. Clearing your browser clears them, unless you keep the phrase.</span><span data-l="zh">身份证和屋子只存在这台设备的浏览器里。不要邮箱，不要密码，不要真名。清掉浏览器数据就没了，除非你记着口令。</span></p>
+      </div>
+      <form class="side__box" id="restore" novalidate>
+        <h3>Restore a file</h3>
+        <p><span data-l="en">Registered on another device? Enter the same codename and your words (six, or four from before).</span><span data-l="zh">在别的设备登记过？输入同一个代号和口令（六个词，以前的是四个）。</span></p>
+        <input class="f-input" id="rs-code" maxlength="24" autocomplete="off" spellcheck="false" placeholder="Codename" />
+        <input class="f-input" id="rs-phrase" autocomplete="off" spellcheck="false" placeholder="Your words" />
+        <p class="f-err" id="err-restore" hidden>No such file. Check the codename and the words.</p>
+        <button class="f-btn f-btn--ghost" type="submit"><span>Restore</span></button>
+      </form>
+    </aside>
+  </div>
+</Flat>
+
+<script>
+  import { flat } from '../../../app/flat';
+  import { audio } from '../../../app/audio';
+  import { isZh, t } from '../../../app/i18n';
+  import { reducedMotion } from '../../../app/prefs';
+  import { islandNow } from '../../../app/island';
+  import { toPhrase, fromPhrase } from '../../../app/visitor/phrase';
+  import { fileNo, homeFileNo, loadPass, loadVisitor, savePass, saveVisitor, type Home, type Origin, type Visitor } from '../../../app/visitor/store';
+  import { district, districtName, REGIONS, RESIDENTIAL, DISTRICTS, type DistrictId } from '../../../app/visitor/districts';
+  import { mountStreetMap } from '../../../app/map/mount';
+  import { COUNTER, DISTRICT_TEXT, FILING, INTERVIEW, sinceLine, type L } from '../../../app/visitor/counter';
+  import { ballot, doorText, addressLine, postLine, homeBlocks, restoreHome, unitNo, DOORS, type HomeBlock } from '../../../app/visitor/home';
+  import { cardHTML, cardPhoto } from '../../../app/visitor/idcard';
+
+  const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
+  const form = $<HTMLFormElement>('form');
+  const desk = $('desk');
+  const tx = (l: L) => (isZh() ? l.zh : l.en);
+  const fill = (s: string, vars: Record<string, string>) => s.replace(/\{(\w+)\}/g, (_, k) => vars[k] ?? '');
+  const esc = (s: string) => s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
+  const calm = reducedMotion();
+  const wait = (ms: number) => new Promise<void>((r) => window.setTimeout(r, calm ? Math.min(ms, 60) : ms));
+  const thisYear = 1999;
+
+  /* ---------- state ---------- */
+  type Step = 'form' | 'ferry' | 'queue' | 'home' | 'review';
+  const pass = loadPass();
+  const st = {
+    step: 'form' as Step,
+    code: pass?.code ?? '',
+    origin: null as Origin | null,
+    since: '',
+    from: pass?.from ?? '',
+    region: null as string | null,
+    district: null as DistrictId | null,
+    block: null as HomeBlock | null,
+    home: null as Home | null,
+    landed: false,
+    ticket: 0,
+    called: false,
+    back: false,
+  };
+  const flow = (): Step[] => (st.origin === 'N' ? ['form', 'ferry', 'queue', 'home', 'review'] : ['form', 'queue', 'home', 'review']);
+  const LABEL: Record<Step, L> = {
+    form: { en: 'Form', zh: '填表' },
+    ferry: { en: 'Arrival card', zh: '入境卡' },
+    queue: { en: 'Window 3', zh: '三号窗口' },
+    home: { en: 'Your flat', zh: '分屋子' },
+    review: { en: 'Read back', zh: '核对' },
+  };
+  const sinceYear = () => (st.origin === 'R' && /^\d{4}$/.test(st.since) ? Number(st.since) : 0);
+  const sinceOk = () => sinceYear() >= 1900 && sinceYear() <= thisYear;
+  const fileNumber = () => (st.home && st.code.trim() ? homeFileNo(st.code, st.home) : 0);
+  const asVisitor = (): Partial<Visitor> => ({
+    code: st.code,
+    origin: st.origin ?? undefined,
+    since: sinceYear() || undefined,
+    from: st.from,
+    home: st.home ?? undefined,
+    no: fileNumber() || undefined,
+    at: st.home ? Date.now() : undefined,
+  });
+
+  /* ---------- already registered ---------- */
+  const already = $('already');
+  const current = loadVisitor();
+  const showAlready = (v: Visitor) => {
+    already.hidden = false;
+    desk.hidden = true;
+    $('already-no').textContent = fileNo(v);
+    $('already-code').textContent = v.code;
+  };
+  if (current) showAlready(current);
+  $('again').addEventListener('click', () => {
+    already.hidden = true;
+    desk.hidden = false;
+    go('form');
+  });
+
+  /* ---------- the clerk ---------- */
+  const clerk = $('clerk-line');
+  let lastSay: [L, Record<string, string>] = [COUNTER.greet, {}];
+  let typing = 0;
+  const say = (l: L, vars: Record<string, string> = {}, instant = false) => {
+    lastSay = [l, vars];
+    const text = fill(tx(l), vars);
+    window.clearInterval(typing);
+    if (calm || instant) return void (clerk.textContent = text);
+    clerk.textContent = '';
+    let i = 0;
+    typing = window.setInterval(() => {
+      clerk.textContent = text.slice(0, ++i);
+      if (i >= text.length) window.clearInterval(typing);
+    }, isZh() ? 38 : 20);
+  };
+  const tag = () => ($('clerk-tag').textContent = st.step === 'ferry' ? t('Officer · Ferry terminal, arrival hall') : t('Clerk · Window 3'));
+
+  /* ---------- the card beside the form ---------- */
+  const card = $('card'), cardIn = $('card-in');
+  let photoKey = '';
+  const renderCard = () => {
+    cardIn.innerHTML = cardHTML(asVisitor(), { reissued: st.origin === 'G' && !!st.home });
+    const key = `${st.code.trim()}|${st.origin}`;
+    cardPhoto(cardIn, `${key}|${fileNumber()}`);
+    if (key !== photoKey && !calm) cardIn.querySelector('.idc__photo canvas')?.animate([{ opacity: 0.35 }, { opacity: 1 }], { duration: 320, easing: 'ease-out' });
+    photoKey = key;
+  };
+  const flip = () => { card.classList.toggle('is-back'); audio.flick(); };
+  card.addEventListener('click', flip);
+  card.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); flip(); } });
+
+  /* ---------- the street map: districts for the ballot, blocks for the old address ---------- */
+  const panel = $('panel');
+  const after = $('after-map');
+  const mapWrap = $('map-wrap');
+  const err = $('err');
+  const picks = [...mapWrap.querySelectorAll<HTMLButtonElement>('.wiz__pick')];
+  const regs = [...mapWrap.querySelectorAll<HTMLButtonElement>('.wiz__reg')];
+  const groups = [...mapWrap.querySelectorAll<HTMLElement>('.wiz__region')];
+  const LIVES = new Set(RESIDENTIAL.map((d) => d.id));
+  let syncing = false;
+  const { base, markMe } = flat(() => {
+    render();
+    say(lastSay[0], lastSay[1], true);
+    sm.relang();
+  });
+  const sm = mountStreetMap($('reg-map'), {
+    base,
+    card: false,
+    selectable: (id) => LIVES.has(id),
+    onRefuse: (id) => {
+      const d = district(id);
+      if (!d) return;
+      say(d.kind === 'unsurveyed' ? COUNTER.unsurveyed : COUNTER.noHomes, { name: districtName(id, isZh()) });
+    },
+    onPick: (id) => {
+      if (syncing || !id || st.origin === 'G') return;
+      setDistrict(id, true, false);
+    },
+    onBlock: (b) => {
+      if (st.origin !== 'G' || st.step !== 'home' || !b) return;
+      if (!b.flats) return say(COUNTER.shop);
+      void homeBlocks(base).then((all) => {
+        const hb = all.find((x) => x.i === b.i);
+        if (hb) chooseOld(hb, false);
+      });
+    },
+  });
+  const setRegion = (r: string | null, fly = true, sound = true) => {
+    st.region = r;
+    regs.forEach((b) => b.classList.toggle('is-on', b.dataset.r === r));
+    groups.forEach((g) => (g.hidden = g.dataset.r !== r || st.origin === 'G'));
+    $('picks-hint').hidden = !!r || st.origin === 'G';
+    if (!r) return;
+    if (fly) sm.frame(DISTRICTS.filter((d) => d.region === r).map((d) => d.id));
+    if (sound) {
+      audio.click();
+      if (st.origin !== 'G') say(COUNTER.region, { region: tx(REGIONS.find((g) => g.id === r)!) });
+    }
+  };
+  const setDistrict = (id: DistrictId, sound = true, fly = true) => {
+    const changed = st.district !== id;
+    st.district = id;
+    if (changed) { st.home = null; st.block = null; }
+    const r = district(id)?.region ?? null;
+    if (r !== st.region) setRegion(r, false, false);
+    syncing = true;
+    sm.pick(id, fly);
+    syncing = false;
+    picks.forEach((b) => b.classList.toggle('is-on', b.dataset.d === id));
+    $('blurb').innerHTML = `<b>${esc(districtName(id, isZh()))}</b> ${esc(tx(DISTRICT_TEXT[id].blurb))}`;
+    if (sound) {
+      audio.click();
+      say(DISTRICT_TEXT[id].react);
+    }
+    renderDrum();
+    renderCard();
+  };
+
+  /* ---------- the ballot ---------- */
+  let turning = false;
+  const renderDrum = () => {
+    if (st.step !== 'home' || st.origin === 'G') return;
+    const zh = isZh();
+    const d = st.district;
+    const h = st.home;
+    after.innerHTML = `<div class="drum">
+      <button type="button" class="drum__wheel" id="drum" aria-label="${zh ? '摇签筒' : 'Turn the drum'}"${!d || turning ? ' disabled' : ''}></button>
+      <div class="drum__slip" id="slip">${
+        h && st.block
+          ? `<p class="micro">${zh ? '抽中' : 'Drawn'}</p><p class="drum__addr">${esc(zh ? `${h.blk} 座 ${doorText(h)}` : `Blk ${h.blk} ${doorText(h)}`)}</p><p class="drum__sub">${esc(h.street || districtName(d!, zh))} · ${esc(postLine(h, zh))} · ${zh ? `${st.block.year} 年建成，${st.block.floors} 层` : `built ${st.block.year}, ${st.block.floors} storeys`}</p>`
+          : `<p class="f-help" style="margin:0">${d ? (zh ? `${districtName(d, true)}的签都在筒里。摇一下。` : `Every flat in ${districtName(d, false)} is in the drum. Turn it once.`) : zh ? '先选一个区。' : 'Choose a district first.'}</p>`
+      }</div></div>`;
+    $('drum').addEventListener('click', () => void turn());
+  };
+  const turn = async () => {
+    if (!st.district || turning) return;
+    if (st.home) return say(COUNTER.again);
+    turning = true;
+    say(COUNTER.drum);
+    audio.tune();
+    const wheel = $('drum');
+    wheel.setAttribute('disabled', '');
+    wheel.classList.add('is-turning');
+    const all = await homeBlocks(base);
+    const got = ballot(all, st.code, st.district);
+    // the slips flick past before one stops
+    const slip = $('slip');
+    const pool = all.filter((b) => b.district === st.district);
+    for (let i = 0; i < (calm ? 0 : 12); i++) {
+      const b = pool[Math.floor(Math.random() * pool.length)];
+      slip.innerHTML = `<p class="drum__roll">${esc(isZh() ? `${b.no} 座` : `BLK ${b.no}`)} · #${String(2 + Math.floor(Math.random() * Math.max(1, b.floors - 1))).padStart(2, '0')}</p>`;
+      audio.tick();
+      await wait(90 + i * 12);
+    }
+    turning = false;
+    if (!got) return renderDrum();
+    st.block = got.block;
+    st.home = got.home;
+    audio.stamp();
+    say(got.home.floor <= 4 ? COUNTER.drawnLow : COUNTER.drawnHigh, { blk: got.home.blk, floor: String(got.home.floor) });
+    sm.goto(got.block.x, got.block.y, 5000, { block: got.block.i });
+    renderDrum();
+    renderCard();
+  };
+
+  /* ---------- born here: the old address ---------- */
+  let found: HomeBlock[] = [];
+  const findBlocks = async (q: string) => {
+    const all = await homeBlocks(base);
+    const s = q.trim().toLowerCase();
+    if (!s) return [];
+    if (/^\d{6}$/.test(s)) return all.filter((b) => b.postcode === s);
+    const en = s.match(/^(?:blk|block)?\.?\s*(\d+[a-z]?)\b\s*(.*)$/i), zh = s.match(/^(.*?)\s*(\d+[a-z]?)\s*座\s*(.*)$/);
+    const no = (zh?.[2] ?? en?.[1] ?? '').toUpperCase();
+    const rest = (zh ? `${zh[1]} ${zh[3]}` : en?.[2] ?? s).trim();
+    return all.filter((b) => {
+      if (no && b.no !== no) return false;
+      if (!rest) return true;
+      const d = b.district ? district(b.district) : undefined;
+      const hay = `${b.street} ${d?.en ?? ''} ${d?.zh ?? ''}`.toLowerCase();
+      return rest.split(/\s+/).every((w) => hay.includes(w));
+    });
+  };
+  const renderOld = () => {
+    if (st.step !== 'home' || st.origin !== 'G') return;
+    const zh = isZh();
+    const b = st.block;
+    const floors = b ? Math.max(1, b.floors) : 1;
+    const lo = floors > 2 ? 2 : 1;
+    const h = st.home;
+    after.innerHTML = `<div class="oldaddr">
+      <ul class="oldaddr__list" id="old-list">${found.slice(0, 40).map((x, i) => {
+        const dn = x.district ? districtName(x.district, zh) : '';
+        return `<li><button type="button" data-i="${i}"${b && b.i === x.i ? ' class="is-on"' : ''}><span>${esc(zh ? `${x.street ? `${x.street} ` : ''}${x.no} 座` : `Blk ${x.no}${x.street ? ` ${x.street}` : ''}`)}${dn ? ` · ${esc(dn)}` : ''}</span><small>${x.postcode} · ${x.year}</small></button></li>`;
+      }).join('')}</ul>
+      <div class="oldaddr__door"${b ? '' : ' hidden'}>
+        <label><span class="micro">${zh ? '楼层' : 'Floor'}</span><select id="old-floor">${Array.from({ length: floors - lo + 1 }, (_, k) => lo + k).map((f) => `<option value="${f}"${h?.floor === f ? ' selected' : ''}>${String(f).padStart(2, '0')}</option>`).join('')}</select></label>
+        <label><span class="micro">${zh ? '门' : 'Door'}</span><select id="old-door">${Array.from({ length: DOORS }, (_, k) => k).map((k) => `<option value="${k}"${h?.stack === k ? ' selected' : ''}>${b ? unitNo({ postcode: b.postcode, stack: k }) : k}</option>`).join('')}</select></label>
+        <output id="old-out">${h ? esc(doorText(h)) : ''}</output>
+      </div></div>`;
+    after.querySelectorAll<HTMLButtonElement>('#old-list button').forEach((el) => el.addEventListener('click', () => chooseOld(found[Number(el.dataset.i)], true)));
+    if (!b) return;
+    const fl = $<HTMLSelectElement>('old-floor'), dr = $<HTMLSelectElement>('old-door');
+    const upd = () => {
+      st.home = { postcode: b.postcode, blk: b.no, street: b.street, floor: Number(fl.value), stack: Number(dr.value) };
+      $('old-out').textContent = doorText(st.home);
+      audio.click();
+      renderCard();
+    };
+    fl.addEventListener('change', upd);
+    dr.addEventListener('change', upd);
+  };
+  const chooseOld = (b: HomeBlock, fly: boolean) => {
+    st.block = b;
+    st.district = b.district;
+    st.home = { postcode: b.postcode, blk: b.no, street: b.street, floor: b.floors > 2 ? Math.min(b.floors, 2 + (b.no.length % 5)) : 1, stack: 0 };
+    if (!found.includes(b)) found = [b, ...found];
+    if (fly) sm.goto(b.x, b.y, 5000, { block: b.i });
+    audio.click();
+    say(COUNTER.found, { blk: b.no, year: String(b.year) });
+    renderOld();
+    renderCard();
+  };
+
+  /* ---------- the steps ---------- */
+  const steps = $('steps');
+  const render = () => {
+    const f = flow();
+    const k = f.indexOf(st.step);
+    const zh = isZh();
+    steps.style.gridTemplateColumns = `repeat(${f.length}, 1fr)`;
+    steps.innerHTML = f.map((_, i) => `<li class="${i <= k ? 'is-on' : ''}"></li>`).join('');
+    $('step-label').textContent = `${k + 1} / ${f.length} · ${tx(LABEL[st.step])}`;
+    $('form-no').textContent = st.step === 'ferry' ? (zh ? '入境卡 / 1999' : 'ARRIVAL CARD / 1999') : 'RO-9 / 1999';
+    tag();
+    mapWrap.hidden = st.step !== 'home';
+    panel.classList.toggle('is-short', st.step === 'home');
+    after.innerHTML = '';
+    err.hidden = true;
+    $('back').hidden = k === 0;
+    const nextLabel = st.step === 'review' ? t('File application') : st.step === 'ferry' && !st.landed ? t('Hand it in') : st.step === 'queue' && !st.called ? t('Take a number') : t('Next step');
+    $('next').querySelector('span')!.textContent = nextLabel;
+
+    if (st.step === 'form') {
+      panel.innerHTML = `<label class="f-qlabel" for="code">${zh ? '1. 署里怎么称呼你？' : '1. What should the Office call you?'}</label>
+        <input class="f-input" id="code" maxlength="24" autocomplete="off" spellcheck="false" value="${esc(st.code)}" placeholder="${zh ? '真名、昵称、代号都行' : 'A name, a nickname, a codename'}" />
+        <p class="f-qlabel" style="margin-top:1.4rem">${zh ? '2. 在适用的一格内打勾（只勾一格）' : '2. Tick the box that applies (one only)'}</p>
+        <div class="tick" role="radiogroup">
+          <label class="tick__o${st.origin === 'G' ? ' is-on' : ''}" data-o="G"><input type="radio" name="o" value="G"${st.origin === 'G' ? ' checked' : ''} /><i></i><b>${zh ? '在本岛出生' : 'Born in Gerimis'}</b></label>
+          <label class="tick__o${st.origin === 'R' ? ' is-on' : ''}" data-o="R"><input type="radio" name="o" value="R"${st.origin === 'R' ? ' checked' : ''} /><i></i><b>${zh ? '通常居于本岛，自' : 'Ordinarily resident since'}<input class="f-input tick__year" id="since" inputmode="numeric" maxlength="4" value="${esc(st.since)}" placeholder="19__" aria-label="${zh ? '年份' : 'Year'}" />${zh ? '年起' : ''}</b></label>
+          <label class="tick__o${st.origin === 'N' ? ' is-on' : ''}" data-o="N"><input type="radio" name="o" value="N"${st.origin === 'N' ? ' checked' : ''} /><i></i><b>${zh ? '新抵岛人士' : 'New arrival'}</b><small>${zh ? '须先在渡轮码头填入境卡' : 'Arrival card at the ferry terminal first'}</small></label>
+        </div>
+        <div class="ro9__from"${st.origin === 'R' ? '' : ' hidden'} id="from-wrap">
+          <label class="f-qlabel" for="from">${zh ? '3. 之前在哪？（出生地，选填）' : '3. Where were you before? (Place of birth, optional)'}</label>
+          <input class="f-input" id="from" maxlength="32" autocomplete="off" spellcheck="false" value="${esc(st.from)}" placeholder="${zh ? '照实写，或者空着' : 'As it is, or leave it blank'}" />
+        </div>
+        <p class="f-help">${zh ? '不用填真实信息。勾选项只是岛上的写法，不对应任何现实身份。' : 'Not your real details. The boxes are the island’s own; they stand for no status anywhere else.'}</p>`;
+      const input = $<HTMLInputElement>('code');
+      let react = 0;
+      input.addEventListener('input', () => {
+        st.code = input.value;
+        if (st.home) st.home = st.origin === 'G' ? st.home : null;
+        renderCard();
+        window.clearTimeout(react);
+        react = window.setTimeout(() => {
+          const name = st.code.trim();
+          if (!name) return say(COUNTER.codeEmpty);
+          if (/^\d+$/.test(name)) return say(COUNTER.codeNum);
+          if ((COUNTER.known as readonly string[]).includes(name.toLowerCase())) return say(COUNTER.codeKnown, { name });
+          say(name.length > 14 ? COUNTER.codeLong : COUNTER.code, { name });
+        }, 600);
+      });
+      panel.querySelectorAll<HTMLLabelElement>('.tick__o').forEach((el) =>
+        el.addEventListener('click', (e) => {
+          const o = el.dataset.o as Origin;
+          if (e.target instanceof HTMLInputElement && e.target.id === 'since' && st.origin === 'R') return;
+          tick(o);
+        }),
+      );
+      const since = $<HTMLInputElement>('since');
+      since.addEventListener('focus', () => st.origin !== 'R' && tick('R'));
+      let sr = 0;
+      since.addEventListener('input', () => {
+        st.since = since.value.replace(/\D/g, '').slice(0, 4);
+        since.value = st.since;
+        renderCard();
+        window.clearTimeout(sr);
+        sr = window.setTimeout(() => {
+          if (st.since.length < 4) return;
+          if (!sinceOk()) return say(COUNTER.sinceBad);
+          say(sinceLine(sinceYear()), { year: st.since });
+        }, 500);
+      });
+      const from = $<HTMLInputElement>('from');
+      from.addEventListener('input', () => { st.from = from.value; renderCard(); });
+      if (!matchMedia('(pointer: coarse)').matches && !st.code) input.focus();
+    } else if (st.step === 'ferry') {
+      const t0 = islandNow();
+      const dd = `${String(t0.day).padStart(2, '0')}.${String(t0.month + 1).padStart(2, '0')}.99`;
+      panel.innerHTML = `<div class="arrive${st.landed ? ' is-torn' : ''}" id="arrive">
+        <div class="arrive__main">
+          <h3>DISEMBARKATION CARD · ${zh ? '入境卡' : 'ARRIVAL'}</h3>
+          <p class="micro">${zh ? '霏微渡轮码头 · 入境大厅' : 'Gerimis ferry terminal · Arrival hall'}</p>
+          <div class="arrive__grid">
+            <div><span class="micro">${zh ? '姓名' : 'Name'}</span><b>${esc(st.code.trim().toUpperCase())}</b></div>
+            <div><span class="micro">${zh ? '抵岛日期' : 'Date of arrival'}</span><b>${dd}</b></div>
+            <label><span class="micro">${zh ? '上船港口（选填）' : 'Port of embarkation (optional)'}</span><input class="f-input" id="from" maxlength="32" autocomplete="off" spellcheck="false" value="${esc(st.from)}" placeholder="${zh ? '从哪来' : 'Where from'}"${st.landed ? ' disabled' : ''} /></label>
+            <div><span class="micro">${zh ? '来岛事由' : 'Purpose of visit'}</span><b>☑ ${zh ? '居住' : 'RESIDENCE'}</b></div>
+          </div>
+        </div>
+        <div class="arrive__stub"><span>${zh ? '存根' : 'STUB'}</span><b>${esc(st.code.trim().toUpperCase().slice(0, 10))}</b><span>${dd}</span></div>
+        <span class="fstamp${st.landed ? ' is-down' : ''}" id="landed" aria-hidden="true">LANDED</span>
+      </div>`;
+      const from = $<HTMLInputElement>('from');
+      from.addEventListener('input', () => { st.from = from.value; renderCard(); });
+    } else if (st.step === 'queue') {
+      const lines = INTERVIEW[st.origin ?? 'N'];
+      panel.innerHTML = `<div class="queue">
+        <div class="qmach">
+          <button type="button" class="qmach__btn${st.ticket ? ' is-pressed' : ''}" id="qbtn"${st.ticket ? ' disabled' : ''}>${zh ? '取号' : 'TAKE A<br>NUMBER'}</button>
+          <span class="qmach__slot"></span>
+          <div class="qticket${st.ticket ? '' : ''}" id="qticket"${st.ticket ? '' : ' hidden'}><small>${zh ? '记录署 · 居民登记' : 'RECORDS OFFICE · RESIDENTS'}</small><b>${st.ticket || ''}</b><small>${zh ? '请留意叫号' : 'PLEASE WAIT TO BE CALLED'}</small></div>
+        </div>
+        <div>
+          <div class="qboard" aria-live="polite">
+            <div class="qboard__row"><span>WINDOW 1</span><b id="w1">${st.ticket ? st.ticket - 2 : 3014}</b></div>
+            <div class="qboard__row"><span>WINDOW 2</span><b id="w2">${st.ticket ? st.ticket - 1 : 3015}</b></div>
+            <div class="qboard__row${st.called ? ' is-call' : ''}" id="w3row"><span>WINDOW 3</span><b id="w3">${st.called ? st.ticket : st.ticket ? st.ticket - 3 : 3013}</b></div>
+          </div>
+          <ul class="qtalk" id="qtalk">${st.called ? lines.map((l) => `<li>${esc(fill(tx(l), { year: String(sinceYear()) }))}</li>`).join('') : ''}</ul>
+        </div>
+      </div>`;
+      $('qbtn').addEventListener('click', () => void takeNumber());
+    } else if (st.step === 'home') {
+      if (st.origin === 'G') {
+        panel.innerHTML = `<label class="f-qlabel" for="old-q">${zh ? '你小时候住哪一座？写座号加街名或区名，或者邮编；也可以把地图放到最近，直接点那一座。' : 'Which block did you grow up in? Write the number and the street or district, or the postcode; or turn the sheet to its closest scale and tap the block.'}</label>
+          <div class="oldaddr__find"><input class="f-input" id="old-q" autocomplete="off" spellcheck="false" placeholder="${zh ? '例如：大巴窑 7 座、310007' : 'e.g. Blk 7 Toa Payoh, 310007'}" /></div>`;
+        groups.forEach((g) => (g.hidden = true));
+        $('picks-hint').hidden = true;
+        $('blurb').textContent = '';
+        const q = $<HTMLInputElement>('old-q');
+        let qt = 0;
+        q.addEventListener('input', () => {
+          window.clearTimeout(qt);
+          qt = window.setTimeout(async () => {
+            found = await findBlocks(q.value);
+            renderOld();
+          }, 250);
+        });
+        renderOld();
+      } else {
+        panel.innerHTML = `<p class="f-qlabel">${zh ? '想住哪一带？先选一片，再点一个区。然后摇签筒。' : 'Where would you like to live? Choose a part of the island, then a district. Then turn the drum.'}</p>`;
+        picks.forEach((b) => b.classList.toggle('is-on', b.dataset.d === st.district));
+        if (st.district) setDistrict(st.district, false);
+        else {
+          setRegion(st.region, !!st.region, false);
+          $('blurb').textContent = zh ? '还没选。' : 'Nothing chosen yet.';
+        }
+        renderDrum();
+      }
+    } else {
+      const v = asVisitor();
+      const row = (label: string, val: string, to: Step) => `<li><span class="micro">${esc(label)}</span><b>${esc(val)}</b><button type="button" data-go="${to}">${zh ? '改' : 'Edit'}</button></li>`;
+      const box = st.origin === 'G' ? (zh ? '在本岛出生' : 'Born in Gerimis') : st.origin === 'R' ? (zh ? `通常居于本岛，自 ${st.since} 年起` : `Ordinarily resident since ${st.since}`) : zh ? '新抵岛人士' : 'New arrival';
+      panel.innerHTML = `<p class="f-qlabel">${zh ? '核对一遍，归档以后署里就认这一份。' : 'Read it back. Once filed, this is the version we keep.'}</p>
+        <ul class="readback">${[
+          row(t('Codename'), st.code.trim(), 'form'),
+          row(zh ? '勾选' : 'Ticked', box, 'form'),
+          ...(st.origin !== 'G' ? [row(zh ? '从哪来' : 'From', st.from.trim() || (zh ? '（没写）' : '(not given)'), st.origin === 'N' ? 'ferry' : 'form')] : []),
+          row(zh ? '住址' : 'Address', `${addressLine(v.home!, zh)} · ${postLine(v.home!, zh)}`, 'home'),
+          row(zh ? '档案编号' : 'File number', fileNo({ no: v.no! }), 'home'),
+        ].join('')}</ul>`;
+      panel.querySelectorAll<HTMLButtonElement>('[data-go]').forEach((b) =>
+        b.addEventListener('click', () => {
+          st.back = true;
+          go(b.dataset.go as Step);
+        }),
+      );
+    }
+    renderCard();
+  };
+
+  const tick = (o: Origin) => {
+    if (st.origin === o) return;
+    const was = st.origin;
+    st.origin = o;
+    // a different box: a different way to a flat
+    if (was && (was === 'G') !== (o === 'G')) { st.home = null; st.block = null; st.district = null; }
+    if (o !== 'N') st.landed = false;
+    panel.querySelectorAll<HTMLElement>('.tick__o').forEach((el) => el.classList.toggle('is-on', el.dataset.o === o));
+    panel.querySelectorAll<HTMLInputElement>('.tick__o input[type=radio]').forEach((el) => (el.checked = el.value === o));
+    $('from-wrap').hidden = o !== 'R';
+    audio.click();
+    say(o === 'G' ? COUNTER.tickG : o === 'R' ? COUNTER.tickR : COUNTER.tickN);
+    if (o === 'R' && !st.since) window.setTimeout(() => $<HTMLInputElement>('since')?.focus(), 30);
+    // the steps above the form change with the box
+    const f = flow();
+    steps.style.gridTemplateColumns = `repeat(${f.length}, 1fr)`;
+    steps.innerHTML = f.map((_, i) => `<li class="${i === 0 ? 'is-on' : ''}"></li>`).join('');
+    $('step-label').textContent = `1 / ${f.length} · ${tx(LABEL.form)}`;
+    renderCard();
+  };
+
+  const takeNumber = async () => {
+    if (st.ticket) return;
+    st.ticket = 3016 + (Math.floor(Math.random() * 40));
+    audio.click();
+    const btn = $('qbtn');
+    btn.classList.add('is-pressed');
+    btn.setAttribute('disabled', '');
+    const tk = $('qticket');
+    tk.querySelector('b')!.textContent = String(st.ticket);
+    tk.hidden = false;
+    tk.classList.add('is-out');
+    audio.paper();
+    $('next').querySelector('span')!.textContent = t('Waiting…');
+    say(COUNTER.waiting, { n: String(st.ticket), k: '3' });
+    // the board moves on, one window at a time
+    const w = [$('w1'), $('w2'), $('w3')];
+    for (let i = 0; i < 3; i++) {
+      await wait(900);
+      w[i].textContent = String(st.ticket - 3 + i);
+      audio.tick();
+    }
+    await wait(900);
+    if (st.step !== 'queue') return;
+    $('w3').textContent = String(st.ticket);
+    $('w3row').classList.add('is-call');
+    audio.pluck();
+    st.called = true;
+    say(COUNTER.called, { n: String(st.ticket) });
+    await wait(1600);
+    const talk = $('qtalk');
+    for (const l of INTERVIEW[st.origin ?? 'N']) {
+      if (st.step !== 'queue') return;
+      const li = document.createElement('li');
+      li.textContent = fill(tx(l), { year: String(sinceYear()) });
+      talk.append(li);
+      if (!calm) li.animate([{ opacity: 0, transform: 'translateY(4px)' }, { opacity: 1, transform: 'none' }], { duration: 300, easing: 'ease-out' });
+      say(l, { year: String(sinceYear()) });
+      await wait(2400);
+    }
+    $('next').querySelector('span')!.textContent = t('Next step');
+  };
+
+  const land = async () => {
+    st.landed = true;
+    const stamp = $('landed');
+    audio.stamp();
+    stamp.classList.add('is-down');
+    $<HTMLInputElement>('from').disabled = true;
+    say(COUNTER.landed);
+    await wait(900);
+    $('arrive').classList.add('is-torn');
+    audio.paper();
+    await wait(900);
+  };
+
+  let adv = 0;
+  const go = (s: Step) => {
+    window.clearTimeout(adv);
+    st.step = s;
+    audio.paper();
+    const swap = () => {
+      render();
+      if (s === 'form') say(st.code ? COUNTER.code : COUNTER.greet, { name: st.code.trim() });
+      else if (s === 'ferry') say(st.landed ? COUNTER.landed : COUNTER.ferry);
+      else if (s === 'queue') say(st.called ? COUNTER.called : COUNTER.ticket, { n: String(st.ticket) });
+      else if (s === 'home') say(st.origin === 'G' ? COUNTER.find : COUNTER.district);
+      else say(st.origin === 'G' ? COUNTER.reissue : COUNTER.review);
+    };
+    if (calm) return swap();
+    panel.animate([{ opacity: 1 }, { opacity: 0, transform: 'translateY(-4px)' }], { duration: 120, easing: 'ease-in' }).onfinish = () => {
+      swap();
+      panel.animate([{ opacity: 0, transform: 'translateY(6px)' }, { opacity: 1, transform: 'none' }], { duration: 260, easing: 'ease-out' });
+    };
+  };
+
+  const complaint = (l: L) => {
+    err.textContent = tx(l);
+    err.hidden = false;
+    audio.click();
+  };
+  const step = async (dir: 1 | -1) => {
+    const f = flow();
+    const k = f.indexOf(st.step);
+    if (dir === -1) {
+      st.back = false;
+      return go(f[Math.max(0, k - 1)]);
+    }
+    if (st.step === 'form') {
+      if (!st.code.trim()) return complaint({ en: 'A name is required.', zh: '代号必填。' });
+      if (!st.origin) return complaint({ en: 'Tick one box.', zh: '勾一格。' });
+      if (st.origin === 'R' && !sinceOk()) return complaint({ en: 'Write the year, between 1900 and 1999.', zh: '写上年份，1900 到 1999 之间。' });
+      if (st.origin === 'G') st.from = '';
+    }
+    if (st.step === 'ferry' && !st.landed) { await land(); }
+    if (st.step === 'queue' && !st.called) {
+      if (!st.ticket) return void takeNumber();
+      return complaint({ en: 'Wait to be called.', zh: '等叫号。' });
+    }
+    if (st.step === 'home' && !st.home) return complaint(st.origin === 'G' ? { en: 'Find your block first.', zh: '先找到那一座。' } : st.district ? { en: 'Turn the drum.', zh: '摇一下签筒。' } : { en: 'Choose a district.', zh: '选一个区。' });
+    if (st.step === 'review') return file();
+    // after an edit, straight back to the read-back, unless the edit opened a step that is still to do
+    if (st.back && st.home && (st.origin !== 'N' || st.landed) && st.called) {
+      st.back = false;
+      return go('review');
+    }
+    go(flow()[k + 1]);
+  };
+
+  form.addEventListener('submit', (e) => {
+    e.preventDefault();
+    void step(1);
+  });
+  $('back').addEventListener('click', () => void step(-1));
+  picks.forEach((b) => b.addEventListener('click', () => setDistrict(b.dataset.d as DistrictId)));
+  regs.forEach((b) => b.addEventListener('click', () => setRegion(b.dataset.r!)));
+
+  /* ---------- filing ---------- */
+  const file = async () => {
+    const h = st.home!;
+    const v: Visitor = {
+      no: homeFileNo(st.code, h),
+      code: st.code.trim(),
+      district: st.district!,
+      origin: st.origin!,
+      ...(st.origin === 'R' ? { since: sinceYear() } : {}),
+      ...(st.from.trim() && st.origin !== 'G' ? { from: st.from.trim().slice(0, 32) } : {}),
+      home: h,
+      at: Date.now(),
+    };
+    form.hidden = true;
+    steps.hidden = true;
+    const filing = $('filing');
+    const log = $('filing-log');
+    filing.hidden = false;
+    log.innerHTML = '';
+    clerk.textContent = '';
+    for (const l of FILING.slice(0, -1)) {
+      const li = document.createElement('li');
+      li.textContent = fill(tx(l), { district: districtName(v.district, isZh()) });
+      log.append(li);
+      audio.tick();
+      await wait(520);
+    }
+    const last = document.createElement('li');
+    last.textContent = tx(FILING[FILING.length - 1]);
+    log.append(last);
+    saveVisitor(v);
+    if (!pass) savePass({ no: 100 + Math.floor(Math.random() * 3996), code: v.code, ...(v.from ? { from: v.from } : {}), at: v.at });
+    audio.stamp();
+    // the card out of the laminator
+    card.classList.remove('is-back');
+    cardIn.innerHTML = cardHTML(v, { reissued: v.origin === 'G' });
+    cardPhoto(cardIn, `${v.code}|${v.origin}|${v.no}`);
+    card.classList.add('is-laminated');
+    await wait(900);
+    filing.hidden = true;
+    say(COUNTER.done);
+    const r = $('receipt');
+    r.hidden = false;
+    $('rc-door').textContent = doorText(h);
+    $('rc-addr').textContent = `${addressLine(h, isZh())} · ${postLine(h, isZh())}`;
+    $('rc-keyno').textContent = `${h.blk} ${doorText(h)}`;
+    $('rc-key').classList.add('is-given');
+    audio.pluck();
+    const ol = $('rc-phrase');
+    ol.innerHTML = '';
+    markMe();
+    window.setTimeout(() => r.scrollIntoView({ behavior: calm ? 'auto' : 'smooth', block: 'center' }), calm ? 0 : 200);
+    for (const w of toPhrase(v)) {
+      const li = document.createElement('li');
+      li.textContent = w;
+      ol.append(li);
+      if (!calm) li.animate([{ opacity: 0, transform: 'translateY(6px)' }, { opacity: 1, transform: 'none' }], { duration: 300, easing: 'ease-out' });
+      audio.pluck();
+      await wait(380);
+    }
+  };
+
+  /* ---------- restore ---------- */
+  $('restore').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const code = $<HTMLInputElement>('rs-code').value;
+    const got = fromPhrase(code, $<HTMLInputElement>('rs-phrase').value);
+    let v: Visitor | null = null;
+    if (got && 'postcode' in got) v = await restoreHome(got, base).catch(() => null);
+    else if (got) v = { ...got, at: Date.now() };
+    $('err-restore').hidden = !!v;
+    if (!v) return void audio.click();
+    saveVisitor(v);
+    audio.stamp();
+    markMe();
+    showAlready(v);
+  });
+
+  if (!current) {
+    render();
+    say(COUNTER.greet, {}, true);
+  } else renderCard();
+</script>

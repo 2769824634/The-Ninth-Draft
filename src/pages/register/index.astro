@@ -1,108 +1,61 @@
 ---
 import Flat from '../../layouts/Flat.astro';
-import StreetMap from '../../components/StreetMap.astro';
-import { REGIONS, RESIDENTIAL } from '../../app/visitor/districts';
+import '../../styles/idcard.css';
 
 const base = import.meta.env.BASE_URL;
 const arrow = '<svg viewBox="0 0 24 12" aria-hidden="true"><path d="M0 6h22M17 1l5 5-5 5" /></svg>';
 ---
 
-<Flat title="Register — The Ninth Draft" description="Register as a resident of Gerimis: a codename, a district, and a small secret only you can read." page="register">
+<Flat title="Visitors' book — The Ninth Draft" description="Sign the visitors' book at the door of the Records Office and take a reader's pass. Residents register at Window 3." page="register">
   <div class="reg">
     <div>
-      <p class="f-kicker micro"><b>Form RO-9</b><span>Records Office · Residents' Register</span></p>
-      <h1 class="f-title"><span data-l="en">Application for residence</span><span data-l="zh">居民登记申请表</span></h1>
+      <p class="f-kicker micro"><b>Visitors' book</b><span>Records Office · Public Archive · Front desk</span></p>
+      <h1 class="f-title"><span data-l="en">Sign in</span><span data-l="zh">入馆登记</span></h1>
       <p class="f-lede">
-        <span data-l="en">Every resident of Gerimis has a file. You do not, yet. Window 3 is open: answer the clerk, and the Office will open one for you, with a file number, a district and one small secret that only you can read.</span>
-        <span data-l="zh">霏微的每个居民都有一份档案，你暂时还没有。三号窗口开着，回答办事员几个问题，署里就给你开一份：档案编号、住处，还有一个只有你自己看得到的小秘密。</span>
+        <span data-l="en">Anyone may read here without signing. Sign the book and the desk gives you a reader's pass: the reading room writes your name on the slips, and the attendant stops calling you “the visitor”.</span>
+        <span data-l="zh">不签名也能看。签了名，门口给你一张阅览证，资料室借书的单子上写你的名字，管理员也不用再叫你「那位访客」。</span>
       </p>
 
-      <div class="receipt" id="already" hidden>
-        <p class="micro"><span>Already on file</span></p>
-        <p class="receipt__no" id="already-no">V-0000</p>
-        <p class="f-lede" style="margin-top:0"><span data-l="en">You are registered as</span><span data-l="zh">你已登记，代号</span> <b id="already-code"></b>.</p>
-        <div class="receipt__acts">
-          <a class="f-btn" href={`${base}me/`}><span>Open my file</span><Fragment set:html={arrow} /></a>
-          <button class="f-btn f-btn--ghost" type="button" id="again"><span>Register again</span></button>
-        </div>
-        <p class="f-help"><span data-l="en">Registering again replaces your current file. The old one will be revised out.</span><span data-l="zh">重新登记会替换现在的档案，旧的那份会被修订掉。</span></p>
-      </div>
-
-      <div class="desk" id="desk">
+      <div class="desk">
         <div class="clerk" aria-live="polite">
-          <p class="clerk__tag micro"><i></i><span>Clerk · Window 3</span></p>
+          <p class="clerk__tag micro"><i></i><span>Attendant · Front desk</span></p>
           <p class="clerk__line" id="clerk-line"></p>
         </div>
 
-        <ol class="steps" id="steps" aria-hidden="true"></ol>
-
-        <form class="form wiz" id="form" novalidate>
-          <div class="form__top micro"><span class="form__no">RO-9 / 1999</span><span id="step-label"></span></div>
-          <div class="wiz__panel" id="panel"></div>
-          <div class="wiz__map" id="map-wrap" hidden>
-            <div class="wiz__regions" role="group" aria-label="Part of the island">
-              {REGIONS.map((g, i) => (
-                <button type="button" class="wiz__reg" data-r={g.id}><i>{String(i + 1).padStart(2, '0')}</i><span data-l="en">{g.en}</span><span data-l="zh">{g.zh}</span><small class="micro">{RESIDENTIAL.filter((d) => d.region === g.id).length}</small></button>
-              ))}
-            </div>
-            <StreetMap id="reg-map" />
-            <p class="wiz__blurb" id="blurb"></p>
-            <div class="wiz__picks" id="picks">
-              <p class="f-help wiz__hint" id="picks-hint"><span data-l="en">Choose a part of the island above, or tap the sheet.</span><span data-l="zh">先在上面选一片，或者直接点地图。</span></p>
-              {REGIONS.map((g) => (
-                <div class="wiz__region" data-r={g.id} hidden>
-                  <p class="micro"><span data-l="en">{g.en}</span><span data-l="zh">{g.zh}</span></p>
-                  <div>{RESIDENTIAL.filter((d) => d.region === g.id).map((d) => <button type="button" class="wiz__pick" data-d={d.id}><span data-l="en">{d.en}</span><span data-l="zh">{d.zh}</span></button>)}</div>
-                </div>
-              ))}
-            </div>
+        <form class="vbook" id="book" novalidate>
+          <div class="vbook__head micro"><span id="book-date"></span><span id="book-page">Page 41</span></div>
+          <div class="vbook__cols micro" aria-hidden="true"><span>No.</span><span>Name</span><span>From</span><span>Time</span></div>
+          <ol id="book-rows"></ol>
+          <div class="vbook__foot">
+            <p><span data-l="en">Write it however you like. Nobody checks names at the door; the Office keeps what you write.</span><span data-l="zh">怎么写都行。门口不查名字，署里照你写的记。</span></p>
+            <button class="f-btn" type="submit" id="sign"><span>Sign</span><Fragment set:html={arrow} /></button>
           </div>
           <p class="f-err" id="err" hidden></p>
-          <div class="wiz__nav">
-            <button class="f-btn f-btn--ghost" type="button" id="back"><span>Back</span></button>
-            <button class="f-btn" type="submit" id="next"><span>Next step</span><Fragment set:html={arrow} /></button>
-          </div>
         </form>
 
-        <div class="filing" id="filing" hidden aria-live="polite">
-          <p class="micro"><span>Processing</span></p>
-          <ul id="filing-log"></ul>
-        </div>
-
-        <div class="receipt" id="receipt" hidden aria-live="polite">
-          <p class="micro"><span>Filed · Provisional resident</span></p>
-          <p class="receipt__no" id="rc-no">V-0000</p>
-          <p class="f-lede" style="margin-top:0"><span data-l="en">Your recovery phrase. Write it down with your codename: together they open your file on any other device.</span><span data-l="zh">这是你的恢复口令。和代号一起抄下来，换手机、换电脑都能用它找回档案。</span></p>
-          <ol class="phrase" id="rc-phrase"></ol>
+        <section class="stay" id="stay" hidden>
+          <p class="f-kicker micro"><b>Window 3</b><span>Residents' Register · Form RO-9</span></p>
+          <h2><span data-l="en">Staying on the island?</span><span data-l="zh">想在岛上住下？</span></h2>
+          <p id="stay-text"></p>
           <div class="receipt__acts">
-            <a class="f-btn" href={`${base}me/`}><span>Open my file</span><Fragment set:html={arrow} /></a>
-            <a class="f-btn f-btn--ghost" href={`${base}map/`}><span>Find my district</span></a>
-            <a class="f-btn f-btn--ghost" href={`${base}baseline/`}><span>Baseline test</span></a>
+            <a class="f-btn" id="stay-go" href={`${base}register/resident/`}><span>Apply for residence</span><Fragment set:html={arrow} /></a>
+            <a class="f-btn f-btn--ghost" href={`${base}library/`}><span>To the reading room</span></a>
           </div>
-        </div>
+        </section>
       </div>
     </div>
 
     <aside class="side">
-      <div class="vcard" id="vcard" aria-label="Your card, as it stands">
-        <p class="micro vcard__top"><span>Residents' Register</span><span id="vc-no">V-????</span></p>
-        <div class="vcard__photo"><canvas id="vc-photo" width="300" height="375" aria-hidden="true"></canvas></div>
-        <h2 class="vcard__code" id="vc-code"></h2>
-        <dl class="vcard__rows" id="vc-rows"></dl>
-        <span class="fstamp" id="fstamp" aria-hidden="true">PROVISIONAL</span>
-      </div>
+      <div class="rpass" id="pass" aria-label="Reader's pass"></div>
       <div class="side__box">
         <h3>Nothing leaves your browser</h3>
-        <p><span data-l="en">Your file is kept only on this device. No email, no password, no real names. Clearing your browser clears your file, unless you keep the phrase.</span><span data-l="zh">档案只存在这台设备的浏览器里。不要邮箱，不要密码，不要真名。清掉浏览器数据，档案也就没了，除非你记着口令。</span></p>
+        <p><span data-l="en">The book and your pass are kept only on this device. No email, no password, no real names.</span><span data-l="zh">访客簿和阅览证只存在这台设备的浏览器里。不要邮箱，不要密码，不要真名。</span></p>
       </div>
-      <form class="side__box" id="restore" novalidate>
-        <h3>Restore a file</h3>
-        <p><span data-l="en">Registered on another device? Enter the same codename and your four words.</span><span data-l="zh">在别的设备登记过？输入同一个代号和四个词。</span></p>
-        <input class="f-input" id="rs-code" maxlength="24" autocomplete="off" spellcheck="false" placeholder="Codename" />
-        <input class="f-input" id="rs-phrase" autocomplete="off" spellcheck="false" placeholder="Four words" />
-        <p class="f-err" id="err-restore" hidden>No such file. Check the codename and the four words.</p>
-        <button class="f-btn f-btn--ghost" type="submit"><span>Restore</span></button>
-      </form>
+      <div class="side__box" id="resign-box" hidden>
+        <h3>Sign again</h3>
+        <p><span data-l="en">A new line in the book and a new pass. The old one is crossed out.</span><span data-l="zh">在本子上另起一行，换一张新证。旧的那行划掉。</span></p>
+        <button class="f-btn f-btn--ghost" type="button" id="resign"><span>Sign again</span></button>
+      </div>
     </aside>
   </div>
 </Flat>
@@ -112,387 +65,153 @@ const arrow = '<svg viewBox="0 0 24 12" aria-hidden="true"><path d="M0 6h22M17 1
   import { audio } from '../../app/audio';
   import { isZh, t } from '../../app/i18n';
   import { reducedMotion } from '../../app/prefs';
-  import { halftone } from '../../app/scene/halftone';
-  import { toPhrase, fromPhrase } from '../../app/visitor/phrase';
-  import { fileNo, loadVisitor, saveVisitor, type Visitor } from '../../app/visitor/store';
-  import { district, districtName, REGIONS, RESIDENTIAL, DISTRICTS, type DistrictId } from '../../app/visitor/districts';
-  import { mountStreetMap } from '../../app/map/mount';
-  import { QUESTIONS, type L } from '../../app/visitor/questions';
-  import { COUNTER, DISTRICT_TEXT, FILING } from '../../app/visitor/counter';
+  import { hms, islandDateLabel, islandNow } from '../../app/island';
+  import { DOOR, BOOK, type L } from '../../app/visitor/counter';
+  import { passHTML } from '../../app/visitor/idcard';
+  import { hash, loadPass, loadVisitor, savePass, forgetPass, type Pass } from '../../app/visitor/store';
 
-  const { markMe, base } = flat(() => {
-    render();
-    say(lastSay, true, lastVars);
-    sm?.relang();
-  });
   const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
-  const form = $<HTMLFormElement>('form');
-  const desk = $('desk');
   const tx = (l: L) => (isZh() ? l.zh : l.en);
   const fill = (s: string, vars: Record<string, string>) => s.replace(/\{(\w+)\}/g, (_, k) => vars[k] ?? '');
   const esc = (s: string) => s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
   const calm = reducedMotion();
 
-  /* ---------- already registered ---------- */
-  const already = $('already');
-  const current = loadVisitor();
-  const showAlready = (v: Visitor) => {
-    already.hidden = false;
-    desk.hidden = true;
-    $('already-no').textContent = fileNo(v);
-    $('already-code').textContent = v.code;
-  };
-  if (current) showAlready(current);
-  $('again').addEventListener('click', () => {
-    already.hidden = true;
-    desk.hidden = false;
-    go(0);
-  });
+  let pass: Pass | null = loadPass();
+  const resident = loadVisitor();
+  const draft = { code: resident?.code ?? '', from: resident?.from ?? '' };
 
-  /* ---------- state ---------- */
-  const STEPS = 7; // 0 name, 1 district, 2–4 questions, 5 line, 6 review
-  const no = 100 + Math.floor(Math.random() * 3996);
-  const st = { step: 0, code: '', district: null as DistrictId | null, region: null as string | null, answers: [-1, -1, -1], line: '', back: false };
-
-  /* ---------- the clerk ---------- */
+  /* ---------- the attendant ---------- */
   const clerk = $('clerk-line');
-  let lastSay: L = COUNTER.greet;
-  let lastVars: Record<string, string> = {};
+  let last: [L, Record<string, string>] = [DOOR.greet, {}];
   let typing = 0;
-  const say = (l: L, instant = false, vars: Record<string, string> = {}) => {
-    lastSay = l;
-    lastVars = vars;
+  const say = (l: L, vars: Record<string, string> = {}, instant = false) => {
+    last = [l, vars];
     const text = fill(tx(l), vars);
     window.clearInterval(typing);
-    if (calm || instant) {
-      clerk.textContent = text;
-      return;
-    }
+    if (calm || instant) return void (clerk.textContent = text);
     clerk.textContent = '';
     let i = 0;
     typing = window.setInterval(() => {
-      i += 1;
-      clerk.textContent = text.slice(0, i);
+      clerk.textContent = text.slice(0, ++i);
       if (i >= text.length) window.clearInterval(typing);
     }, isZh() ? 38 : 20);
   };
 
-  /* ---------- progress ---------- */
-  const steps = $('steps');
-  steps.innerHTML = Array.from({ length: STEPS }, () => '<li></li>').join('');
-  const LABELS: L[] = [
-    { en: '1 / 7 · Codename', zh: '1 / 7 · 代号' },
-    { en: '2 / 7 · District', zh: '2 / 7 · 住处' },
-    { en: '3 / 7 · Question 1', zh: '3 / 7 · 问题 1' },
-    { en: '4 / 7 · Question 2', zh: '4 / 7 · 问题 2' },
-    { en: '5 / 7 · Question 3', zh: '5 / 7 · 问题 3' },
-    { en: '6 / 7 · Optional', zh: '6 / 7 · 选填' },
-    { en: '7 / 7 · Read back', zh: '7 / 7 · 核对' },
-  ];
-
-  /* ---------- the card ---------- */
-  const photo = $<HTMLCanvasElement>('vc-photo');
-  let seedKey = '';
-  let drawTimer = 0;
-  const drawPhoto = () => {
-    const key = `${st.code}|${st.district}|${st.answers.join('')}`;
-    if (key === seedKey) return;
-    seedKey = key;
-    window.clearTimeout(drawTimer);
-    drawTimer = window.setTimeout(() => {
-      const c = halftone(null, `${no}|${key}`, 300, 375);
-      const g = photo.getContext('2d')!;
-      g.clearRect(0, 0, 300, 375);
-      g.drawImage(c, 0, 0, 300, 375);
-      if (!calm) photo.animate([{ opacity: 0.35 }, { opacity: 1 }], { duration: 320, easing: 'ease-out' });
-    }, 220);
+  /* ---------- the book: a few names before yours, the same for everyone today ---------- */
+  const now = islandNow();
+  const dayNo = now.month * 31 + now.day;
+  const page = 41 + (dayNo % 300);
+  const earlier = () => {
+    const n = 4 + (hash(`book#${dayNo}`) % 3);
+    const open = 9 * 60; // the doors open at nine
+    const upTo = Math.max(open + 20, now.hours * 60 + now.minutes - 6);
+    // a different name on every line: walk the list from a start and step of the day's own
+    const start = hash(`book#${dayNo}`) >>> 3;
+    return Array.from({ length: n }, (_, i) => {
+      const [name, from] = BOOK[(start + i * 5) % BOOK.length];
+      const m = open + Math.floor(((i + 0.5) / n) * (upTo - open));
+      return { name, from, time: hms(Math.floor(m / 60) % 24, m % 60) };
+    });
   };
-  const renderCard = () => {
-    $('vc-no').textContent = fileNo({ no });
-    $('vc-code').textContent = st.code || '— — —';
-    $('vc-code').classList.toggle('is-empty', !st.code);
-    const dash = '—';
-    const rows: [string, string][] = [
-      [t('District'), st.district ? districtName(st.district, isZh()) : dash],
-      ...QUESTIONS.map((q, i) => [tx(q.label), st.answers[i] >= 0 ? tx(q.opts[st.answers[i]].v) : dash] as [string, string]),
-    ];
-    $('vc-rows').innerHTML = rows.map(([k, v]) => `<div class="${v === dash ? 'is-empty' : ''}"><dt class="micro">${esc(k)}</dt><dd>${esc(v)}</dd></div>`).join('');
-    drawPhoto();
-  };
-
-  /* ---------- the panel ---------- */
-  const panel = $('panel');
-  const mapWrap = $('map-wrap');
-  const err = $('err');
-  const picks = [...mapWrap.querySelectorAll<HTMLButtonElement>('.wiz__pick')];
-  const regs = [...mapWrap.querySelectorAll<HTMLButtonElement>('.wiz__reg')];
-  const groups = [...mapWrap.querySelectorAll<HTMLElement>('.wiz__region')];
-  const LIVES = new Set(RESIDENTIAL.map((d) => d.id));
-
-  // the street map: first a part of the island, then a district in it; only where people live
-  let syncing = false;
-  const sm = mountStreetMap($('reg-map'), {
-    base,
-    card: false,
-    selectable: (id) => LIVES.has(id),
-    onRefuse: (id) => {
-      const d = district(id);
-      if (!d) return;
-      say(d.kind === 'unsurveyed' ? COUNTER.unsurveyed : COUNTER.noHomes, false, { name: districtName(id, isZh()) });
-    },
-    onPick: (id) => {
-      if (syncing || !id) return;
-      setDistrict(id, true, false);
-    },
-  });
-  const setRegion = (r: string | null, fly = true, sound = true) => {
-    st.region = r;
-    regs.forEach((b) => b.classList.toggle('is-on', b.dataset.r === r));
-    groups.forEach((g) => (g.hidden = g.dataset.r !== r));
-    $('picks-hint').hidden = !!r;
-    if (!r) return;
-    if (fly) sm.frame(DISTRICTS.filter((d) => d.region === r).map((d) => d.id));
-    if (sound) {
-      audio.click();
-      say(COUNTER.region, false, { region: tx(REGIONS.find((g) => g.id === r)!) });
-    }
-  };
-
-  const setDistrict = (id: DistrictId, sound = true, fly = true) => {
-    st.district = id;
-    const r = district(id)?.region ?? null;
-    if (r !== st.region) setRegion(r, false, false);
-    syncing = true;
-    sm.pick(id, fly);
-    syncing = false;
-    picks.forEach((b) => b.classList.toggle('is-on', b.dataset.d === id));
-    $('blurb').innerHTML = `<b>${esc(districtName(id, isZh()))}</b> ${esc(tx(DISTRICT_TEXT[id].blurb))}`;
-    if (sound) {
-      audio.click();
-      say(DISTRICT_TEXT[id].react);
-    }
-    renderCard();
-  };
-
-  const render = () => {
-    const s = st.step;
-    $('step-label').textContent = tx(LABELS[s]);
-    steps.querySelectorAll('li').forEach((li, i) => li.classList.toggle('is-on', i <= s));
-    mapWrap.hidden = s !== 1;
-    panel.classList.toggle('is-short', s === 1);
-    err.hidden = true;
-    $('back').hidden = s === 0;
-    $('next').querySelector('span')!.textContent = s === STEPS - 1 ? t('File application') : s === 5 && !st.line ? t('Skip') : t('Next step');
-
-    if (s === 0) {
-      panel.innerHTML = `<label class="f-qlabel" for="code">${isZh() ? '你想让署里怎么称呼你？' : 'What should the Office call you?'}</label>
-        <input class="f-input" id="code" maxlength="24" autocomplete="off" spellcheck="false" value="${esc(st.code)}" placeholder="${isZh() ? '真名、昵称、代号都行' : 'A name, a nickname, a codename'}" />
-        <p class="f-help">${isZh() ? '中英文都可以。不用填真实信息，署里用不上。' : 'English or Chinese. Not your real details: the Office does not need them.'}</p>`;
-      const input = $<HTMLInputElement>('code');
-      let react = 0;
-      input.addEventListener('input', () => {
-        st.code = input.value;
-        renderCard();
-        window.clearTimeout(react);
-        react = window.setTimeout(() => {
-          const name = st.code.trim();
-          if (!name) return say(COUNTER.codeEmpty);
-          const v = { name };
-          if (/^\d+$/.test(name)) return say(COUNTER.codeNum);
-          if ((COUNTER.known as readonly string[]).includes(name.toLowerCase())) return say(COUNTER.codeKnown, false, v);
-          say(name.length > 14 ? COUNTER.codeLong : COUNTER.code, false, v);
-        }, 600);
-      });
-      if (!matchMedia('(pointer: coarse)').matches) input.focus();
-    } else if (s === 1) {
-      panel.innerHTML = `<p class="f-qlabel">${isZh() ? '你住哪一带？先选一片，再在地图上点一个区，或者从地图下面的单子里挑。' : 'Where do you live? Choose a part of the island, then tap a district on the sheet or pick it from the list under it.'}</p>`;
-      picks.forEach((b) => b.classList.toggle('is-on', b.dataset.d === st.district));
-      if (st.district) setDistrict(st.district, false);
-      else {
-        setRegion(st.region, !!st.region, false);
-        $('blurb').textContent = isZh() ? '还没选。' : 'Nothing chosen yet.';
-      }
-    } else if (s <= 4) {
-      const i = s - 2;
-      const q = QUESTIONS[i];
-      panel.innerHTML = `<p class="f-qlabel"><b class="q__n">3.${i + 1}</b>${esc(tx(q.q))}</p>
-        <div class="choice">${q.opts
-          .map((o, j) => `<button type="button" class="choice__o${st.answers[i] === j ? ' is-on' : ''}" data-j="${j}"><i>${j + 1}</i><span>${esc(tx(o.v))}</span></button>`)
-          .join('')}</div>`;
-      panel.querySelectorAll<HTMLButtonElement>('.choice__o').forEach((b) => b.addEventListener('click', () => choose(i, Number(b.dataset.j))));
-    } else if (s === 5) {
-      panel.innerHTML = `<label class="f-qlabel" for="line">${isZh() ? '一样你记得、但别人都说不存在的东西。' : 'Something you remember that everyone else says never existed.'}</label>
-        <textarea class="f-input" id="line" maxlength="60" rows="2" placeholder="${isZh() ? '一部红色公用电话、一家面包店、一个表哥……' : 'A red payphone, a bakery, a cousin…'}">${esc(st.line)}</textarea>
-        <p class="f-help">${isZh() ? '选填。它会被写进你的小秘密，但恢复口令记不住这一句。' : 'Optional. It goes into your secret. It is not kept in the recovery phrase.'}</p>`;
-      const ta = $<HTMLTextAreaElement>('line');
-      ta.addEventListener('input', () => {
-        st.line = ta.value;
-        $('next').querySelector('span')!.textContent = st.line.trim() ? t('Next step') : t('Skip');
-      });
+  const rowsEl = $('book-rows');
+  let react = 0;
+  const timeOf = (ms: number) => { const d = islandNow(ms); return hms(d.hours, d.minutes); };
+  const renderBook = (justSigned = false) => {
+    const zh = isZh();
+    $('book-date').textContent = `${t("Visitors' book")} · ${islandDateLabel(zh)}`;
+    $('book-page').textContent = zh ? `第 ${page} 页` : `Page ${page}`;
+    const list = earlier();
+    const rows = list.map((r, i) => `<li class="vbook__row"><i>${String(i + 1).padStart(2, '0')}</i><b>${esc(r.name)}</b><span>${esc(tx(r.from))}</span><time>${r.time}</time></li>`);
+    const n = String(list.length + 1).padStart(2, '0');
+    if (pass) {
+      rows.push(`<li class="vbook__row is-you${justSigned ? ' is-signed' : ''}"><i>${n}</i><b>${esc(pass.code)}</b><span>${esc(pass.from ?? '')}</span><time>${timeOf(pass.at)}</time></li>`);
     } else {
-      const row = (label: string, val: string, to: number) =>
-        `<li><span class="micro">${esc(label)}</span><b>${esc(val)}</b><button type="button" data-go="${to}">${isZh() ? '改' : 'Edit'}</button></li>`;
-      panel.innerHTML = `<p class="f-qlabel">${isZh() ? '核对一遍，归档以后署里就认这一份。' : 'Read it back. Once filed, this is the version we keep.'}</p>
-        <ul class="readback">${[
-          row(t('Codename'), st.code.trim(), 0),
-          row(t('District'), districtName(st.district!, isZh()), 1),
-          ...QUESTIONS.map((q, i) => row(tx(q.label), tx(q.opts[st.answers[i]].v), i + 2)),
-          row(isZh() ? '你记得' : 'You remember', st.line.trim() || (isZh() ? '（没写）' : '(nothing)'), 5),
-        ].join('')}</ul>`;
-      panel.querySelectorAll<HTMLButtonElement>('[data-go]').forEach((b) =>
-        b.addEventListener('click', () => {
-          st.back = true;
-          go(Number(b.dataset.go));
-        }),
-      );
+      rows.push(`<li class="vbook__row is-you"><i>${n}</i>
+        <input class="f-input" id="b-code" maxlength="24" autocomplete="off" spellcheck="false" value="${esc(draft.code)}" placeholder="${zh ? '名字' : 'Name'}" aria-label="${zh ? '名字' : 'Name'}" />
+        <input class="f-input" id="b-from" maxlength="32" autocomplete="off" spellcheck="false" value="${esc(draft.from)}" placeholder="${zh ? '从哪来（选填）' : 'From (optional)'}" aria-label="${zh ? '从哪来' : 'From'}" />
+        <time>${hms(now.hours, now.minutes)}</time></li>`);
     }
-    renderCard();
+    rowsEl.innerHTML = rows.join('');
+    $('sign').hidden = !!pass;
+    if (pass) return;
+    const code = $<HTMLInputElement>('b-code'), from = $<HTMLInputElement>('b-from');
+    code.addEventListener('input', () => {
+      draft.code = code.value;
+      renderPass();
+      window.clearTimeout(react);
+      react = window.setTimeout(() => (draft.code.trim() ? say(DOOR.name, { name: draft.code.trim() }) : say(DOOR.empty)), 600);
+    });
+    from.addEventListener('input', () => { draft.from = from.value; renderPass(); });
   };
 
-  const choose = (i: number, j: number) => {
-    st.answers[i] = j;
-    panel.querySelectorAll('.choice__o').forEach((b, k) => b.classList.toggle('is-on', k === j));
-    audio.click();
-    say(QUESTIONS[i].opts[j].react);
-    renderCard();
-    window.clearTimeout(adv);
-    // Let the clerk finish her remark before moving on
-    adv = window.setTimeout(() => step(1), calm ? 600 : 1500);
-  };
-  let adv = 0;
-
-  const go = (n: number) => {
-    window.clearTimeout(adv);
-    st.step = Math.max(0, Math.min(STEPS - 1, n));
-    audio.paper();
-    const swap = () => {
-      render();
-      const s = st.step;
-      if (s === 0) say(st.code ? COUNTER.code : COUNTER.greet, false, { name: st.code.trim() });
-      else if (s === 1) say(COUNTER.district);
-      else if (s <= 4) say({ en: fill(COUNTER.question.en, { n: String(s - 1) }), zh: fill(COUNTER.question.zh, { n: String(s - 1) }) });
-      else if (s === 5) say(COUNTER.lineAsk);
-      else say(COUNTER.review);
-    };
-    if (calm) return swap();
-    panel.animate([{ opacity: 1 }, { opacity: 0, transform: 'translateY(-4px)' }], { duration: 120, easing: 'ease-in' }).onfinish = () => {
-      swap();
-      panel.animate([{ opacity: 0, transform: 'translateY(6px)' }, { opacity: 1, transform: 'none' }], { duration: 260, easing: 'ease-out' });
-    };
+  /* ---------- the pass ---------- */
+  const passEl = $('pass');
+  const renderPass = () => {
+    passEl.innerHTML = passHTML(pass ?? { code: draft.code, from: draft.from }, isZh()) + '<span class="fstamp" id="pstamp" aria-hidden="true">ADMITTED</span>';
+    if (pass) passEl.querySelector('#pstamp')!.classList.add('is-down');
   };
 
-  const complaint = (l: L) => {
-    err.textContent = tx(l);
-    err.hidden = false;
-    audio.click();
-  };
-  const step = (dir: 1 | -1) => {
-    const s = st.step;
-    if (dir === -1) {
-      st.back = false;
-      return go(s - 1);
+  const renderStay = () => {
+    const zh = isZh();
+    $('stay').hidden = !pass && !resident;
+    $('resign-box').hidden = !pass;
+    const go = $<HTMLAnchorElement>('stay-go');
+    if (resident) {
+      $('stay-text').textContent = zh ? `你已经是岛上的居民了，档案 ${resident.no ? `V-${String(resident.no).padStart(4, '0')}` : ''}。` : `You are already on the residents' register, file V-${String(resident.no).padStart(4, '0')}.`;
+      go.href = go.href.replace(/register\/resident\/$/, 'me/');
+      go.querySelector('span')!.textContent = t('Go home');
+    } else {
+      $('stay-text').textContent = zh ? '居民有屋子、身份证和一个信箱。填 RO-9 表要几分钟，先在机器上取个号。' : 'Residents get a flat, a card and a letterbox. Form RO-9 takes a few minutes, and a number from the machine.';
     }
-    if (s === 0 && !st.code.trim()) return complaint({ en: 'A name is required.', zh: '代号必填。' });
-    if (s === 1 && !st.district) return complaint({ en: 'Choose a district.', zh: '选一个区。' });
-    if (s >= 2 && s <= 4 && st.answers[s - 2] < 0) return complaint({ en: 'Choose an answer.', zh: '选一个答案。' });
-    if (s === STEPS - 1) return file();
-    if (s === 5) say(st.line.trim() ? COUNTER.lineGiven : COUNTER.lineSkip, false, { line: st.line.trim() });
-    // Returning from an edit goes straight back to the read-back
-    if (st.back && s !== 5) {
-      st.back = false;
-      return go(STEPS - 1);
-    }
-    go(s + 1);
   };
 
-  form.addEventListener('submit', (e) => {
-    e.preventDefault();
-    step(1);
-  });
-  $('back').addEventListener('click', () => step(-1));
-  window.addEventListener('keydown', (e) => {
-    if (desk.hidden || form.hidden || e.metaKey || e.ctrlKey || e.altKey) return;
-    if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
-    if (st.step >= 2 && st.step <= 4 && ['1', '2', '3'].includes(e.key)) choose(st.step - 2, Number(e.key) - 1);
+  const { markMe } = flat(() => {
+    renderBook();
+    renderPass();
+    renderStay();
+    say(last[0], last[1], true);
   });
 
-  // Clicking the island, or the list under it
-  picks.forEach((b) => b.addEventListener('click', () => setDistrict(b.dataset.d as DistrictId)));
-  regs.forEach((b) => b.addEventListener('click', () => setRegion(b.dataset.r!)));
-
-  /* ---------- filing ---------- */
-  const wait = (ms: number) => new Promise<void>((r) => window.setTimeout(r, calm ? Math.min(ms, 60) : ms));
-  const file = async () => {
-    const v: Visitor = {
-      no,
-      code: st.code.trim(),
-      district: st.district!,
-      answers: st.answers as [number, number, number],
-      ...(st.line.trim() ? { line: st.line.trim().slice(0, 60) } : {}),
-      at: Date.now(),
-    };
-    form.hidden = true;
-    steps.hidden = true;
-    const filing = $('filing');
-    const log = $('filing-log');
-    filing.hidden = false;
-    log.innerHTML = '';
-    say(COUNTER.greet, true);
-    clerk.textContent = '';
-    for (const l of FILING.slice(0, -1)) {
-      const li = document.createElement('li');
-      li.textContent = fill(tx(l), { district: districtName(v.district, isZh()) });
-      log.append(li);
-      audio.tick();
-      await wait(520);
-    }
-    const last = document.createElement('li');
-    last.textContent = tx(FILING[FILING.length - 1]);
-    log.append(last);
-    saveVisitor(v);
-    audio.stamp();
-    const stamp = $('fstamp');
-    stamp.classList.remove('is-down');
-    void stamp.offsetWidth;
-    stamp.classList.add('is-down');
-    await wait(700);
-    filing.hidden = true;
-    say(COUNTER.done);
-    const r = $('receipt');
-    r.hidden = false;
-    $('rc-no').textContent = fileNo(v);
-    const ol = $('rc-phrase');
-    ol.innerHTML = '';
-    markMe();
-    window.setTimeout(() => r.scrollIntoView({ behavior: calm ? 'auto' : 'smooth', block: 'center' }), calm ? 0 : 200);
-    for (const w of toPhrase(v)) {
-      const li = document.createElement('li');
-      li.textContent = w;
-      ol.append(li);
-      if (!calm) li.animate([{ opacity: 0, transform: 'translateY(6px)' }, { opacity: 1, transform: 'none' }], { duration: 300, easing: 'ease-out' });
-      audio.pluck();
-      await wait(380);
-    }
-  };
-
-  /* ---------- restore ---------- */
-  $('restore').addEventListener('submit', (e) => {
+  const err = $('err');
+  $('book').addEventListener('submit', (e) => {
     e.preventDefault();
-    const got = fromPhrase($<HTMLInputElement>('rs-code').value, $<HTMLInputElement>('rs-phrase').value);
-    $('err-restore').hidden = !!got;
-    if (!got) {
+    if (pass) return;
+    const code = draft.code.trim();
+    if (!code) {
+      err.textContent = isZh() ? '名字必填。' : 'A name is required.';
+      err.hidden = false;
       audio.click();
-      return;
+      return say(DOOR.empty);
     }
-    const v: Visitor = { ...got, at: Date.now() };
-    saveVisitor(v);
+    err.hidden = true;
+    window.clearTimeout(react);
+    pass = { no: 100 + Math.floor(Math.random() * 3996), code, ...(draft.from.trim() ? { from: draft.from.trim().slice(0, 32) } : {}), at: Date.now() };
+    savePass(pass);
     audio.stamp();
+    renderBook(true);
+    renderPass();
+    renderStay();
     markMe();
-    showAlready(v);
+    say(DOOR.signed);
+    window.setTimeout(() => say(DOOR.stay), calm ? 0 : 3200);
+    if (!calm) passEl.animate([{ transform: 'translateY(-8px) rotate(-2deg)', opacity: 0.4 }, { transform: 'none', opacity: 1 }], { duration: 480, easing: 'cubic-bezier(.3,1.4,.5,1)' });
   });
 
-  if (!current) {
-    render();
-    say(COUNTER.greet, true);
-  }
+  $('resign').addEventListener('click', () => {
+    if (pass) Object.assign(draft, { code: pass.code, from: pass.from ?? '' });
+    pass = null;
+    forgetPass();
+    audio.paper();
+    renderBook();
+    renderPass();
+    renderStay();
+    markMe();
+    say(DOOR.greet);
+    if (!matchMedia('(pointer: coarse)').matches) $<HTMLInputElement>('b-code').focus();
+  });
+
+  renderBook();
+  renderPass();
+  renderStay();
+  say(pass ? DOOR.back : DOOR.greet, {}, true);
 </script>

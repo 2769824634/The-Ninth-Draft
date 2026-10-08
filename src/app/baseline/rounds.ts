@@ -4,7 +4,7 @@
  * say when they cannot help correcting the Office. Every line is original;
  * the form (call and response, flat voice) is the only thing borrowed.
  */
-import type { L } from '../visitor/questions';
+import type { L } from '../visitor/counter';
 
 export type Dev = 0 | 1 | 2; // exact, near, far
 
