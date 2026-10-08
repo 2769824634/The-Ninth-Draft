@@ -379,7 +379,7 @@ function television(n: number, s: number): L[] {
 
 /** One line from the Office, every day. */
 const OFFICE: L[] = [
-  { en: 'Everything on the island is normal. If it isn’t, it’s the previous draft.', zh: '本岛一切如常。如有不同，是上一稿。' },
+  { en: 'Everything on the island is normal. Where it differs, go by what you see.', zh: '本岛一切如常。如有不同，以现场为准。' },
   { en: 'Form RO-9 is available at every counter. Please use black ink.', zh: '各柜台均可领取 RO-9 表格。请用黑色墨水填写。' },
   { en: 'The library is open to registered visitors. Return books to the shelf they came from.', zh: '资料室向已登记访客开放。书从哪层取的，请放回哪层。' },
   { en: 'Please write the year in four digits.', zh: '书写年份请用四位数。' },

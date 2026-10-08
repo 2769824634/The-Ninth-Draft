@@ -10,7 +10,7 @@ interface Props {
   title: string;
   description?: string;
 }
-const { title, description = 'The Ninth Draft — the Records Office of Gerimis, 1999. Everything on the island is normal. If it isn\'t, it\'s the previous draft.' } = Astro.props;
+const { title, description = 'The Ninth Draft — the Records Office of Gerimis, 1999. Everything on the island is normal. Where it differs, go by what you see.' } = Astro.props;
 const base = import.meta.env.BASE_URL;
 // Chinese faces, one per role, cut into slices at build time (see
 // integrations/zh-fonts.mjs); each slice downloads only when a page shows
