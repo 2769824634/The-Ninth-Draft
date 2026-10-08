@@ -342,6 +342,34 @@ export const audio = {
     if (!live()) return;
     noise(0.16, { f0: 2400, f1: 5200, q: 0.7, vol: 0.16, attack: 0.03 });
   },
+  /** A folder cover swung open on its spine: a soft card flap and a puff of air. */
+  flap() {
+    if (!live()) return;
+    noise(0.22, { type: 'lowpass', f0: 700, f1: 1800, q: 0.6, vol: 0.32, attack: 0.04 });
+    tone(150, 0.07, { type: 'triangle', vol: 0.08, delay: 0.18, to: 95 });
+  },
+  /** A sheet drawn out across another: dry friction rising. */
+  slide() {
+    if (!live()) return;
+    noise(0.34, { f0: 1500, f1: 3600, q: 0.5, vol: 0.14, attack: 0.1 });
+  },
+  /** The sheet settling flat on the folder or the desk. */
+  settle() {
+    if (!live()) return;
+    noise(0.08, { type: 'lowpass', f0: 900, f1: 400, vol: 0.22, attack: 0.005 });
+    tone(120, 0.05, { type: 'sine', vol: 0.06, to: 80 });
+  },
+  /** A corner lifted and the sheet peeled back: crackle, then a long air-swish. */
+  peel() {
+    if (!live()) return;
+    noise(0.05, { f0: 4600, q: 2, vol: 0.12, attack: 0.002 });
+    noise(0.42, { f0: 2800, f1: 1100, q: 0.5, vol: 0.18, attack: 0.08, delay: 0.04 });
+  },
+  /** One page of a long file turned past the fold. */
+  leaf() {
+    if (!live()) return;
+    noise(0.12, { f0: 3200, f1: 2000, q: 0.8, vol: 0.07, attack: 0.02 });
+  },
   /** Faint sonar ping when the wall sweep passes a card. */
   ping(depth = 0) {
     if (!live()) return;

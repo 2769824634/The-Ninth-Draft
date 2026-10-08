@@ -11,6 +11,8 @@ import { audio } from '../audio';
 import { hash, loadPhoto } from '../scene/textures';
 import { halftone, hasPortrait } from '../scene/halftone';
 import { attachmentsHtml, paintNegatives, showDraft } from './attachments';
+import { peel } from './peel';
+import { Pages } from './pages';
 import { isZh, t } from '../i18n';
 import { reducedMotion } from '../prefs';
 import { isFiled } from '../island';
@@ -125,6 +127,7 @@ export class Dossier {
   private paper = document.getElementById('ds-scroll')!;
   private sheaf = document.getElementById('ds-sheaf')!;
   private slip = document.getElementById('ds-slip')!;
+  private pages = new Pages(this.paper);
   private rec: ArchiveRecord | null = null;
   private draft = 9;
   /** The earlier drafts lying under this file, oldest first. */
@@ -285,6 +288,7 @@ export class Dossier {
     const cat = this.categories.find((c) => c.id === rec.category)!;
 
     swapText($('ds-file'), t('File {file}', { file: rec.file }));
+    this.pages.set(rec.file);
     $('ds-spine').textContent = `Archive terminal // Gerimis // ${cat.code}-${rec.file.split('-')[1] ?? rec.file} // ${rec.stamp}`;
     $('ds-barcode').innerHTML = barcode(rec.file);
     $('ds-title').textContent = rec.title;
@@ -393,7 +397,21 @@ export class Dossier {
     if (!rec) return;
     if (n !== 9 && !this.sheets.includes(n)) n = 9;
     const changed = n !== this.draft;
+    const was = this.draft;
     this.draft = n;
+    const apply = () => this.paintDraft(rec, n);
+    // by hand, the top sheet is turned back by its corner (or laid down again)
+    if (byUser && changed) {
+      this.closeSlip();
+      // once the sheet is off, bring the first ringed change into view
+      peel(this.paper, apply, n > was, () => this.toChange());
+    } else apply();
+    const info = draftInfo(rec, n);
+    this.hooks.draft(rec, info, byUser && changed);
+  }
+
+  /** Put draft `n` on the paper: what it struck, added, blacked out, and its head. */
+  private paintDraft(rec: ArchiveRecord, n: number) {
     const old = n < 9;
     this.paper.querySelectorAll<HTMLElement>('.rv').forEach((s) => {
       const now = stateAt(s, n), fin = stateAt(s, 9);
@@ -418,19 +436,6 @@ export class Dossier {
     if (st) st.textContent = info.stamp;
     this.el.dataset.draft = old ? 'old' : 'final';
     this.sheaf.querySelectorAll<HTMLElement>('[data-sheet]').forEach((b) => b.setAttribute('aria-pressed', String(Number(b.dataset.sheet) === n)));
-
-    if (byUser && changed) {
-      audio.paper();
-      this.closeSlip();
-      if (!reducedMotion()) {
-        this.paper.animate(
-          [{ transform: 'translate(1.6rem, .5rem) rotate(.8deg)', opacity: 0.25 }, { transform: 'none', opacity: 1 }],
-          { duration: 520, easing: 'cubic-bezier(.16,1,.3,1)' },
-        );
-      }
-      this.toChange();
-    }
-    this.hooks.draft(rec, info, byUser && changed);
   }
 
   /** Bring the first ringed change into view if none is showing. */
