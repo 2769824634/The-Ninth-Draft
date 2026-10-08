@@ -70,7 +70,7 @@ interface Ctx {
   door: string;
   /** The family next door, if the flat is not empty. */
   next: { h: Household; door: string } | null;
-  prev: Household | null;
+  prev: (Household & { left: number }) | null;
 }
 
 /** A face downstairs: one of the regulars when you live in their district, or whoever does that job here. */
@@ -118,6 +118,10 @@ export const ENCOUNTERS: Encounter[] = [
       : c.v.origin === 'G'
       ? { en: `I heard you grew up in ${c.door}? We only moved in in ${c.next!.h.since}, your family had already left by then. Welcome back. The rubbish chute is still behind the staircase, try not to use it after ten at night. The estate office is open nine to five on weekdays if anything in the flat needs fixing. Knock if you need anything.`, zh: `听说你小时候就住 ${c.door}？我们 ${c.next!.h.since} 年才搬来，那时候你家已经搬走了。欢迎回来。垃圾槽还是在楼梯旁边，晚上十点以后尽量别丢。屋里有什么要修，组屋管理处平日九点到五点有人。有事就敲门。` }
       : { en: `You just moved into ${c.door}? Welcome. The rubbish chute is round the back, behind the staircase. Try not to use it after ten at night, the whole block can hear the bags going down. If something in the flat is broken, the estate office is open nine to five on weekdays. We are home most evenings, knock if you need anything.`, zh: `你刚搬进 ${c.door}？欢迎欢迎。垃圾槽在后面，楼梯旁边。晚上十点以后尽量别丢，整座楼都听得到垃圾袋掉下去的声音。屋里有什么坏了，组屋管理处平日九点到五点有人。我们晚上大多在家，有事就敲门。` } },
+  // a new arrival: the neighbour takes you, for a moment, for whoever had the flat before
+  { id: 'again', who: 'next', when: (c) => c.v.origin !== 'G' && c.v.origin !== 'R' && !!c.prev && c.seen.days >= 2 && c.t.day % 2 === 1 && day(c) && !!c.next,
+    scene: (_c, f) => ({ en: `${f!.name.en} from next door looks up from watering the plants on the corridor.`, zh: `隔壁的${f!.name.zh}正在给走廊上的花浇水，抬头看了你一眼。` }),
+    say: (c) => ({ en: `Oh, back already? ... Sorry, sorry. For a moment I thought you were ${c.prev!.plate}, who had your flat before. Same way of walking, same bag even. They moved out in ${c.prev!.left}. Anyway, settling in all right?`, zh: `咦，回来啦？……不好意思，不好意思。刚才一下子以为你是 ${c.prev!.plate}，以前住你那间的。走路的样子一样，连袋子都差不多。他们 ${c.prev!.left} 年就搬走了。怎样，住得惯吗？` }) },
   { id: 'away', who: 'next', when: (c) => c.seen.n > 0 && c.away > 24 * 6 && day(c) && !!c.next,
     scene: (c, f) => ({ en: `${f!.name.en} from next door opens the gate as you pass.`, zh: `你经过的时候，隔壁的${f!.name.zh}打开铁门探出头来。` }),
     say: () => ({ en: 'Haven\'t seen you for a week, I was about to ask the estate office if you were all right. There were flyers stuck in your gate, I took them out so people don\'t think the flat is empty. The notice board downstairs has new things up this week, have a look before you go out.', zh: '一个礼拜没看到你，我还想去问管理处你是不是出了什么事。你家铁门上塞了好多传单，我帮你拿掉了，免得人家以为屋子没人住。楼下告示板这礼拜贴了新东西，出门前去看一下。' }) },
@@ -171,10 +175,10 @@ export function encounter(v: Ctx['v'], seen: Visits, at = Date.now(), built = 19
     const hh = household(d, built);
     if (hh) { next = { h: hh, door: doorText(d) }; break; }
   }
-  const c: Ctx = { v, rebuilt: rebuilt(v, built), built, t, seen, away: seen.last ? (at - seen.last) / 3.6e6 : Infinity, door: doorText(h), next, prev: previousTenant(h, built) };
+  const c: Ctx = { v, rebuilt: rebuilt(v, built), built, t, seen, away: seen.last ? (at - seen.last) / 3.6e6 : Infinity, door: doorText(h), next, prev: previousTenant(h, built, v) };
   const seed = `${normCode(v.code)}#${t.month}#${t.day}#${t.hours}`;
   // the special ones first, the everyday ones after, shuffled within each; noticing things comes last
-  const rank = (e: Encounter) => (e.id === 'first' || e.id === 'away' ? 0 : e.id === 'chess' ? 2 : 1);
+  const rank = (e: Encounter) => (e.id === 'first' || e.id === 'away' || e.id === 'again' ? 0 : e.id === 'chess' ? 2 : 1);
   const ranked = ENCOUNTERS.map((e) => ({ e, k: rank(e) * 2 ** 32 + hash(`${seed}#${e.id}`) })).sort((a, b) => a.k - b.k);
   const hit = ranked.find(({ e }) => e.when(c))?.e;
   if (!hit) return null;

@@ -60,8 +60,20 @@ const arrow = '<svg viewBox="0 0 24 12" aria-hidden="true"><path d="M0 6h22M17 1
         <p class="mbox__note" id="downstairs"></p>
       </section>
 
+      <section class="f-sec" id="sec-diary">
+        <h2 class="f-sec__h"><i>04</i><span>Diary</span></h2>
+        <p class="f-help" style="margin-top:0"><span data-l="en">The drawer by the bed. What you write here stays on this device only. It is not sent anywhere, and nobody else can read it, not even the person who made this site. Clearing your browser's data clears the drawer too.</span><span data-l="zh">床边的抽屉。写在这里的东西只存在这台设备上，不会传到任何地方，别人看不到，做这个网站的人也看不到。清掉浏览器数据，抽屉也会清空。</span></p>
+        <textarea class="f-input diary__in" id="diary-in" rows="5" maxlength="4000" aria-label="Diary entry"></textarea>
+        <div class="diary__acts">
+          <button class="f-btn" type="button" id="diary-save"><span data-l="en">Put it in the drawer</span><span data-l="zh">放进抽屉</span></button>
+          <span class="micro diary__state" id="diary-state" aria-live="polite"></span>
+        </div>
+        <aside class="help" id="help" hidden aria-live="polite"></aside>
+        <ol class="diary" id="diary"></ol>
+      </section>
+
       <section class="f-sec">
-        <h2 class="f-sec__h"><i>04</i><span>Recovery phrase</span></h2>
+        <h2 class="f-sec__h"><i>05</i><span>Recovery phrase</span></h2>
         <p class="f-help" style="margin-top:0"><span data-l="en">Your codename and these words bring your home back on another device.</span><span data-l="zh">代号加这几个词，可以在别的设备上回家。</span></p>
         <button class="f-btn f-btn--ghost" type="button" id="show-phrase" style="margin-top:.8rem"><span>Show phrase</span></button>
         <ol class="phrase me__phrase" id="me-phrase" hidden></ol>
@@ -100,6 +112,8 @@ const arrow = '<svg viewBox="0 0 24 12" aria-hidden="true"><path d="M0 6h22M17 1
   import { reducedMotion } from '../../app/prefs';
   import { household, letters, notices, previousTenant, rebuilt, type Letter } from '../../app/visitor/households';
   import { countVisit, encounter } from '../../app/visitor/encounters';
+  import { distressed, HELP, loadDiary, saveDiary, type Entry } from '../../app/visitor/diary';
+  import { islandNow } from '../../app/island';
 
   const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
   let v = loadVisitor();
@@ -113,14 +127,14 @@ const arrow = '<svg viewBox="0 0 24 12" aria-hidden="true"><path d="M0 6h22M17 1
   let built = 1975;
   const visit = loadVisitor()?.home ? countVisit() : null;
   const openLetters = new Set<number>();
-  const STAMP: Record<Letter['kind'], string> = { bill: 'STATEMENT', postcard: 'AIR MAIL', paper: 'PRINTED MATTER', clinic: 'APPOINTMENT', draw: 'BY HAND', licence: 'OFFICIAL', note: 'BY HAND', office: 'BY HAND' };
+  const STAMP: Record<Letter['kind'], string> = { bill: 'STATEMENT', postcard: 'AIR MAIL', paper: 'PRINTED MATTER', clinic: 'APPOINTMENT', draw: 'BY HAND', licence: 'OFFICIAL', register: 'OFFICIAL', note: 'BY HAND', office: 'BY HAND' };
 
   const render = () => {
     if (!v) return;
     const zh = isZh();
     const no = fileNo(v);
     const h = v.home;
-    const mail = h ? letters(v, built) : [];
+    const mail = h ? letters(v, built, { days: visit?.now.days ?? 0, heuss: !!visit && (visit.now.days >= 3 || islandNow().day === 9) }) : [];
     document.title = t('{file} · My home — The Ninth Draft', { file: no });
     $('me-file').textContent = `${t('File')} ${no}`;
     $('me-door').textContent = h ? doorText(h) : zh ? '待分配' : 'TO BE ALLOTTED';
@@ -151,7 +165,7 @@ const arrow = '<svg viewBox="0 0 24 12" aria-hidden="true"><path d="M0 6h22M17 1
         const plate = mine ? esc(v!.code.toUpperCase()) : hh ? esc(zh ? hh.zh : hh.plate) : '';
         return `<div class="mbox__slot${mine ? ' is-mine' : ''}${!mine && !hh ? ' is-empty' : ''}"><span>${doorText(d)}</span><b>${plate}</b>${mine && mail.length ? `<i class="mbox__in">${mail.length}</i>` : ''}</div>`;
       }).join('');
-      const prev = previousTenant(h, built);
+      const prev = previousTenant(h, built, v!);
       $('mbox-note').textContent = !mail.length
         ? zh ? '信箱是空的。邮差平日上午十点以后才来。' : 'Empty. The postman comes after ten on weekdays.'
         : rebuilt(v!, built)
@@ -163,12 +177,62 @@ const arrow = '<svg viewBox="0 0 24 12" aria-hidden="true"><path d="M0 6h22M17 1
           : zh ? `${mail.length} 封，大多寄给前任住户 ${prev.plate}。他们 ${prev.since} 年搬进来，${prev.left} 年搬走，有些人还不知道新地址。最上面那张是他们留给下一户的条子。` : `${mail.length} letters, mostly for ${prev.plate}, who lived here from ${prev.since} to ${prev.left}. Not everyone has their new address yet. The one on top is a note they left for whoever came next.`;
       $('mail').innerHTML = mail.map((l, i) => `<li class="mail__l mail__l--${l.kind}${openLetters.has(i) ? ' is-open' : ''}" data-i="${i}">
           <button type="button" class="mail__env" aria-expanded="${openLetters.has(i)}"><span class="mail__from">${esc(tx(l.from))}</span><span class="mail__to">${esc(l.to)}<br>${esc(doorText(h))}</span><span class="mail__pm micro">${l.date}</span><span class="mail__stamp micro">${STAMP[l.kind]}</span></button>
-          <div class="mail__body">${tx(l.body).split('\n\n').map((p) => `<p>${esc(p).replace(/\n/g, '<br>')}</p>`).join('')}</div></li>`).join('');
+          <div class="mail__body">${tx(l.body).split('\n\n').map((p) => `<p>${esc(p).replace(/\n/g, '<br>')}</p>`).join('')}${l.pencil ? `<p class="mail__pencil">${esc(tx(l.pencil))}</p>` : ''}</div></li>`).join('');
       renderDown();
       $('downstairs').textContent = downstairs.length ? `${zh ? '楼下：' : 'Downstairs: '}${downstairs.map((f) => (zh && f[1] ? f[1] : f[0])).join(zh ? '、' : ', ')}` : '';
     }
     renderRedraw();
+    renderDiary();
   };
+
+  /* ---------- the diary: this device only ---------- */
+  let diary: Entry[] = loadDiary();
+  const stamp = (at: number) => {
+    const t = islandNow(at), zh = isZh();
+    const hm = `${String(t.hours).padStart(2, '0')}:${String(t.minutes).padStart(2, '0')}`;
+    return zh ? `1999 年 ${t.month + 1} 月 ${t.day} 日 ${hm}` : `${t.day} ${['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][t.month]} 1999, ${hm}`;
+  };
+  const help = (show: boolean) => {
+    const el = $('help');
+    el.hidden = !show;
+    if (!show) return;
+    el.innerHTML = `<p>${esc(tx(HELP.lead))}</p><p><b>${esc(tx(HELP.sos))}</b></p><p>${esc(tx(HELP.abroad)).replace('findahelpline.com', '<a href="https://findahelpline.com" target="_blank" rel="noopener">findahelpline.com</a>')}</p><p>${esc(tx(HELP.now))}</p>`;
+  };
+  const renderDiary = () => {
+    const zh = isZh();
+    $('diary').innerHTML = diary.map((e, i) => `<li class="diary__e"><p class="diary__at micro">${stamp(e.at)}<button type="button" class="diary__del" data-i="${i}">${zh ? '撕掉' : 'Tear out'}</button></p><p class="diary__t">${esc(e.text).replace(/\n/g, '<br>')}</p></li>`).join('');
+    const draft = ($('diary-in') as HTMLTextAreaElement).value;
+    help(distressed(draft) || diary.slice(0, 3).some((e) => distressed(e.text)));
+  };
+  let checkT = 0;
+  $('diary-in').addEventListener('input', () => {
+    window.clearTimeout(checkT);
+    checkT = window.setTimeout(renderDiary, 600);
+  });
+  $('diary-save').addEventListener('click', () => {
+    const box = $('diary-in') as HTMLTextAreaElement;
+    const text = box.value.trim();
+    if (!text) return;
+    diary = [{ at: Date.now(), text }, ...diary];
+    const ok = saveDiary(diary);
+    box.value = '';
+    $('diary-state').textContent = ok ? (isZh() ? '放好了。' : 'In the drawer.') : isZh() ? '这个浏览器不让存，关掉页面就没了。' : 'This browser will not keep it; it goes when you close the page.';
+    audio.paper();
+    renderDiary();
+  });
+  $('diary').addEventListener('click', (ev) => {
+    const b = (ev.target as HTMLElement).closest<HTMLButtonElement>('.diary__del');
+    if (!b) return;
+    if (b.dataset.sure !== '1') {
+      b.dataset.sure = '1';
+      b.textContent = isZh() ? '确定撕掉？' : 'Sure?';
+      return;
+    }
+    diary.splice(Number(b.dataset.i), 1);
+    saveDiary(diary);
+    audio.paper();
+    renderDiary();
+  });
 
   /* ---------- downstairs: who you run into, and the notice board ---------- */
   const meetAt = Date.now();
