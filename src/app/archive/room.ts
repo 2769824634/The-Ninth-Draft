@@ -15,7 +15,7 @@
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 import {
-  INK, KU, DIN, DINB, RED, clockFace, contactShadow, drawerCard, envelopeTops, fileTab, hygroFace, louvreLight, mapSheet, panelling, plate, rng, runner, teakFloor, windowView, woodTex,
+  INK, KU, DIN, DINB, RED, clockFace, contactShadow, drawerCard, envelopeTops, fileTab, hygroFace, ledgerSpread, louvreLight, mapSheet, panelling, plate, rng, runner, teakFloor, windowView, woodTex,
 } from './textures';
 
 export const AR = { x0: -5.6, x1: 5.6, z0: -3.6, z1: 3.6, h: 3.4, wall: 0.22, slab: 0.24 };
@@ -52,6 +52,20 @@ export interface Pendant {
   at: THREE.Vector3;
 }
 
+/**
+ * An examination lamp: a daylight tube at a reading place. The Records Office
+ * reads its higher clearances under it, because erasures and scraped-out
+ * figures only show in cold light; a lower clearance makes do with the warm
+ * lamps. `place` is 'cabinet' (one over each group of formal cabinets) or
+ * 'table'.
+ */
+export interface ExamLamp {
+  light: THREE.SpotLight;
+  tube: THREE.MeshStandardMaterial;
+  place: 'cabinet' | 'table';
+  ci: number;
+}
+
 export interface DeskLamp {
   light: THREE.SpotLight;
   inner: THREE.MeshStandardMaterial;
@@ -64,6 +78,7 @@ export class StacksRoom {
   readonly group = new THREE.Group();
   readonly pendants: Pendant[] = [];
   readonly desks: DeskLamp[] = [];
+  readonly exams: ExamLamp[] = [];
   readonly rockers: THREE.Mesh[] = [];
   /** Invisible boxes the pointer can find: userData says what each one is. */
   readonly hits: THREE.Object3D[] = [];
@@ -126,9 +141,10 @@ export class StacksRoom {
     this.routine();
     for (const [x, z, row] of [[-3.5, -1.9, 1], [-3.5, 0.6, 1], [-0.21, -1.95, 2], [-0.21, 0.4, 2], [3.0, -2.45, 3], [4.3, -2.45, 3], [3.6, 1.7, 3], [-3.9, 2.6, 0], [-2.4, 1.55, 0]] as const) this.pendant(x, z, row);
     this.door();
+    // the reading table first: its two lamps are desks 0 and 1, the intake lamp is desk 2
+    this.readingTable();
     this.counter(opts.today);
     this.cardIndex();
-    this.readingTable();
     this.odds();
     this.heavy();
     this.weatherBits();
@@ -349,6 +365,7 @@ export class StacksRoom {
       this.quad(this.group, 0.6, 0.164, sign, AR.x0 + 0.017, 1.62, mid, Math.PI / 2);
       const cx = AR.x0 + 0.03 + CAB.d / 2;
       this.catCentre.push(new THREE.Vector3(cx, 0.75, mid));
+      this.examLamp(this.group, AR.x0 + 0.02, 2.02, mid, 'cabinet', ci);
       this.hit({ cat: ci, key: `cat:${c.id}` }, CAB.d + 0.2, CAB.h + 0.45, cz - z0, cx + 0.1, (CAB.h + 0.45) / 2, mid);
       cz += 0.32;
     });
@@ -430,6 +447,66 @@ export class StacksRoom {
     const fill = new THREE.PointLight('#ffe7c0', 0, 4, 1.8);
     g.add(fill);
     this.pendants.push({ light, fill, bulb, glass, row, at: new THREE.Vector3(x, AR.h - drop, z) });
+  }
+
+  /**
+   * The examination lamp. Over a cabinet group it is a wall bracket that swings
+   * a tube out over the pulled drawer; on the reading table it is a twin-tube
+   * desk fitting on a weighted foot. Enamel housing, opal tube, a pull switch.
+   */
+  private examLamp(p: THREE.Object3D, x: number, y: number, z: number, place: 'cabinet' | 'table', ci: number) {
+    const M = this.M;
+    const g = new THREE.Group();
+    g.position.set(x, y, z);
+    p.add(g);
+    const enamel = std({ color: '#d9d6cc', roughness: 0.35, metalness: 0.15 });
+    const tube = std({ color: '#f4f6f8', emissive: '#e6eeff', emissiveIntensity: 0.02, roughness: 0.2 });
+    const light = new THREE.SpotLight('#d4e2ff', 0, 3.2, 0.95, 0.8, 1.6);
+    let housing: THREE.Object3D;
+    if (place === 'cabinet') {
+      // wall plate, a jointed arm out over the drawers, the tube along the cabinets
+      this.rbox(g, 0.02, 0.14, 0.09, 0.004, 0.01, 0, 0, M.steelDark);
+      const arm = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3([new THREE.Vector3(0.02, 0, 0), new THREE.Vector3(0.3, 0.05, 0), new THREE.Vector3(0.62, -0.02, 0), new THREE.Vector3(0.78, -0.12, 0)]), 20, 0.009, 8), M.chrome);
+      arm.castShadow = true;
+      g.add(arm);
+      this.cyl(g, 0.016, 0.016, 0.03, 0.3, 0.05, 0, M.steelDark, 12).rotation.x = Math.PI / 2;
+      housing = new THREE.Group();
+      housing.position.set(0.82, -0.16, 0);
+      housing.rotation.z = -0.35;
+      g.add(housing);
+      light.position.set(0.86, -0.2, 0);
+      light.target.position.set(0.95, -1.15, 0);
+    } else {
+      // weighted foot, a stem, the twin-tube head over the middle of the table
+      this.rbox(g, 0.2, 0.025, 0.13, 0.01, 0, 0.012, 0, M.steelDark);
+      this.cyl(g, 0.011, 0.011, 0.42, 0, 0.23, 0, M.chrome, 12);
+      this.box(g, 0.02, 0.02, 0.22, 0, 0.44, 0.09, M.chrome);
+      housing = new THREE.Group();
+      housing.position.set(0, 0.43, 0.2);
+      housing.rotation.y = Math.PI / 2;
+      g.add(housing);
+      light.position.set(0, 0.4, 0.2);
+      light.target.position.set(0, -0.8, 0.45);
+    }
+    // the head: an enamel trough with an opal tube in it, end caps, a pull cord
+    this.rbox(housing, 0.075, 0.045, 0.56, 0.01, 0, 0.012, 0, enamel);
+    const t1 = this.cyl(housing, 0.013, 0.013, 0.5, 0, -0.012, 0, tube, 16);
+    t1.rotation.x = Math.PI / 2;
+    t1.castShadow = false;
+    if (place === 'table') {
+      const t2 = this.cyl(housing, 0.013, 0.013, 0.5, 0.028, -0.012, 0, tube, 16);
+      t2.rotation.x = Math.PI / 2;
+      t2.castShadow = false;
+      t1.position.x = -0.028;
+    }
+    for (const sz of [-1, 1]) this.box(housing, 0.08, 0.05, 0.012, 0, 0.008, sz * 0.27, M.steelDark);
+    this.box(housing, 0.002, 0.14, 0.002, 0.03, -0.07, 0.24, M.cream, false);
+    const bead = new THREE.Mesh(new THREE.SphereGeometry(0.007, 8, 6), M.black);
+    bead.position.set(0.03, -0.14, 0.24);
+    housing.add(bead);
+    light.castShadow = false;
+    g.add(light, light.target);
+    this.exams.push({ light, tube, place, ci });
   }
 
   /** A brass desk lamp with an opal inside to its shade. */
@@ -570,81 +647,197 @@ export class StacksRoom {
     this.clockHands = { h: hand(0.09, 0.012, 0.008, ink), m: hand(0.135, 0.008, 0.009, ink), s: hand(0.14, 0.003, 0.01, new THREE.MeshBasicMaterial({ color: RED })) };
   }
 
-  /* ---------------- 04 · the intake desk, facing the door ---------------- */
+  /* ---------------- 04 · the intake desk, facing the door ----------------
+   * A government counter of the 1990s: the visitors' side is a panelled
+   * front with a ledge on top, where things are handed in; the clerk's
+   * side is a desk at sitting height under that ledge, with a pedestal of
+   * drawers, pigeonholes under the ledge and the clerk's tools laid out
+   * for the clerk, not for the visitor. Local +z faces the door. */
   private counter(today: string) {
     const M = this.M;
     const ctr = new THREE.Group();
     ctr.position.set(3.9, 0, 1.7);
     ctr.rotation.y = -Math.PI / 2;
     this.group.add(ctr);
-    const CL = 2.2;
-    this.rbox(ctr, CL, 0.98, 0.5, 0.01, 0, 0.49, 0, M.wood);
-    for (let p = 0; p < 5; p++) this.box(ctr, CL / 5 - 0.08, 0.66, 0.012, -CL / 2 + CL / 10 + (p * CL) / 5, 0.5, 0.256, M.woodL);
-    this.box(ctr, CL, 0.08, 0.02, 0, 0.06, 0.255, M.skirting);
-    this.rbox(ctr, CL + 0.08, 0.04, 0.62, 0.008, 0, 1.0, 0.03, M.counterTop);
+    const CL = 2.2, LEDGE = 1.06, DESK = 0.755;
     const [, mm, dd] = today.split('-');
-    const tray = (x: number, n: number, lab: [string, string]) => {
-      this.rbox(ctr, 0.36, 0.05, 0.28, 0.005, x, 1.045, 0.02, M.steelDark);
-      for (let i = 0; i < n; i++) {
-        const e = this.rbox(ctr, 0.3, 0.012, 0.22, 0.002, x + (i % 2) * 0.01, 1.075 + i * 0.013, 0.02 + ((i * 7) % 3) * 0.005, i % 3 ? M.kraft : M.kraftD);
-        e.rotation.y = ((i % 3) - 1) * 0.05;
-      }
-      this.quad(ctr, 0.24, 0.1, plate([[`700 44px ${KU}`, lab[0], 18, 58], [`600 20px ${DIN}`, lab[1], 20, 90]], 256, 108, '#efe9da', INK, INK), x, 1.13 + n * 0.013, 0.16, 0, -0.4);
-    };
-    tray(-0.9, 7, ['今日入库', `RECEIVED · ${dd}.${mm}.99`]);
-    tray(-0.45, 3, ['待归档', 'TO FILE']);
-    // the in-tray answers a click: today's arrivals
-    const hb = new THREE.Mesh(BOX, new THREE.MeshBasicMaterial({ visible: false }));
-    hb.scale.set(0.42, 0.3, 0.4);
-    hb.position.set(-0.9, 1.15, 0.05);
-    hb.userData = { tray: true, key: 'tray' };
-    ctr.add(hb);
-    this.hits.push(hb);
-    // bell
-    this.cyl(ctr, 0.045, 0.055, 0.015, 0.05, 1.03, 0.2, M.black);
-    const bell = new THREE.Mesh(new THREE.SphereGeometry(0.045, 20, 10, 0, 7, 0, 1.55), M.chrome);
-    bell.position.set(0.05, 1.035, 0.2);
-    ctr.add(bell);
-    // rubber-stamp carousel
-    const sc = new THREE.Group();
-    sc.position.set(0.32, 1.02, -0.05);
-    ctr.add(sc);
-    this.cyl(sc, 0.09, 0.1, 0.02, 0, 0.01, 0, M.wood);
-    this.cyl(sc, 0.008, 0.008, 0.18, 0, 0.1, 0, M.chrome);
-    this.cyl(sc, 0.08, 0.08, 0.01, 0, 0.16, 0, M.wood);
-    for (let s = 0; s < 6; s++) {
-      const a = (s * Math.PI) / 3;
-      this.cyl(sc, 0.012, 0.012, 0.07, Math.cos(a) * 0.065, 0.12, Math.sin(a) * 0.065, M.woodL);
-      this.cyl(sc, 0.02, 0.02, 0.012, Math.cos(a) * 0.065, 0.08, Math.sin(a) * 0.065, M.black);
-    }
-    this.rbox(ctr, 0.1, 0.02, 0.07, 0.004, 0.55, 1.03, 0.1, std({ color: '#7c2a24', metalness: 0.4, roughness: 0.4 }));
-    // rotary telephone
+
+    // the visitors' front: panelled, with a skirting and the ledge on top
+    this.box(ctr, CL, LEDGE - 0.02, 0.035, 0, (LEDGE - 0.02) / 2, 0.26, M.wood);
+    for (let p = 0; p < 5; p++) this.box(ctr, CL / 5 - 0.08, 0.7, 0.012, -CL / 2 + CL / 10 + (p * CL) / 5, 0.52, 0.283, M.woodL);
+    this.box(ctr, CL, 0.08, 0.02, 0, 0.04, 0.285, M.skirting);
+    this.rbox(ctr, CL + 0.06, 0.035, 0.34, 0.008, 0, LEDGE, 0.22, M.counterTop);
+    // a brass edge strip along the ledge, worn bright where hands go
+    this.box(ctr, CL + 0.06, 0.012, 0.012, 0, LEDGE - 0.004, 0.392, M.brass, false);
+    // the end panels, down to the floor on both sides
+    for (const sx of [-1, 1]) this.box(ctr, 0.03, LEDGE - 0.02, 0.72, sx * (CL / 2 - 0.015), (LEDGE - 0.02) / 2, -0.07, M.wood);
+    // pigeonholes under the ledge, open to the clerk
     const ph = new THREE.Group();
-    ph.position.set(0.62, 1.02, -0.04);
+    ph.position.set(0.3, DESK + 0.02, 0.16);
     ctr.add(ph);
-    this.rbox(ph, 0.2, 0.08, 0.22, 0.03, 0, 0.04, 0, M.black);
-    this.cyl(ph, 0.065, 0.065, 0.01, 0, 0.085, 0.03, M.enamelW).rotation.x = 0.35;
-    this.rbox(ph, 0.24, 0.04, 0.05, 0.02, 0, 0.11, -0.06, M.black);
-    for (const sx of [-1, 1]) this.rbox(ph, 0.06, 0.05, 0.06, 0.02, sx * 0.1, 0.1, -0.06, M.black);
-    // the register, open
+    const PH = LEDGE - DESK - 0.06;
+    this.box(ph, 1.3, 0.012, 0.16, 0, PH, 0, M.oak);
+    for (let i = 0; i <= 6; i++) this.box(ph, 0.01, PH, 0.16, -0.65 + i * (1.3 / 6), PH / 2, 0, M.oak, false);
+    this.box(ph, 1.3, 0.01, 0.16, 0, PH / 2, 0, M.oak, false);
+    const prr = rng(Number(mm) * 31 + Number(dd));
+    for (let i = 0; i < 6; i++)
+      for (const row of [0, 1]) {
+        const k = Math.floor(prr() * 4);
+        for (let s = 0; s < k; s++) this.box(ph, 0.17, 0.006, 0.13, -0.65 + (i + 0.5) * (1.3 / 6), 0.008 + row * (PH / 2) + s * 0.007, 0.01, s % 2 ? M.cream : M.manila, false);
+      }
+
+    // the clerk's desk under the ledge
+    this.rbox(ctr, CL - 0.06, 0.035, 0.6, 0.006, 0, DESK, -0.14, M.counterTop);
+    // pedestal of three drawers on the left, pulls towards the clerk
+    const ped = new THREE.Group();
+    ped.position.set(-0.72, 0, -0.14);
+    ctr.add(ped);
+    this.box(ped, 0.44, DESK - 0.03, 0.56, 0, (DESK - 0.03) / 2, 0, M.wood);
+    for (let d = 0; d < 3; d++) {
+      const y = 0.13 + d * 0.22;
+      this.rbox(ped, 0.4, 0.19, 0.02, 0.004, 0, y, -0.285, M.woodL);
+      this.box(ped, 0.1, 0.014, 0.014, 0, y + 0.05, -0.3, M.brass, false);
+      this.box(ped, 0.05, 0.022, 0.003, 0, y + 0.075, -0.297, M.cream, false);
+    }
+    // a modesty board across the knee-hole, set back
+    this.box(ctr, CL - 0.56, 0.42, 0.015, 0.25, DESK - 0.24, 0.2, M.wood);
+
+    const top = DESK + 0.018;
+
+    // the accession register, open, turned to the clerk
     const book = new THREE.Group();
-    book.position.set(-0.05, 1.025, -0.12);
-    book.rotation.y = 0.2;
+    book.position.set(0.05, top, -0.2);
+    book.rotation.y = Math.PI + 0.06;
     ctr.add(book);
-    this.rbox(book, 0.42, 0.012, 0.3, 0.003, 0, 0, 0, std({ color: '#26302a' }));
-    for (const sx of [-1, 1]) this.box(book, 0.2, 0.01, 0.28, sx * 0.105, 0.012, 0, M.cream, false).rotation.z = -sx * 0.06;
-    // the clerk's lamp: green enamel gooseneck, with a light of its own
+    this.rbox(book, 0.56, 0.014, 0.4, 0.004, 0, 0.007, 0, std({ color: '#2f3b33', roughness: 0.7 }));
+    const spread = new THREE.Mesh(new THREE.PlaneGeometry(0.54, 0.38, 16, 1), std({ map: ledgerSpread(today), roughness: 0.85 }));
+    // the pages rise a little towards the spine
+    const pos = spread.geometry.attributes.position;
+    for (let i = 0; i < pos.count; i++) pos.setZ(i, Math.cos((pos.getX(i) / 0.27) * (Math.PI / 2)) * 0.012);
+    spread.geometry.computeVertexNormals();
+    spread.rotation.x = -Math.PI / 2;
+    spread.position.y = 0.017;
+    spread.receiveShadow = true;
+    book.add(spread);
+    // the ribbon marker and a pen laid in the gutter
+    this.box(book, 0.006, 0.002, 0.24, 0.004, 0.026, 0.12, std({ color: '#8e2a22' }), false);
+    const pen = new THREE.Group();
+    pen.position.set(0.16, 0.03, 0.02);
+    pen.rotation.y = 0.5;
+    book.add(pen);
+    this.cyl(pen, 0.0055, 0.0055, 0.12, 0, 0, 0, M.black, 12).rotation.x = Math.PI / 2;
+    this.cyl(pen, 0.006, 0.006, 0.05, 0, 0, 0.07, M.black, 12).rotation.x = Math.PI / 2;
+    this.cyl(pen, 0.0062, 0.0062, 0.006, 0, 0, 0.045, M.brass, 12).rotation.x = Math.PI / 2;
+    this.box(pen, 0.0015, 0.004, 0.04, 0.006, 0.004, 0.065, M.chrome, false);
+
+    // the date stamp: a band dater with a wooden knob, and its ink pad, open
+    const ds = new THREE.Group();
+    ds.position.set(0.5, top, -0.26);
+    ctr.add(ds);
+    this.rbox(ds, 0.075, 0.012, 0.05, 0.003, 0, 0.006, 0, M.black);
+    for (const sx of [-1, 1]) this.box(ds, 0.006, 0.07, 0.04, sx * 0.034, 0.045, 0, M.steelDark);
+    this.cyl(ds, 0.018, 0.018, 0.06, 0, 0.04, 0, M.steel, 16).rotation.z = Math.PI / 2;
+    for (let b = 0; b < 4; b++) this.cyl(ds, 0.019, 0.019, 0.008, -0.022 + b * 0.015, 0.04, 0, M.black, 16).rotation.z = Math.PI / 2;
+    this.box(ds, 0.068, 0.006, 0.006, 0, 0.083, 0, M.steelDark);
+    this.cyl(ds, 0.004, 0.004, 0.03, 0, 0.1, 0, M.steel, 8);
+    this.cyl(ds, 0.02, 0.016, 0.03, 0, 0.13, 0, M.oak, 16);
+    const pad = new THREE.Group();
+    pad.position.set(0.64, top, -0.12);
+    pad.rotation.y = -0.3;
+    ctr.add(pad);
+    this.rbox(pad, 0.1, 0.014, 0.065, 0.004, 0, 0.007, 0, std({ color: '#3b3f44', metalness: 0.6, roughness: 0.4 }));
+    this.box(pad, 0.088, 0.003, 0.053, 0, 0.015, 0, std({ color: '#7d1c18', roughness: 0.95 }), false);
+    const lid = this.rbox(pad, 0.1, 0.008, 0.065, 0.003, 0, 0.004, 0.072, std({ color: '#3b3f44', metalness: 0.6, roughness: 0.4 }));
+    lid.rotation.x = -0.12;
+    this.box(pad, 0.07, 0.002, 0.04, 0, 0.0095, 0.072, M.cream, false);
+
+    // the rubber stamps on their turntable rack, back of the desk: handles up
+    // through a ring, the rubber dies hanging under it
+    const sc = new THREE.Group();
+    sc.position.set(0.58, top, 0.02);
+    ctr.add(sc);
+    this.cyl(sc, 0.085, 0.095, 0.018, 0, 0.009, 0, M.oak, 28);
+    this.cyl(sc, 0.007, 0.007, 0.16, 0, 0.09, 0, M.chrome, 10);
+    const ring = new THREE.Mesh(new THREE.TorusGeometry(0.062, 0.006, 8, 32), M.chrome);
+    ring.rotation.x = Math.PI / 2;
+    ring.position.y = 0.11;
+    sc.add(ring);
+    for (const a of [0, Math.PI / 2]) this.box(sc, 0.124, 0.004, 0.006, 0, 0.11, 0, M.chrome, false).rotation.y = a;
+    for (let s = 0; s < 8; s++) {
+      const a = (s * Math.PI) / 4 + 0.2;
+      const x = Math.cos(a) * 0.062, z = Math.sin(a) * 0.062;
+      // handle above the ring, with its knob
+      this.cyl(sc, 0.008, 0.01, 0.05, x, 0.135, z, s % 3 ? M.woodL : M.wood, 10);
+      const knob = new THREE.Mesh(new THREE.SphereGeometry(0.013, 12, 8), s % 3 ? M.woodL : M.wood);
+      knob.position.set(x, 0.165, z);
+      knob.castShadow = true;
+      sc.add(knob);
+      // mount and rubber below it
+      this.box(sc, 0.03, 0.012, 0.022, x, 0.098, z, M.wood, false).rotation.y = -a;
+      this.box(sc, 0.028, 0.005, 0.02, x, 0.089, z, std({ color: '#3a2e2a', roughness: 0.95 }), false).rotation.y = -a;
+    }
+    // one stamp out of the rack, lying where it was last used
+    const st = new THREE.Group();
+    st.position.set(0.3, top + 0.012, -0.32);
+    st.rotation.set(0, 0.8, Math.PI / 2);
+    ctr.add(st);
+    this.cyl(st, 0.0085, 0.011, 0.055, 0, 0.02, 0, M.woodL, 10);
+    this.box(st, 0.028, 0.008, 0.02, 0, -0.012, 0, M.black, false);
+
+    // the telephone: dial to the clerk, handset in its cradle, the cord behind
+    const tel = new THREE.Group();
+    tel.position.set(0.86, top, -0.27);
+    tel.rotation.y = Math.PI - 0.25;
+    ctr.add(tel);
+    const shell = new THREE.Mesh(new THREE.CylinderGeometry(0.075, 0.105, 0.085, 4, 1), M.black);
+    shell.scale.set(1, 1, 0.95);
+    shell.rotation.y = Math.PI / 4;
+    shell.position.y = 0.043;
+    shell.castShadow = shell.receiveShadow = true;
+    tel.add(shell);
+    const dial = new THREE.Group();
+    dial.position.set(0, 0.07, 0.06);
+    dial.rotation.x = 0.55;
+    tel.add(dial);
+    this.cyl(dial, 0.045, 0.045, 0.004, 0, 0, 0, M.enamelW, 28).rotation.x = Math.PI / 2;
+    this.cyl(dial, 0.042, 0.042, 0.006, 0, 0, 0.004, std({ color: '#e7e3d6', roughness: 0.15, transparent: true, opacity: 0.55 }), 28).rotation.x = Math.PI / 2;
+    for (let h = 0; h < 10; h++) {
+      const a = -0.9 - (h * 2 * Math.PI * 0.8) / 10;
+      this.cyl(dial, 0.006, 0.006, 0.008, Math.cos(a) * 0.031, Math.sin(a) * 0.031, 0.006, M.black, 10).rotation.x = Math.PI / 2;
+    }
+    this.cyl(dial, 0.012, 0.012, 0.009, 0, 0, 0.006, M.cream, 16).rotation.x = Math.PI / 2;
+    for (const sx of [-1, 1]) this.rbox(tel, 0.03, 0.03, 0.035, 0.008, sx * 0.075, 0.098, -0.02, M.black);
+    const hs = new THREE.Group();
+    hs.position.set(0, 0.125, -0.02);
+    tel.add(hs);
+    this.rbox(hs, 0.13, 0.022, 0.03, 0.01, 0, 0, 0, M.black);
+    for (const sx of [-1, 1]) {
+      const cup = this.cyl(hs, 0.026, 0.02, 0.03, sx * 0.085, -0.008, 0, M.black, 18);
+      cup.rotation.z = sx * 0.25;
+    }
+    const cord = new THREE.Mesh(
+      new THREE.TubeGeometry(new THREE.CatmullRomCurve3(Array.from({ length: 40 }, (_, i) => {
+        const u = i / 39;
+        return new THREE.Vector3(-0.09 - u * 0.05 + Math.cos(u * 60) * 0.008, 0.11 - u * 0.1 + Math.sin(u * 60) * 0.008, -0.02 - u * 0.12);
+      })), 120, 0.0035, 6),
+      M.black,
+    );
+    tel.add(cord);
+
+    // the clerk's lamp: green enamel gooseneck at the back corner, over the register
     const cl = new THREE.Group();
-    cl.position.set(0.95, 1.02, -0.2);
+    cl.position.set(-0.32, top, -0.01);
     ctr.add(cl);
-    this.cyl(cl, 0.07, 0.08, 0.025, 0, 0.012, 0, M.enamelG);
-    const neck = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3([new THREE.Vector3(0, 0, 0), new THREE.Vector3(0, 0.25, 0.02), new THREE.Vector3(-0.05, 0.4, 0.1), new THREE.Vector3(-0.15, 0.42, 0.18)]), 24, 0.008, 8), M.chrome);
+    this.cyl(cl, 0.07, 0.08, 0.025, 0, 0.012, 0, M.enamelG, 28);
+    this.cyl(cl, 0.012, 0.012, 0.02, 0.04, 0.03, 0, M.chrome, 10);
+    const neckPts = [new THREE.Vector3(0, 0.02, 0), new THREE.Vector3(0, 0.24, -0.02), new THREE.Vector3(0.06, 0.38, -0.1), new THREE.Vector3(0.16, 0.4, -0.2)];
+    const neck = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(neckPts), 32, 0.008, 8), M.chrome);
     neck.castShadow = true;
     cl.add(neck);
     const shadeP = [[0.015, 0.07], [0.03, 0.065], [0.05, 0.04], [0.08, 0.0], [0.085, -0.005]].map(([r, y]) => new THREE.Vector2(r, y));
     const shade = new THREE.Mesh(new THREE.LatheGeometry(shadeP, 32), std({ color: '#5d7a66', roughness: 0.32, metalness: 0.15, side: THREE.DoubleSide }));
-    shade.position.set(-0.15, 0.4, 0.18);
-    shade.rotation.x = 0.5;
+    shade.position.set(0.16, 0.38, -0.2);
+    shade.rotation.set(0.45, 0, 0.25);
     shade.castShadow = true;
     cl.add(shade);
     const inner = std({ color: '#fff8e8', emissive: '#ffe9c0', emissiveIntensity: 0.3, side: THREE.BackSide });
@@ -653,19 +846,103 @@ export class StacksRoom {
     im.rotation.copy(shade.rotation);
     cl.add(im);
     const sp = new THREE.SpotLight('#ffe2b0', 0, 2.2, 0.85, 0.6, 1.5);
-    sp.position.set(-0.15, 0.39, 0.18);
-    sp.target.position.set(-0.4, -0.6, 0.45);
+    sp.position.set(0.16, 0.37, -0.2);
+    sp.target.position.set(0.4, -0.2, -0.22);
+    sp.castShadow = true;
+    sp.shadow.mapSize.set(1024, 1024);
+    sp.shadow.bias = -0.0005;
     cl.add(sp, sp.target);
     this.desks.push({ light: sp, inner });
     const lh = new THREE.Mesh(BOX, new THREE.MeshBasicMaterial({ visible: false }));
     lh.scale.set(0.3, 0.5, 0.4);
-    lh.position.set(-0.08, 0.25, 0.1);
+    lh.position.set(0.08, 0.25, -0.1);
     lh.userData = { desk: this.desks.length - 1, key: `desk:${this.desks.length - 1}` };
     cl.add(lh);
     this.hits.push(lh);
-    this.chair(ctr, -0.4, -0.65, 0.1);
-    this.cyl(ctr, 0.12, 0.1, 0.3, 0.7, 0.15, -0.6, std({ color: '#3b4a40', metalness: 0.3, roughness: 0.5 }));
-    this.hit({ zone: 'counter', key: 'zone:counter' }, 0.9, 1.1, CL + 0.1, 3.9, 0.55, 1.7);
+
+    // the to-file tray: a wire basket on the desk, waiting for the round to the drawers
+    const wt = new THREE.Group();
+    wt.position.set(-0.75, top, 0.02);
+    ctr.add(wt);
+    this.box(wt, 0.34, 0.004, 0.26, 0, 0.004, 0, M.steelDark, false);
+    for (const sx of [-1, 1]) this.box(wt, 0.004, 0.06, 0.26, sx * 0.17, 0.03, 0, M.steelDark, false);
+    for (const sz of [-1, 1]) this.box(wt, 0.34, 0.06, 0.004, 0, 0.03, sz * 0.13, M.steelDark, false);
+    for (let i = 0; i < 4; i++) {
+      const e = this.rbox(wt, 0.3, 0.012, 0.22, 0.002, (i % 2) * 0.01, 0.012 + i * 0.013, 0, i % 2 ? M.manila : M.kraft);
+      e.rotation.y = ((i % 3) - 1) * 0.04;
+    }
+    this.quad(wt, 0.16, 0.05, plate([[`700 40px ${KU}`, '待归档', 14, 52], [`600 18px ${DIN}`, 'TO FILE', 150, 50]], 256, 80, '#efe9da', INK, INK), 0, 0.045, -0.133, Math.PI);
+
+    // the receipt spike with the morning's slips on it, and a pad of accession slips
+    const spk = new THREE.Group();
+    spk.position.set(-0.3, top, -0.32);
+    ctr.add(spk);
+    this.cyl(spk, 0.035, 0.04, 0.012, 0, 0.006, 0, M.black, 20);
+    this.cyl(spk, 0.002, 0.0025, 0.13, 0, 0.075, 0, M.chrome, 6);
+    for (let i = 0; i < 6; i++) {
+      const sl = this.box(spk, 0.075, 0.0015, 0.05, 0, 0.016 + i * 0.006, 0, i % 2 ? M.cream : std({ color: '#f1d7a8' }), false);
+      sl.rotation.y = i * 0.5;
+    }
+    this.rbox(ctr, 0.15, 0.02, 0.1, 0.003, -0.48, top + 0.01, -0.3, M.cream);
+    this.box(ctr, 0.15, 0.004, 0.1, -0.48, top + 0.021, -0.3, std({ color: '#2f3c62', roughness: 0.6 }), false);
+
+    // a mug of something gone cold
+    const mug = new THREE.Group();
+    mug.position.set(-0.98, top, -0.28);
+    ctr.add(mug);
+    const mugBody = new THREE.Mesh(new THREE.CylinderGeometry(0.038, 0.034, 0.09, 24, 1, true), std({ color: '#e9e4d6', roughness: 0.35, side: THREE.DoubleSide }));
+    mugBody.position.y = 0.045;
+    mugBody.castShadow = true;
+    mug.add(mugBody);
+    this.cyl(mug, 0.034, 0.034, 0.004, 0, 0.002, 0, M.enamelW, 24);
+    this.cyl(mug, 0.035, 0.035, 0.002, 0, 0.07, 0, std({ color: '#5a3a22', roughness: 0.2 }), 24);
+    const handle = new THREE.Mesh(new THREE.TorusGeometry(0.022, 0.006, 8, 16, Math.PI), std({ color: '#e9e4d6', roughness: 0.35 }));
+    handle.position.set(0.04, 0.045, 0);
+    handle.rotation.z = -Math.PI / 2;
+    mug.add(handle);
+
+    // on the ledge, for the visitor: the bell, the in-tray, a pen on a chain, the sign
+    const L = LEDGE + 0.018;
+    this.cyl(ctr, 0.045, 0.055, 0.015, 0.35, L + 0.008, 0.26, M.black, 24);
+    const bell = new THREE.Mesh(new THREE.SphereGeometry(0.045, 24, 12, 0, Math.PI * 2, 0, 1.55), M.chrome);
+    bell.position.set(0.35, L + 0.015, 0.26);
+    bell.castShadow = true;
+    ctr.add(bell);
+    this.cyl(ctr, 0.006, 0.006, 0.02, 0.35, L + 0.065, 0.26, M.chrome, 8);
+    this.cyl(ctr, 0.01, 0.01, 0.006, 0.35, L + 0.077, 0.26, M.chrome, 12);
+    const tray = new THREE.Group();
+    tray.position.set(-0.55, L, 0.22);
+    ctr.add(tray);
+    this.rbox(tray, 0.38, 0.05, 0.28, 0.005, 0, 0.025, 0, M.steelDark);
+    for (let i = 0; i < 7; i++) {
+      const e = this.rbox(tray, 0.3, 0.012, 0.22, 0.002, (i % 2) * 0.01, 0.055 + i * 0.013, ((i * 7) % 3) * 0.005 - 0.005, i % 3 ? M.kraft : M.kraftD);
+      e.rotation.y = ((i % 3) - 1) * 0.05;
+    }
+    this.quad(tray, 0.24, 0.1, plate([[`700 44px ${KU}`, '今日入库', 18, 58], [`600 20px ${DIN}`, `RECEIVED · ${dd}.${mm}.99`, 20, 90]], 256, 108, '#efe9da', INK, INK), 0, 0.03, 0.142, 0, 0);
+    const hb = new THREE.Mesh(BOX, new THREE.MeshBasicMaterial({ visible: false }));
+    hb.scale.set(0.42, 0.3, 0.4);
+    hb.position.set(0, 0.1, 0);
+    hb.userData = { tray: true, key: 'tray' };
+    tray.add(hb);
+    this.hits.push(hb);
+    // the chained pen in its brass holder
+    this.cyl(ctr, 0.025, 0.03, 0.012, 0.75, L + 0.006, 0.28, M.brass, 20);
+    const cp = this.cyl(ctr, 0.0055, 0.0055, 0.13, 0.75, L + 0.06, 0.28, M.black, 10);
+    cp.rotation.z = 0.35;
+    const chain = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3([new THREE.Vector3(0.75, L + 0.012, 0.28), new THREE.Vector3(0.7, L + 0.004, 0.33), new THREE.Vector3(0.62, L + 0.004, 0.31), new THREE.Vector3(0.6, L + 0.02, 0.27), new THREE.Vector3(0.73, L + 0.12, 0.28)]), 40, 0.0012, 4), M.chrome);
+    ctr.add(chain);
+    // the sign, standing on the ledge, to the visitor
+    const sign = new THREE.Group();
+    sign.position.set(0, L, 0.3);
+    ctr.add(sign);
+    this.box(sign, 0.3, 0.012, 0.05, 0, 0.006, 0, M.brass);
+    this.quad(sign, 0.28, 0.09, plate([[`700 40px ${KU}`, '入库 · 收件', 18, 52], [`600 18px ${DIN}`, 'RECEIVING · RECORDS OFFICE', 18, 84]], 384, 112, INK, '#efe8d6', null), 0, 0.058, -0.004, 0, -0.12);
+    this.box(sign, 0.28, 0.1, 0.006, 0, 0.058, -0.008, M.black);
+
+    // the clerk's chair, pulled up to the desk, and the bin beside it
+    this.chair(ctr, 0.15, -0.72, 0.08);
+    this.cyl(ctr, 0.12, 0.1, 0.3, -0.95, 0.15, -0.68, std({ color: '#3b4a40', metalness: 0.3, roughness: 0.5 }));
+    this.hit({ zone: 'counter', key: 'zone:counter' }, 1.0, 1.1, CL + 0.1, 3.9, 0.55, 1.7);
   }
 
   private chair(p: THREE.Object3D, x: number, z: number, ry: number) {
@@ -724,6 +1001,7 @@ export class StacksRoom {
     mag.position.set(0.55, 0.778, -0.35);
     rt.add(mag);
     rt.add(this.tableTop);
+    this.examLamp(rt, 0, 0.765, -0.36, 'table', -1);
     this.deskLamp(rt, -0.98, 0.765, -0.28, 0.4, 0);
     this.deskLamp(rt, 0.98, 0.765, -0.28, -0.4, 1);
     this.chair(rt, -0.55, 0.72, Math.PI);
@@ -1031,6 +1309,14 @@ export class StacksRoom {
   /** Where a file lies on the table: x, z, turn. */
   static readonly SLOTS: [number, number, number][] = [[-0.62, 0.17, -0.05], [0.0, 0.19, 0.03], [0.62, 0.17, 0.06], [-0.6, -0.16, 0.08], [0.02, -0.15, -0.04], [0.6, -0.17, -0.07]];
 
+  /** Where a file lies on the table, in the room; null if it is not there. */
+  tableSpot(file: string) {
+    const c = this.covers.get(file);
+    if (!c) return null;
+    c.g.updateWorldMatrix(true, false);
+    return c.g.getWorldPosition(new THREE.Vector3());
+  }
+
   /** Lay these files on the table, in this order; the rest go. */
   setTable(items: { file: string; category: string; map: () => THREE.Texture }[]) {
     const keep = new Set(items.map((i) => i.file));
@@ -1073,23 +1359,6 @@ export class StacksRoom {
   /** The middle of the table top, in the room. */
   tableCentre() {
     return new THREE.Vector3(3.65, 0.78, -2.45);
-  }
-
-  /* ---------------- lamp colour: the light on the paper follows the clearance ---------------- */
-  private baseCol = new Map<THREE.Light, THREE.Color>();
-  /** Tint the lamps over a reading place: 'cabinet' (row 2) or 'table' (row 4 over it and the two desk lamps). */
-  tint(spot: 'cabinet' | 'table' | null, color: string | null) {
-    const lights: THREE.Light[] = [];
-    this.pendants.forEach((p) => {
-      if ((spot === 'cabinet' && p.row === 1) || (spot === 'table' && p.row === 3 && p.at.z < 0)) lights.push(p.light, p.fill);
-    });
-    if (spot === 'table') lights.push(this.desks[0].light, this.desks[1].light);
-    for (const [l, c] of this.baseCol) if (!lights.includes(l)) l.color.copy(c);
-    for (const l of lights) {
-      if (!this.baseCol.has(l)) this.baseCol.set(l, l.color.clone());
-      if (color) l.color.set(color);
-      else l.color.copy(this.baseCol.get(l)!);
-    }
   }
 
   private tickDrawers(dt: number) {

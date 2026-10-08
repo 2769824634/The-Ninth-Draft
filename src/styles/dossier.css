@@ -51,7 +51,7 @@
 /* The file lies on the desk as one sheet of paper, centred, read top to bottom.
    The room stays behind it, dimmed; the folder it came out of is still there. */
 /* the room shows through: the veil behind does the dimming */
-.archive[data-view='detail'] :is(.inspect__no, .watermark, .foot__coords, .foot__year, .foot__clock, .foot__mark) { opacity: 0; visibility: hidden; }
+.archive[data-view='detail'] :is(.inspect__no, .foot__coords, .foot__year, .foot__clock, .foot__mark) { opacity: 0; visibility: hidden; }
 /* the footer line would run under the sheet's own Previous / Next, so it waits */
 .archive[data-view='detail'] .voice { opacity: 0; visibility: hidden; }
 /* the second file covers that corner: the draft tabs step aside for it */
@@ -123,8 +123,8 @@
 .dossier__paper {
   --lamp: #ffbe6e;
   background:
-    radial-gradient(ellipse 80% 60% at 22% -8%, color-mix(in srgb, var(--lamp) var(--lamp-glow), transparent), transparent 70%),
-    radial-gradient(ellipse 120% 90% at 30% 10%, transparent 55%, color-mix(in srgb, #2a2118 var(--lamp-dark), transparent)),
+    radial-gradient(ellipse 80% 60% at var(--lx, 22%) var(--ly, -8%), color-mix(in srgb, var(--lamp) var(--lamp-glow), transparent), transparent 70%),
+    radial-gradient(ellipse 120% 90% at calc(var(--lx, 22%) + 8%) calc(var(--ly, -8%) + 18%), transparent 55%, color-mix(in srgb, #2a2118 var(--lamp-dark), transparent)),
     linear-gradient(color-mix(in srgb, var(--lamp) var(--lamp-wash), transparent), color-mix(in srgb, var(--lamp) var(--lamp-wash), transparent)),
     var(--bg);
   transition: background-color 500ms var(--ease), border-color 600ms var(--ease), --lamp 1400ms var(--ease), --lamp-glow 1400ms var(--ease), --lamp-wash 1400ms var(--ease), --lamp-dark 1400ms var(--ease);
@@ -261,11 +261,11 @@ a.cite:hover, a.cite:focus-visible { color: var(--accent); text-decoration-style
   color: color-mix(in srgb, var(--clr) 7%, transparent);
   pointer-events: none;
   opacity: 0;
-  transform: translateY(2rem);
+  transform: translateX(6rem);
   transition: opacity 400ms var(--ease), transform 1s var(--ease);
   font-variant-numeric: tabular-nums;
 }
-.archive[data-view='detail'] .watermark { opacity: 1; transform: none; transition: opacity 1.2s var(--ease) 300ms, transform 1.4s var(--ease) 300ms; }
+.archive[data-view='detail'] .watermark { z-index: 0; opacity: 1; transform: none; transition: opacity 900ms var(--ease) 120ms, transform 1.1s cubic-bezier(.16,1,.3,1) 120ms; }
 
 .barcode { display: inline-block; height: .9rem; }
 .barcode svg { display: block; height: 100%; width: auto; fill: var(--ink-2); }
@@ -572,10 +572,9 @@ a.cite:hover, a.cite:focus-visible { color: var(--accent); text-decoration-style
    ========================================================================== */
 /* With the lamps off the sheet is read by what comes through the louvres:
    the moon is thin and cold, the street lamp orange and lower still. */
-/* Lamps off: the page is lit by whatever comes through the louvres, and the
-   clearance colour temperature gives way to the moon or to the sodium outside. */
-.archive[data-light='moon'] .dossier__paper { --lamp: #a9bce8; --lamp-glow: 26%; --lamp-wash: 13%; --lamp-dark: 42%; --bg: #c3c6c3; }
-.archive[data-light='street'] .dossier__paper { --lamp: #ff9a33; --lamp-glow: 28%; --lamp-wash: 15%; --lamp-dark: 44%; --bg: #d0c3a8; }
+/* In the stacks the light on the sheet is worked out from the room and set on
+   it directly, already eased: no transition of its own on top. */
+.archive.lit-live :is(.dossier__paper, .companion__paper) { transition: background-color 500ms var(--ease), border-color 600ms var(--ease); }
 .dossier__light { margin: .5rem 0 .6rem; color: #8a6a2f; font-family: var(--f-mono); font-size: .66rem; letter-spacing: .04em; }
 .archive[data-light='moon'] .dossier__light { color: #4a5a86; }
 .dossier__light[hidden] { display: none; }
@@ -651,3 +650,240 @@ a.cite:hover, a.cite:focus-visible { color: var(--accent); text-decoration-style
   .companion { position: fixed; inset: auto 0 0 0; width: auto; top: 55%; transform: none; }
   .archive:has(.companion:not([hidden])) .dossier { --w: min(47rem, calc(100vw - 2rem)); left: calc(50% - var(--w) / 2); bottom: 46%; }
 }
+
+/* ---------- The archivist's slip, in the margin of an open file ----------
+   System layer on top (a cut-corner black tag), material layer under it (a
+   slip of paper with the line on it). The newest line is on the slip; the two
+   before it hang underneath, greying. */
+.dsv {
+  position: absolute;
+  left: var(--edge);
+  top: 15.2rem;
+  width: clamp(10rem, calc(50vw - min(47rem, calc(100vw - 2 * var(--edge) - 18rem)) / 2 - var(--edge) - 3.8rem), 17rem);
+  pointer-events: auto;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateX(-.8rem) rotate(-1.4deg);
+  transition: opacity 400ms var(--ease) 900ms, transform 700ms var(--ease) 900ms, visibility 0s linear 1.3s;
+}
+.archive[data-view='detail'] .dsv { opacity: 1; visibility: visible; transform: rotate(-1.4deg); transition-delay: 900ms, 900ms, 0s; }
+.archive:has(.companion:not([hidden])) .dsv { opacity: 0; visibility: hidden; }
+.dsv__tag {
+  display: inline-flex;
+  align-items: center;
+  gap: .5rem;
+  padding: .32rem 1.1rem .32rem .6rem;
+  border: 0;
+  background: #1d1b17;
+  color: #efe8d6;
+  font: 600 .58rem/1 var(--f-mono);
+  letter-spacing: .16em;
+  text-transform: uppercase;
+  clip-path: polygon(0 0, calc(100% - .55rem) 0, 100% .55rem, 100% 100%, 0 100%);
+  cursor: default;
+  position: relative;
+  z-index: 1;
+  margin-left: .9rem;
+}
+.dsv__tag i { width: 6px; height: 6px; background: var(--accent); }
+.archive .dsv__tag i { background: var(--clr, var(--accent)); }
+.dsv__slip {
+  position: relative;
+  margin-top: -.15rem;
+  padding: .95rem 1rem .9rem;
+  background: #ece3cb;
+  color: #2a241c;
+  box-shadow: 0 .5rem 1.2rem rgb(0 0 0 / .4);
+}
+/* a paper clip holds it to the margin */
+.dsv__slip::before {
+  content: '';
+  position: absolute;
+  top: -.55rem;
+  right: 1.1rem;
+  width: .5rem;
+  height: 1.5rem;
+  border: 2px solid #9b9a95;
+  border-radius: .3rem;
+}
+.dsv__now {
+  margin: 0;
+  min-height: 2.6em;
+  font-family: var(--f-serif);
+  font-size: .86rem;
+  line-height: 1.55;
+}
+.dsv__was {
+  margin: .7rem 0 0;
+  padding: .55rem 0 0;
+  list-style: none;
+  border-top: 1px dashed rgb(42 36 28 / .25);
+  display: grid;
+  gap: .4rem;
+}
+.dsv__was:empty { display: none; }
+.dsv__was li { font-family: var(--f-serif); font-style: italic; font-size: .74rem; line-height: 1.45; color: rgb(42 36 28 / .55); }
+.dsv__was li + li { color: rgb(42 36 28 / .32); }
+
+/* narrower screens have no margin to spare: the slip hangs off the top of the
+   sheet while it is fresh, then tucks away behind its tag */
+@media (max-width: 1240px), (max-aspect-ratio: 1/1) {
+  /* the slip lives in .inspect, which otherwise sits under the sheet */
+  .archive[data-view='detail'] .inspect { z-index: 6; }
+  .dsv {
+    position: fixed;
+    z-index: 6;
+    left: auto;
+    right: var(--edge);
+    top: auto;
+    bottom: 4.2rem;
+    width: min(19rem, calc(100vw - 2 * var(--edge)));
+    transform: none;
+  }
+  .archive[data-view='detail'] .dsv { transform: none; }
+  .dsv__was { display: none; }
+  .dsv__tag { cursor: pointer; margin-left: auto; display: flex; width: max-content; margin-right: 0; }
+  .dsv__slip { transform-origin: bottom right; transition: transform 380ms var(--ease), opacity 300ms var(--ease); }
+  .dsv:not(.is-fresh):not(.is-open) .dsv__slip { opacity: 0; transform: translateY(.6rem) scale(.96); pointer-events: none; }
+  .dsv { display: flex; flex-direction: column-reverse; align-items: stretch; }
+  .dsv__tag { margin-top: -.1rem; }
+}
+@media (prefers-reduced-motion: reduce) { .dsv, .dsv__slip { transition: none; } }
+
+/* the light switches for the place being read, under the slip */
+.dsv__switches { margin-top: 1rem; display: grid; gap: .3rem; }
+.dsv__switches[hidden] { display: none; }
+.dsv__switches > .micro { color: var(--ink-3); margin-bottom: .15rem; }
+.dsv__switches button {
+  display: flex;
+  align-items: center;
+  gap: .55rem;
+  padding: .3rem .1rem;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  background: none;
+  color: var(--ink-2);
+  font: 500 .72rem/1.2 var(--f-sans);
+  text-align: left;
+  cursor: pointer;
+}
+.dsv__switches button[hidden] { display: none; }
+.dsv__switches button i { width: .55rem; height: .55rem; border-radius: 50%; border: 1px solid currentColor; transition: background-color 300ms var(--ease), box-shadow 300ms var(--ease); }
+.dsv__switches button[aria-pressed='true'] { color: var(--ink); }
+.dsv__switches button[aria-pressed='true'] i { background: #ffd28a; border-color: #ffd28a; box-shadow: 0 0 .5rem #ffd28a; }
+.dsv__switches button[data-ls='exam'][aria-pressed='true'] i { background: #dfe9ff; border-color: #dfe9ff; box-shadow: 0 0 .5rem #bcd0ff; }
+@media (max-width: 1240px), (max-aspect-ratio: 1/1) {
+  .dsv:not(.is-open) .dsv__switches { display: none; }
+  .dsv__switches { background: var(--bg); padding: .6rem .8rem; margin-top: 0; }
+}
+
+/* ---------- Opening a file: the terminal first, then the folder ----------
+   The rule across the screen at the sheet's top edge draws in the clearance
+   colour, the spine types itself out, the hazard stripe comes last. */
+.inspect::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(8.8rem - 1px);
+  height: 1px;
+  background: var(--clr);
+  opacity: 0;
+  transform: scaleX(0);
+  transform-origin: left;
+}
+.archive.is-arriving .inspect::before { animation: n9-rule 1.5s cubic-bezier(.16,1,.3,1) both; }
+@keyframes n9-rule {
+  0% { opacity: 1; transform: scaleX(0); }
+  30% { opacity: 1; transform: scaleX(1); }
+  100% { opacity: 0; transform: scaleX(1); }
+}
+.archive.is-arriving .dossier__spine { animation: n9-spine 560ms steps(14, end) 90ms both; }
+@keyframes n9-spine { from { clip-path: inset(100% 0 0 0); } to { clip-path: inset(0 0 0 0); } }
+.archive.is-arriving .dossier__sub::after { animation: n9-hazard 380ms cubic-bezier(.16,1,.3,1) 1.05s both; }
+@keyframes n9-hazard { from { clip-path: inset(0 0 0 100%); } to { clip-path: inset(0 0 0 0); } }
+
+/* the folder that brings the sheet up out of the room */
+.ds-cover {
+  position: fixed;
+  z-index: 8;
+  pointer-events: none;
+}
+.ds-cover__flap {
+  position: absolute;
+  inset: 0;
+  transform-origin: left center;
+  transform-style: preserve-3d;
+}
+.ds-cover__face, .ds-cover__inside {
+  position: absolute;
+  inset: 0;
+  backface-visibility: hidden;
+  border-radius: 2px;
+  box-shadow: 0 1.2rem 2.6rem rgb(0 0 0 / .45);
+}
+.ds-cover__face {
+  --board: #d8c79c;
+  background:
+    linear-gradient(115deg, rgb(255 255 255 / .12), transparent 40%),
+    repeating-linear-gradient(0deg, rgb(80 60 30 / .035) 0 2px, transparent 2px 5px),
+    var(--board);
+  padding: 3.4rem 2.6rem;
+  color: #2a241c;
+}
+.ds-cover--events .ds-cover__face { --board: #c29d68; }
+.ds-cover--programs .ds-cover__face { --board: #9aa197; }
+.ds-cover__inside { transform: rotateY(180deg); background: color-mix(in srgb, #d8c79c 80%, #000); }
+.ds-cover--events .ds-cover__inside { background: color-mix(in srgb, #c29d68 80%, #000); }
+.ds-cover--programs .ds-cover__inside { background: color-mix(in srgb, #9aa197 80%, #000); }
+.ds-cover__tab {
+  position: absolute;
+  top: -1.5rem;
+  right: 2.2rem;
+  padding: .45rem 1.2rem;
+  background: var(--board, #d8c79c);
+  border-radius: 4px 4px 0 0;
+  font: 700 .82rem/1 var(--f-mono);
+  letter-spacing: .1em;
+}
+.ds-cover__face .ds-cover__tab { background: inherit; }
+.ds-cover__band { position: absolute; left: 0; right: 0; top: 1.4rem; height: .5rem; background: var(--clr, #1d1b17); opacity: .85; }
+.ds-cover__title {
+  margin: 2rem 0 0;
+  max-width: 70%;
+  padding: .8rem 1rem;
+  background: #efe9da;
+  font: 600 1.1rem/1.3 var(--f-mono);
+  text-transform: uppercase;
+  letter-spacing: .04em;
+}
+.ds-cover__stamp {
+  position: absolute;
+  right: 2.4rem;
+  bottom: 3.2rem;
+  padding: .4rem .9rem;
+  border: 3px solid var(--clr, #1d1b17);
+  color: var(--clr, #1d1b17);
+  font: 800 1.2rem/1 var(--f-sans);
+  letter-spacing: .12em;
+  transform: rotate(-8deg);
+  opacity: .8;
+}
+.ds-cover.clr-declass .ds-cover__stamp, .ds-cover.clr-declass .ds-cover__band { --clr: #1d1b17; }
+.ds-cover.clr-restr { --clr: #4f5f3e; }
+.ds-cover.clr-conf { --clr: #1f4fa3; }
+.ds-cover.clr-secret { --clr: #a8720b; }
+.ds-cover.clr-top { --clr: #b3271c; }
+/* TOP SECRET comes in a string-and-washer envelope */
+.ds-cover__washer {
+  position: absolute;
+  left: 50%;
+  bottom: 4.6rem;
+  width: 1.6rem;
+  height: 1.6rem;
+  margin-left: -.8rem;
+  border-radius: 50%;
+  background: #b3271c;
+  box-shadow: inset 0 0 0 .45rem #8e1d15;
+}
+.ds-cover__washer--b { bottom: 8rem; }

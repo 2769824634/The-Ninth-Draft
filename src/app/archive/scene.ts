@@ -25,7 +25,26 @@ import { setStacksAniso } from './textures';
 export type StacksZone = 'overview' | 'formal' | 'routine' | 'reading' | 'counter' | 'door';
 export const STACKS_ZONES: StacksZone[] = ['overview', 'formal', 'routine', 'reading', 'counter', 'door'];
 
+/**
+ * The light falling on a page read at some place in the room, worked out from
+ * the room's own lamps each frame: its colour, how bright (0–1), where on the
+ * page the brightest source sits (0–1 across, 0–1 down), and how much of it
+ * comes from lamps, the moon, the street lamp and the day.
+ */
+export interface PaperLit {
+  color: string;
+  b: number;
+  lx: number;
+  ly: number;
+  lamps: number;
+  moon: number;
+  street: number;
+  day: number;
+}
+
 export interface StacksEvents {
+  /** The light on the page being read changed. */
+  paper?(v: PaperLit): void;
   zone(z: StacksZone): void;
   hover(key: string | null): void;
   /** A group of formal cabinets clicked. */
@@ -96,6 +115,14 @@ export class StacksScene {
   private flicker = [0, 0, 0, 0];
   private desks = [false, false, false];
   private deskLevel = [0, 0, 0];
+  /** Examination tubes: wanted level, level now, and time since the starter kicked in (-1 = steady). */
+  private exam: number[] = [];
+  private examLevel: number[] = [];
+  private examFlick: number[] = [];
+  /** Where a page is being read, if one is. */
+  private readPoint: THREE.Vector3 | null = null;
+  private paperNow: PaperLit & { lux: number; r: number; g: number; bl: number } = { color: '#ffd9a0', b: 0.5, lx: 0.22, ly: -0.08, lamps: 0, moon: 0, street: 0, day: 0, lux: 0, r: 1, g: 0.85, bl: 0.6 };
+  private paperSent = '';
   private reduce = reducedMotion();
   private last = performance.now();
   private t0 = performance.now();
@@ -237,6 +264,36 @@ export class StacksScene {
     else if (on && !this.reduce) this.flicker[i] = 0.42;
   }
 
+  /**
+   * An examination tube at `level` (0 off, 1 full). A tube switched on from
+   * cold flickers on its starter before it holds; off, it simply goes out.
+   */
+  setExam(i: number, level: number, instant = false) {
+    const was = this.exam[i] ?? 0;
+    this.exam[i] = level;
+    if (instant || this.reduce) {
+      this.examLevel[i] = level;
+      this.examFlick[i] = -1;
+    } else if (level > 0 && was === 0 && (this.examLevel[i] ?? 0) < 0.05) this.examFlick[i] = 0;
+  }
+
+  get examWanted() {
+    return this.exam.slice();
+  }
+
+  /** A point in the room, where it is on the screen. */
+  screenOf(v: THREE.Vector3) {
+    const p = v.clone().project(this.camera);
+    const r = this.canvas.getBoundingClientRect();
+    return { x: r.left + ((p.x + 1) / 2) * r.width, y: r.top + ((1 - p.y) / 2) * r.height };
+  }
+
+  /** Where a page is being read (null when none is): the light there is reported each frame. */
+  setReadPoint(p: THREE.Vector3 | null) {
+    this.readPoint = p ? p.clone() : null;
+    this.paperSent = '';
+  }
+
   setDesk(i: number, on: boolean, instant = false) {
     this.desks[i] = on;
     if (instant) this.deskLevel[i] = on ? 1 : 0;
@@ -309,7 +366,7 @@ export class StacksScene {
         this.flicker[i] -= dt;
         want = Math.sin(this.flicker[i] * 70) > 0.1 ? 1 : 0.15;
         this.rowLevel[i] = want;
-      } else this.rowLevel[i] += (want - this.rowLevel[i]) * Math.min(1, dt * (want ? 10 : 6));
+      } else this.rowLevel[i] += (want - this.rowLevel[i]) * Math.min(1, dt * (want ? 7 : 4.5));
     }
     for (const p of r.pendants) {
       const lv = this.rowLevel[p.row];
@@ -320,13 +377,32 @@ export class StacksScene {
       p.glass.emissiveIntensity = 0.02 + lv * (0.15 + L.night * 0.75);
     }
     r.desks.forEach((d, i) => {
-      this.deskLevel[i] += ((this.desks[i] ? 1 : 0) - this.deskLevel[i]) * Math.min(1, dt * 9);
-      d.light.intensity = L.desk * this.deskLevel[i] * (i === 2 ? 0.7 : 1);
+      this.deskLevel[i] += ((this.desks[i] ? 1 : 0) - this.deskLevel[i]) * Math.min(1, dt * (this.desks[i] ? 7 : 4.5));
+      d.light.intensity = L.desk * this.deskLevel[i] * (i === 2 ? 0.38 : 1);
       d.light.visible = d.light.intensity > 0.01;
       d.inner.emissiveIntensity = 0.05 + this.deskLevel[i] * (0.4 + L.night * 0.8);
     });
     r.pictureLight.intensity = this.rowLevel[0] * (0.6 + L.night * 2.4);
     r.pictureLight.visible = r.pictureLight.intensity > 0.01;
+    // examination tubes: the starter's stutter, then a steady cold light
+    r.exams.forEach((e, i) => {
+      const want = this.exam[i] ?? 0;
+      let lv = this.examLevel[i] ?? 0;
+      const fl = this.examFlick[i] ?? -1;
+      if (fl >= 0) {
+        const t = (this.examFlick[i] = fl + dt);
+        const seq = t < 0.07 ? 0.6 : t < 0.2 ? 0 : t < 0.27 ? 0.85 : t < 0.42 ? 0.04 : t < 0.47 ? 1 : t < 0.6 ? 0.25 : -1;
+        if (seq < 0) {
+          this.examFlick[i] = -1;
+          lv = want * 0.8;
+        } else lv = seq * want;
+      } else lv += (want - lv) * Math.min(1, dt * (want > lv ? 5 : 16));
+      this.examLevel[i] = lv;
+      e.light.intensity = (1.4 + L.night * 9) * lv;
+      e.light.visible = e.light.intensity > 0.01;
+      e.tube.emissiveIntensity = 0.02 + lv * (0.7 + L.night * 1.6);
+    });
+    if (this.readPoint) this.reportPaper(dt);
 
     const it = islandNow();
     r.tick(t, dt, { h: it.hours, m: it.minutes, s: it.seconds + it.ms / 1000 }, this.reduce ? 0 : 1);
@@ -360,6 +436,87 @@ export class StacksScene {
     this.camera.updateMatrixWorld();
 
     this.renderer.render(this.scene, this.camera);
+  }
+
+  /* ---------------- the light on a page ---------------- */
+  private v1 = new THREE.Vector3();
+  private v2 = new THREE.Vector3();
+  private v3 = new THREE.Vector3();
+  private bestAt = new THREE.Vector3();
+
+  /**
+   * Add up what reaches the read point: every lamp by distance and by its
+   * cone, the street lamp and the moon as a weak glow through the louvres,
+   * and the day through the windows. Eased, and reported when it changes.
+   */
+  private reportPaper(dt: number) {
+    const p = this.readPoint!;
+    let r = 0, g = 0, b = 0, lux = 0, lamps = 0, best = 0;
+    const add = (c: THREE.Color, w: number, at: THREE.Vector3 | null) => {
+      if (w <= 0) return 0;
+      r += c.r * w;
+      g += c.g * w;
+      b += c.b * w;
+      lux += w;
+      if (at && w > best) {
+        best = w;
+        this.bestAt.copy(at);
+      }
+      return w;
+    };
+    const spot = (l: THREE.SpotLight) => {
+      if (!l.visible || l.intensity <= 0) return 0;
+      const pos = l.getWorldPosition(this.v1);
+      const axis = l.target.getWorldPosition(this.v2).sub(pos).normalize();
+      const to = this.v3.copy(p).sub(pos);
+      const d = to.length();
+      to.divideScalar(d || 1);
+      const ca = Math.cos(l.angle);
+      const cone = THREE.MathUtils.clamp((axis.dot(to) - ca) / Math.max(0.06, (1 - ca) * Math.max(0.3, l.penumbra)), 0, 1);
+      return add(l.color, (l.intensity * cone) / (1 + d * d), pos);
+    };
+    const room = this.room;
+    for (const pd of room.pendants) {
+      lamps += spot(pd.light);
+      if (pd.fill.intensity > 0) {
+        const pos = pd.fill.getWorldPosition(this.v1);
+        lamps += add(pd.fill.color, (pd.fill.intensity * 0.5) / (1 + pos.distanceToSquared(p)), pos);
+      }
+    }
+    for (const d of room.desks) lamps += spot(d.light);
+    for (const e of room.exams) lamps += spot(e.light);
+    const street = add(room.street.color, room.street.intensity * 0.07, null);
+    const moon = add(room.moon.color, room.moon.intensity * 0.75, null);
+    const dayW = (this.hemi.intensity * 3 + (this.sun.visible ? this.sun.intensity * 0.6 : 0)) * (1 - this.rainK * 0.3);
+    const day = add(this.sun.color, dayW, null);
+    // where the light comes from on the page: the brightest lamp, or the windows by day
+    const from = day > best || !best ? this.v1.set(p.x, 2.6, AR.z0) : this.bestAt;
+    const a = this.v2.copy(p).project(this.camera);
+    const s = this.v3.copy(from).project(this.camera);
+    let dx = s.x - a.x, dy = s.y - a.y;
+    const n = Math.hypot(dx, dy) || 1;
+    dx /= n;
+    dy /= n;
+    const k = damp(4.5, dt);
+    const P = this.paperNow;
+    const sum = lux || 1;
+    P.r += (r / sum - P.r) * k;
+    P.g += (g / sum - P.g) * k;
+    P.bl += (b / sum - P.bl) * k;
+    P.lux += (lux - P.lux) * k;
+    P.lx += (0.5 + dx * 0.58 - P.lx) * k;
+    P.ly += (0.5 - dy * 0.62 - P.ly) * k;
+    P.lamps += (lamps / sum - P.lamps) * k;
+    P.moon += (moon / sum - P.moon) * k;
+    P.street += (street / sum - P.street) * k;
+    P.day += (day / sum - P.day) * k;
+    P.b = 1 - Math.exp(-P.lux / 2.4);
+    const m = Math.max(P.r, P.g, P.bl, 1e-4);
+    P.color = '#' + new THREE.Color(P.r / m, P.g / m, P.bl / m).getHexString();
+    const key = [P.color, P.b.toFixed(2), P.lx.toFixed(2), P.ly.toFixed(2), P.lamps.toFixed(2)].join();
+    if (key === this.paperSent) return;
+    this.paperSent = key;
+    this.on.paper?.({ color: P.color, b: P.b, lx: P.lx, ly: P.ly, lamps: P.lamps, moon: P.moon, street: P.street, day: P.day });
   }
 
   /* ---------------- input ---------------- */

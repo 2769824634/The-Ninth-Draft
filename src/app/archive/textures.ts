@@ -447,3 +447,70 @@ export function fileCover(file: string, title: string, stamp: string, category: 
   g.restore();
   return tex(c);
 }
+
+/**
+ * The accession register lying open on the intake desk: two ruled pages,
+ * a red head rule, columns for number, date, from, description and filed,
+ * today's entries in blue-black ink, the last line still blank.
+ */
+export function ledgerSpread(today: string) {
+  const W = 1024, H = 720;
+  const [c, g] = cv(W, H);
+  grain(g, W, H, '#ddd1b2', 31, 0.8);
+  // the gutter and the shadow it throws
+  const gut = g.createLinearGradient(W / 2 - 40, 0, W / 2 + 40, 0);
+  gut.addColorStop(0, 'rgba(60,40,20,0)');
+  gut.addColorStop(0.5, 'rgba(60,40,20,0.35)');
+  gut.addColorStop(1, 'rgba(60,40,20,0)');
+  g.fillStyle = gut;
+  g.fillRect(W / 2 - 40, 0, 80, H);
+  const [, mm, dd] = today.split('-');
+  const r = rng(Number(mm) * 40 + Number(dd));
+  const cols = [0, 70, 150, 290, 470];
+  const from = ['Toa Payoh DO', 'Axis Registry', 'Hougang DO', 'Bukit Merah DO', 'Data Section', 'Woodlands DO', 'Courier', 'Ang Mo Kio DO'];
+  const what = ['Survey forms (12)', 'Street-name return', 'Bus route notice', 'Minutes, 3 pp.', 'Correspondence', 'Tenancy cards', 'Plan, folded', 'Census sheets', 'Letter, by hand'];
+  let n = 1000 + Math.floor(r() * 400);
+  for (const side of [0, 1]) {
+    const x0 = side ? W / 2 + 30 : 34;
+    const pw = W / 2 - 64;
+    g.fillStyle = '#9c2b22';
+    g.fillRect(x0, 70, pw, 3);
+    g.fillRect(x0, 76, pw, 1);
+    g.font = `600 15px ${DIN}`;
+    g.fillStyle = '#7a3a2c';
+    ['No.', 'Date', 'From', 'Description', 'Filed'].forEach((h, i) => g.fillText(h, x0 + cols[i] + 4, 62));
+    g.strokeStyle = 'rgba(70,90,140,0.32)';
+    g.lineWidth = 1;
+    for (let y = 108; y < H - 30; y += 32) {
+      g.beginPath();
+      g.moveTo(x0, y);
+      g.lineTo(x0 + pw, y);
+      g.stroke();
+    }
+    g.strokeStyle = 'rgba(156,43,34,0.45)';
+    for (const cx of cols.slice(1)) {
+      g.beginPath();
+      g.moveTo(x0 + cx, 50);
+      g.lineTo(x0 + cx, H - 30);
+      g.stroke();
+    }
+    // the left page is full; the right page stops partway down, today
+    const rows = side ? 6 + Math.floor(r() * 5) : 18;
+    for (let i = 0; i < rows; i++) {
+      const y = 102 + i * 32;
+      const ink = r() < 0.15 ? '#2a2620' : '#1f2c55';
+      g.fillStyle = ink;
+      g.font = `italic 400 19px Georgia, serif`;
+      g.save();
+      g.translate(0, (r() - 0.5) * 2);
+      g.fillText(`99/${n++}`, x0 + cols[0] + 4, y);
+      g.fillText(side && i >= rows - 4 ? `${dd}.${mm}` : `${String(Math.max(1, Number(dd) - 1 - Math.floor((rows - i) / 6))).padStart(2, '0')}.${mm}`, x0 + cols[1] + 6, y);
+      g.fillText(from[Math.floor(r() * from.length)], x0 + cols[2] + 6, y, 132);
+      g.fillText(what[Math.floor(r() * what.length)], x0 + cols[3] + 6, y, 172);
+      // a tick once it has gone to its drawer; today's are not all filed yet
+      if (!side || i < rows - 2) g.fillText('✓', x0 + cols[4] + 16, y);
+      g.restore();
+    }
+  }
+  return tex(c);
+}

@@ -21,8 +21,8 @@
   transition: opacity 900ms var(--ease) 120ms, visibility 0s;
 }
 
-[data-lang='en'] .stackshud [data-l='zh'],
-[data-lang='zh'] .stackshud [data-l='en'] { display: none !important; }
+[data-lang='en'] :is(.stackshud, .dsv) [data-l='zh'],
+[data-lang='zh'] :is(.stackshud, .dsv) [data-l='en'] { display: none !important; }
 
 .stackshud {
   position: absolute;

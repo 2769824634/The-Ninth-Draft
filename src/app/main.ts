@@ -27,6 +27,8 @@ import { prefs, reducedMotion } from './prefs';
 import { applyRecords, isZh, lang, markDocument, onLang, setLang, t, translateDom, type Lang } from './i18n';
 import { canvasFontsReady } from './scene/textures';
 import { Stacks, TABLE_MAX, type ReadAt } from './archive/stacks';
+import type { PaperLit } from './archive/scene';
+import { Sheet } from './archive/sheet';
 import { Companion } from './archive/companion';
 
 export function start() {
@@ -72,13 +74,16 @@ export function start() {
   const chapter = new Chapter();
   const voice = new Archivist(data.archivist);
   const retrieve = new Retrieve();
+  const sheet = new Sheet(root);
+  /** Set by Previous / Next just before the next file opens: which way the sheets go. */
+  let stepDir = 0;
   const system = new System();
   quirks(root, voice, system);
 
-  /** Paint the whole interface in a clearance colour, and the lamps over the paper with it. */
+  /** Paint the interface in a clearance colour, and bring up the examination tube where the file is read. */
   const setClearance = (stamp: string | null) => {
     root.dataset.clr = clearanceKey(stamp ?? 'DECLASSIFIED');
-    stacks?.tint(stamp ? readAt : null, stamp);
+    stacks?.exam(stamp ? readAt : null, stamp);
   };
 
   /* ---------------- theme & sound ---------------- */
@@ -103,24 +108,46 @@ export function start() {
   };
 
   /**
-   * What is lighting the paper: the windows by day, the lamp over the place
-   * when it is on, else the moon or the street lamp outside. The sheet is
-   * read by it, so the reader can see the room has gone dark around them.
+   * The light on the page, as the room works it out: its colour, strength and
+   * the side it comes from, painted straight onto the sheet (and the second
+   * sheet, if one lies alongside). When the lamps are off, a line on the page
+   * says what it is being read by.
    */
+  let lit: PaperLit | null = null;
+  let litBy: 'day' | 'lamp' | 'moon' | 'street' = 'lamp';
+  const LIT_PROPS = ['--lamp', '--lamp-glow', '--lamp-wash', '--lamp-dark', '--lx', '--ly'];
   function markLight() {
-    const paper = $('ds-scroll');
-    if (!stacks) return;
-    const by = stacks.paperLight(readAt);
-    root.dataset.light = by;
-    const zh = isZh();
+    const sheets = [...document.querySelectorAll<HTMLElement>('#ds-scroll, .companion__paper')];
     const note = $('ds-light');
-    note.textContent = view === 'detail' && by !== 'day' && by !== 'lamp'
-      ? by === 'moon'
-        ? zh ? '灯关着。这页是月光照的。' : 'The lamps are off. You are reading this by the moon.'
-        : zh ? '灯关着。这页是窗外路灯照的。' : 'The lamps are off. You are reading this by the street lamp.'
-      : '';
+    if (!lit || view !== 'detail') {
+      root.classList.remove('lit-live');
+      delete root.dataset.light;
+      sheets.forEach((el) => LIT_PROPS.forEach((k) => el.style.removeProperty(k)));
+      note.hidden = true;
+      return;
+    }
+    root.classList.add('lit-live');
+    const b = lit.b;
+    const vals: [string, string][] = [
+      ['--lamp', lit.color],
+      ['--lamp-glow', `${(6 + 30 * b).toFixed(1)}%`],
+      ['--lamp-wash', `${(3 + 10 * b).toFixed(1)}%`],
+      ['--lamp-dark', `${((1 - b) * 46).toFixed(1)}%`],
+      ['--lx', `${(lit.lx * 100).toFixed(1)}%`],
+      ['--ly', `${(lit.ly * 100).toFixed(1)}%`],
+    ];
+    sheets.forEach((el) => vals.forEach(([k, v]) => el.style.setProperty(k, v)));
+    // what it is read by, with a little give so it does not chatter at the edge
+    const night = document.documentElement.dataset.theme === 'night';
+    litBy = !night || lit.day > 0.5 ? 'day' : lit.lamps > (litBy === 'lamp' ? 0.2 : 0.3) ? 'lamp' : lit.moon > lit.street ? 'moon' : 'street';
+    root.dataset.light = litBy;
+    const zh = isZh();
+    note.textContent = litBy === 'moon'
+      ? zh ? '灯关着。这页是月光照的。' : 'The lamps are off. You are reading this by the moon.'
+      : litBy === 'street'
+        ? zh ? '灯关着。这页是窗外路灯照的。' : 'The lamps are off. You are reading this by the street lamp.'
+        : '';
     note.hidden = !note.textContent;
-    void paper;
   }
 
   /* ---------------- the stacks: the one room ---------------- */
@@ -133,9 +160,10 @@ export function start() {
       } else voice.say(`drawer.${categories[ci].id}`, {}, false);
       audio.sputnik(categories[ci].id === 'programs');
     },
-    lights: () => {
+    lights: () => markLight(),
+    paper: (v) => {
+      lit = v;
       markLight();
-      if (current) setClearance(current.stamp);
     },
     search: () => search.show(),
   });
@@ -153,6 +181,8 @@ export function start() {
       return;
     }
     const already = view === 'detail';
+    const dir = stepDir;
+    stepDir = 0;
     view = 'detail';
     current = rec;
     readAt = at;
@@ -162,12 +192,21 @@ export function start() {
     $('dossier').setAttribute('aria-hidden', 'false');
     const ci = categories.findIndex((c) => c.id === rec.category);
     const list = records.filter((r) => r.category === rec.category);
-    dossier.fill(rec, { index: list.indexOf(rec), total: list.length });
-    setClearance(rec.stamp);
-    markLight();
-    markTable();
+    // the sheet itself: filled at once, or once the last one has gone out of the way
+    const fill = () => {
+      dossier.fill(rec, { index: list.indexOf(rec), total: list.length });
+      setClearance(rec.stamp);
+      markLight();
+      markTable();
+    };
+    if (already) sheet.swap(dir, at === 'table', fill);
+    else {
+      fill();
+      sheet.open(stacks.screenPoint(rec, at), rec);
+    }
     $('btn-back').querySelector('span')!.textContent = backLabel();
     const notes = dossier.noteSpan();
+    // the checkout is logged on the terminal; the paper is not held back for it
     retrieve.run(
       at === 'table'
         ? t('Reading table · {file}', { file: rec.file })
@@ -175,7 +214,6 @@ export function start() {
       notes
         ? voice.pick('retrieve.notes', { drafts: notes })
         : voice.pick(`retrieve.${rec.category}`, { file: rec.file, title: rec.title }) ?? voice.pick('retrieve.any', { file: rec.file }),
-      (p) => dossier.reveal(p),
     );
     audio.open();
     audio.sputnik(rec.category === 'programs');
@@ -212,8 +250,9 @@ export function start() {
       void iris.run(() => location.assign(to));
       return;
     }
-    view = 'browse';
     const was = current;
+    if (was) sheet.close(stacks.screenPoint(was, readAt), was);
+    view = 'browse';
     current = null;
     root.dataset.view = 'browse';
     delete root.dataset.light;
@@ -232,6 +271,7 @@ export function start() {
   /** The next or previous file in the same category, in the same place. */
   function stepRecord(d: number) {
     if (!current) return;
+    stepDir = d;
     if (readAt === 'table') {
       const on = stacks.onTable;
       if (on.length < 2) return;
