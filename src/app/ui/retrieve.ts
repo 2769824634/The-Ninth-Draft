@@ -34,7 +34,7 @@ export class Retrieve {
     this.el.classList.toggle('has-tip', !!tip);
     this.el.classList.remove('is-done');
     this.el.classList.add('is-on');
-    this.state.textContent = tr('Retrieving');
+    this.state.textContent = tr('Checking out');
 
     const later = (ms: number, fn: () => void) => this.timers.push(window.setTimeout(fn, ms));
     if (reducedMotion()) {
@@ -45,10 +45,11 @@ export class Retrieve {
     }
     this.set(0);
     // Uneven steps: quick through the index, a pause at the drawer, then the folder
-    let t = 120, p = 0;
+    // quick: the checkout is logged while the folder is still coming up
+    let t = 60, p = 0;
     const steps = [9, 14, 4, 21, 2, 1, 18, 11, 7, 13];
     steps.forEach((d, i) => {
-      t += 50 + ((i * 37) % 5) * 30 + (d < 5 ? 160 : 0);
+      t += 24 + ((i * 37) % 5) * 12 + (d < 5 ? 60 : 0);
       p = Math.min(100, p + d);
       const v = p;
       later(t, () => {
@@ -108,7 +109,7 @@ export class Retrieve {
   }
 
   private finish() {
-    this.state.textContent = tr('Retrieved');
+    this.state.textContent = tr('Logged');
     this.el.classList.add('is-done');
   }
 }

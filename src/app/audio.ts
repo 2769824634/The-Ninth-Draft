@@ -221,6 +221,14 @@ export const audio = {
     noise(0.03, { type: 'highpass', f0: 3200, vol: 0.5, attack: 0.001 });
     tone(180, 0.05, { type: 'square', vol: 0.05, to: 90 });
   },
+  /** A fluorescent tube starting: the starter ticks twice, the ballast hums up. */
+  tube() {
+    if (!live()) return;
+    noise(0.015, { type: 'highpass', f0: 4000, vol: 0.25, attack: 0.001 });
+    noise(0.015, { type: 'highpass', f0: 4200, vol: 0.2, attack: 0.001, delay: 0.2 });
+    tone(100, 0.9, { type: 'sawtooth', vol: 0.018, delay: 0.38 });
+    tone(200, 0.7, { type: 'sine', vol: 0.012, delay: 0.42 });
+  },
   /** Must be called from a user gesture. */
   unlock() {
     if (!ensure() || !ctx) return;

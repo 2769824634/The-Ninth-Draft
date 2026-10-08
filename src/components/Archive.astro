@@ -105,6 +105,20 @@ const links = new Set(records.flatMap((r) => r.related.filter((f) => records.som
       <svg viewBox="0 0 24 12" aria-hidden="true"><path d="M24 6H2M7 1 2 6l5 5" /></svg>
       <span>Archive overview</span><span class="kbd">Esc</span>
     </button>
+    <!-- what the archivist says while a file is open: a slip in the margin -->
+    <div class="dsv" id="ds-voice" aria-live="polite" data-no-i18n>
+      <button type="button" class="dsv__tag" id="ds-voice-tag" aria-expanded="false"><i></i>Archivist</button>
+      <div class="dsv__slip">
+        <p class="dsv__now" id="ds-voice-now"></p>
+        <ol class="dsv__was" id="ds-voice-was"></ol>
+      </div>
+      <div class="dsv__switches" id="ds-switches" hidden>
+        <span class="micro"><span data-l="en">Lights here</span><span data-l="zh">这里的灯</span></span>
+        <button type="button" data-ls="exam" aria-pressed="false"><i></i><span data-l="en">Examination tube</span><span data-l="zh">验档灯</span></button>
+        <button type="button" data-ls="row" aria-pressed="false"><i></i><span data-l="en">Pendants overhead</span><span data-l="zh">头顶吊灯</span></button>
+        <button type="button" data-ls="desks" aria-pressed="false"><i></i><span data-l="en">Table lamps</span><span data-l="zh">桌上台灯</span></button>
+      </div>
+    </div>
     <div class="inspect__no">
       <span class="inspect__big" id="in-no">No.0001</span>
       <span class="micro" id="in-cat">Personnel / Internal archive</span>
@@ -221,7 +235,7 @@ const links = new Set(records.flatMap((r) => r.related.filter((f) => records.som
       <header class="dossier__head">
         <div class="retrieve" id="ds-retrieve" aria-hidden="true">
           <div class="retrieve__in">
-            <div class="retrieve__row micro"><b id="rt-state">Retrieving</b><span id="rt-path"></span><span class="retrieve__pct" id="rt-pct">000%</span></div>
+            <div class="retrieve__row micro"><b id="rt-state">Checking out</b><span id="rt-path"></span><span class="retrieve__pct" id="rt-pct">000%</span></div>
             <div class="retrieve__bar"><i id="rt-bar"></i></div>
             <p class="retrieve__tip"><span class="micro">Archivist tip</span><span id="rt-tip"></span></p>
           </div>

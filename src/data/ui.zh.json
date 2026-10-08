@@ -51,6 +51,8 @@
   "programs": "计划",
   "{n} programs on file": "在册计划 {n} 项",
   "Retrieving": "调取中",
+  "Checking out": "借阅登记",
+  "Logged": "已登记",
   "Retrieved": "已调取",
   "Archivist tip": "档案员提示",
   "Drawer {drawer} · Folder {folder} · {file}": "第 {drawer} 抽屉 · 第 {folder} 夹 · {file}",

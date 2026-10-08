@@ -12,7 +12,7 @@
  * (on this device) until it is put back.
  */
 import type { ArchiveRecord, Category } from '../types';
-import { StacksScene, STACKS_ZONES, type StacksZone } from './scene';
+import { StacksScene, STACKS_ZONES, type StacksZone, type PaperLit } from './scene';
 import { ROWS, type StacksCategory } from './room';
 import { fileCover } from './textures';
 import { Cards } from './cards';
@@ -23,7 +23,7 @@ import { audio } from '../audio';
 import { reducedMotion } from '../prefs';
 import { canvasFontsReady } from '../scene/textures';
 import { esc } from '../ui/text';
-import { LAMP_K, clearanceKey } from '../clearance';
+import { clearanceKey } from '../clearance';
 import type { Archivist } from '../ui/archivist';
 
 const ZH_CAT: Record<string, string> = { personnel: '人员', events: '事件', programs: '计划' };
@@ -43,7 +43,6 @@ const two = (n: number) => String(n).padStart(2, '0');
 /** Where a file is read: at its drawer, or at the reading table. */
 export type ReadAt = 'drawer' | 'table';
 /** What lights the paper: daylight, a lamp, the moon or the street lamp outside. */
-export type PaperLight = 'day' | 'lamp' | 'moon' | 'street';
 
 interface Lights {
   half: number;
@@ -89,6 +88,8 @@ export interface StacksHooks {
   drawer(ci: number): void;
   /** The lights changed: the paper being read may be lit differently now. */
   lights(): void;
+  /** The light on the page being read, worked out from the room. */
+  paper(v: PaperLit): void;
   search(): void;
 }
 
@@ -153,6 +154,7 @@ export class Stacks {
         tray: () => this.arrivals(),
         safe: () => this.strongCabinet(),
         dehumidifier: () => this.emptyTank(),
+        paper: (v) => this.hooks.paper(v),
       });
     } catch (err) {
       console.error('[stacks] WebGL unavailable', err);
@@ -264,6 +266,7 @@ export class Stacks {
     document.querySelectorAll<HTMLButtonElement>('#stacks-cats [data-cat]').forEach((b) => b.addEventListener('click', () => this.openCabinet(Number(b.dataset.cat))));
     document.querySelectorAll<HTMLButtonElement>('.stackshud__rockers [data-row]').forEach((b) => b.addEventListener('click', () => this.toggleRow(Number(b.dataset.row))));
     document.querySelectorAll<HTMLButtonElement>('.stackshud__desks [data-desk]').forEach((b) => b.addEventListener('click', () => this.toggleDesk(Number(b.dataset.desk))));
+    document.querySelectorAll<HTMLButtonElement>('#ds-switches [data-ls]').forEach((b) => b.addEventListener('click', () => this.readSwitch(b.dataset.ls!)));
     this.$('stacks-cards-btn').addEventListener('click', () => this.cards.show());
     this.slip.addEventListener('click', (e) => {
       const el = e.target as HTMLElement;
@@ -334,6 +337,7 @@ export class Stacks {
       b.title = isZh() ? ROWS[i].zh : ROWS[i].en;
     });
     document.querySelectorAll<HTMLButtonElement>('.stackshud__desks [data-desk]').forEach((b) => b.setAttribute('aria-pressed', String(this.lights.desks[Number(b.dataset.desk)])));
+    this.markReadSwitches();
   }
 
   /* ---------------- hover ---------------- */
@@ -413,23 +417,81 @@ export class Stacks {
     return islandMoon(this.today, islandNow().hours, this.rain).light;
   }
 
-  /**
-   * What lights a file read here: by day the windows; at night the lamp over
-   * the place if it is on (row 2 at the cabinets; row 4 or a desk lamp at the
-   * table), otherwise the moon when it is up and bright enough, otherwise the
-   * street lamp outside.
-   */
-  paperLight(at: ReadAt): PaperLight {
-    if (this.theme === 'day') return 'day';
-    const L = this.lights;
-    const lit = at === 'drawer' ? L.rows[1] : L.rows[3] || L.desks[0] || L.desks[1];
-    if (lit) return 'lamp';
-    return this.moon() > 0.18 ? 'moon' : 'street';
+  /** Where a file is on the screen right now: up out of its drawer, or lying on the table. */
+  screenPoint(rec: ArchiveRecord, at: ReadAt) {
+    const s = this.scene;
+    if (!s) return null;
+    const v = at === 'table' ? s.room.tableSpot(rec.file) : this.open ? s.room.drawerFront(this.open.ci, this.open.d) : null;
+    return v ? s.screenOf(v) : null;
   }
 
-  /** The lamps over the place a file is read take on its clearance's colour; null puts them back. */
-  tint(at: ReadAt | null, stamp: string | null) {
-    void this.ready.then(() => this.scene?.room.tint(at === 'drawer' ? 'cabinet' : at === 'table' ? 'table' : null, stamp ? LAMP_K[clearanceKey(stamp)] : null));
+  /* ---------------- the examination lamp ---------------- */
+  /**
+   * How far the examination tube comes on for each clearance. Office rule:
+   * the higher the clearance, the more of it is read under the cold tube,
+   * where erasures show; the lowest two make do with the warm lamps alone.
+   */
+  static readonly EXAM: Record<string, number> = { declass: 0, restr: 0, conf: 0.45, secret: 0.8, top: 1 };
+  /** The tube lit for the file being read, and where that file is being read. */
+  private examAt: { i: number; level: number; at: ReadAt } | null = null;
+
+  /**
+   * A file opened at `at` with this clearance: point the room's light meter at
+   * that place and bring its examination tube up as far as the clearance asks.
+   * Null puts the tube out and stops measuring.
+   */
+  exam(at: ReadAt | null, stamp: string | null) {
+    void this.ready.then(() => {
+      const s = this.scene;
+      if (!s) return;
+      const ci = at === 'drawer' ? (this.open?.ci ?? (this.taken ? this.categories.findIndex((c) => c.id === this.taken!.category) : -1)) : -1;
+      const i = !at ? -1 : s.room.exams.findIndex((e) => (at === 'table' ? e.place === 'table' : e.place === 'cabinet' && e.ci === ci));
+      const level = stamp ? Stacks.EXAM[clearanceKey(stamp)] ?? 0 : 0;
+      s.room.exams.forEach((_, k) => k !== i && s.setExam(k, 0));
+      if (i >= 0) {
+        if (level > 0 && (s.examWanted[i] ?? 0) === 0) audio.tube();
+        s.setExam(i, level);
+      }
+      this.examAt = at && i >= 0 ? { i, level, at } : null;
+      if (!at) s.setReadPoint(null);
+      else if (at === 'table') s.setReadPoint(s.room.tableCentre());
+      else if (this.open) s.setReadPoint(s.room.drawerFront(this.open.ci, this.open.d));
+      else s.setReadPoint(null);
+      this.markReadSwitches();
+    });
+  }
+
+  /** The switches in the margin of an open file: the tube here, the pendants over here, the table lamps. */
+  private readSwitch(which: string) {
+    const at = this.examAt?.at ?? null;
+    if (which === 'exam' && this.examAt && this.scene) {
+      const on = (this.scene.examWanted[this.examAt.i] ?? 0) > 0;
+      const lv = on ? 0 : this.examAt.level || 0.6;
+      if (lv > 0) audio.tube();
+      else audio.rocker();
+      this.scene.setExam(this.examAt.i, lv);
+    } else if (which === 'row' && at) this.toggleRow(at === 'drawer' ? 1 : 3);
+    else if (which === 'desks') {
+      const on = !(this.lights.desks[0] || this.lights.desks[1]);
+      for (const i of [0, 1]) if (this.lights.desks[i] !== on) this.toggleDesk(i);
+    }
+    this.markReadSwitches();
+  }
+
+  private markReadSwitches() {
+    const box = document.getElementById('ds-switches');
+    if (!box) return;
+    const at = this.examAt?.at ?? null;
+    box.hidden = !at;
+    const set = (k: string, on: boolean, show = true) => {
+      const b = box.querySelector<HTMLButtonElement>(`[data-ls="${k}"]`);
+      if (!b) return;
+      b.hidden = !show;
+      b.setAttribute('aria-pressed', String(on));
+    };
+    set('exam', !!this.examAt && (this.scene?.examWanted[this.examAt.i] ?? 0) > 0);
+    set('row', at === 'drawer' ? this.lights.rows[1] : this.lights.rows[3]);
+    set('desks', this.lights.desks[0] || this.lights.desks[1], at === 'table');
   }
 
   /* ---------------- the formal cabinets ---------------- */

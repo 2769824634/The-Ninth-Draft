@@ -17,9 +17,21 @@ export class Archivist {
   private typing = 0;
   private idleTimer = 0;
   private quietUntil = 0;
+  /** The slip in the margin of an open file: the line now, and the two before it. */
+  private slip = document.getElementById('ds-voice');
+  private slipNow = document.getElementById('ds-voice-now');
+  private slipWas = document.getElementById('ds-voice-was');
+  private said: string[] = [];
+  private fresh = 0;
 
   constructor(private lines: ArchivistLines, private idleKey = 'idle') {
     const reset = () => this.armIdle();
+    // on a phone the slip tucks itself away; its tag pulls it out again
+    document.getElementById('ds-voice-tag')?.addEventListener('click', () => {
+      const open = !this.slip!.classList.contains('is-open');
+      this.slip!.classList.toggle('is-open', open);
+      document.getElementById('ds-voice-tag')!.setAttribute('aria-expanded', String(open));
+    });
     ['pointerdown', 'keydown', 'wheel'].forEach((e) => window.addEventListener(e, reset, { passive: true }));
     this.armIdle();
   }
@@ -56,19 +68,41 @@ export class Archivist {
   private type(text: string) {
     window.clearTimeout(this.typing);
     this.box.classList.add('is-speaking');
+    this.toSlip(text);
     if (reducedMotion()) {
       this.line.textContent = text;
+      if (this.slipNow) this.slipNow.textContent = text;
       return;
     }
     let i = 0;
     const step = () => {
       i = Math.min(text.length, i + 2);
       this.line.textContent = text.slice(0, i);
+      if (this.slipNow) this.slipNow.textContent = text.slice(0, i);
       if (i % 6 === 0) audio.tick();
       if (i < text.length) this.typing = window.setTimeout(step, 22);
       else this.typing = window.setTimeout(() => this.box.classList.remove('is-speaking'), 2400);
     };
     step();
+  }
+
+  /** A new line goes on the slip; the last one moves down and greys, the oldest drops off. */
+  private toSlip(text: string) {
+    if (!this.slip || !this.slipNow || !this.slipWas) return;
+    const prev = this.said[0];
+    this.said.unshift(text);
+    this.said.length = Math.min(this.said.length, 3);
+    if (prev) {
+      const li = document.createElement('li');
+      li.textContent = prev;
+      this.slipWas.prepend(li);
+      while (this.slipWas.children.length > 2) this.slipWas.lastElementChild!.remove();
+      if (!reducedMotion()) li.animate([{ opacity: 0, transform: 'translateY(-.6rem)' }, { opacity: 1, transform: 'none' }], { duration: 380, easing: 'cubic-bezier(.16,1,.3,1)' });
+    }
+    // fresh for a few seconds: on a phone that is how long it stays out
+    this.slip.classList.add('is-fresh');
+    window.clearTimeout(this.fresh);
+    this.fresh = window.setTimeout(() => this.slip!.classList.remove('is-fresh'), 6500);
   }
 
   private armIdle() {
