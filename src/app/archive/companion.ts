@@ -22,7 +22,7 @@ export class Companion {
   private el = document.getElementById('companion')!;
   rec: ArchiveRecord | null = null;
 
-  constructor(private hooks: { swap(rec: ArchiveRecord): void; close(): void }) {
+  constructor(private hooks: { swap(rec: ArchiveRecord): void; close(): void; aside(rec: ArchiveRecord | null): void }) {
     this.el.addEventListener('click', (e) => {
       const t = e.target as HTMLElement;
       const act = t.closest<HTMLElement>('[data-act]')?.dataset.act;
@@ -35,6 +35,7 @@ export class Companion {
 
   show(rec: ArchiveRecord) {
     this.rec = rec;
+    this.hooks.aside(rec);
     const zh = isZh();
     const meta: [string, string][] = [];
     if (rec.date) meta.push([t('Date'), esc(longDate(rec.date))]);
@@ -49,7 +50,7 @@ export class Companion {
         <button type="button" data-act="swap">${zh ? '换到前面读' : 'Read this one'}</button>
         <button type="button" data-act="close" aria-label="${zh ? '收起' : 'Put it aside'}">×</button>
       </div>
-      <div class="dossier__paper companion__paper">
+      <div class="companion__sheet"><div class="dossier__paper companion__paper">
         <header class="dossier__head">
           <div class="dossier__crumbs micro"><span>${esc(t('File {file}', { file: rec.file }))}</span></div>
           <h2 class="dossier__title" data-category="${esc(rec.category)}">${esc(rec.title)}</h2>
@@ -59,7 +60,7 @@ export class Companion {
         <section class="pane"><div class="micro lede-label">${t('Abstract')}</div><p class="lede">${rec.summary}</p></section>
         ${rec.body ? `<section class="pane prose"><div class="micro lede-label">${t('Record')}</div>${rec.body}</section>` : ''}
         <section class="pane pane--attach">${attachmentsHtml(rec)}</section>
-      </div>`;
+      </div><i class="companion__shade"></i></div>`;
     const paper = this.el.querySelector<HTMLElement>('.companion__paper')!;
     asFiled(paper);
     void paintNegatives(paper.querySelector('.pane--attach')!, rec, () => this.rec === rec);
@@ -70,6 +71,8 @@ export class Companion {
 
   hide() {
     this.rec = null;
+    this.hooks.aside(null);
+    delete document.getElementById('archive')!.dataset.paired;
     this.el.hidden = true;
     this.el.setAttribute('aria-hidden', 'true');
     this.el.innerHTML = '';

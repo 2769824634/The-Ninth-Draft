@@ -59,6 +59,8 @@
 /* the sheet slides left to make room, so the way back shrinks to its arrow */
 .archive:has(.companion:not([hidden])) .back span:not(.kbd) { display: none; }
 
+.dossier__sheet { display: contents; }
+.dossier__shade { display: none; }
 .dossier {
   --w: min(47rem, calc(100vw - 2 * var(--edge) - 18rem));
   top: 8.8rem;
@@ -69,19 +71,19 @@
   flex-direction: column;
   pointer-events: none;
 }
-.dossier > * {
+.dossier > *, .dossier__sheet > * {
   opacity: 0;
   transform: translateY(1.2rem);
   transition: opacity 260ms var(--ease), transform 260ms var(--ease);
 }
 .archive[data-view='detail'] .dossier { pointer-events: auto; }
-.archive[data-view='detail'] .dossier > * {
+.archive[data-view='detail'] .dossier > *, .archive[data-view='detail'] .dossier__sheet > * {
   opacity: 1;
   transform: none;
   transition: opacity 700ms var(--ease), transform 900ms var(--ease);
 }
-.archive[data-view='detail'] .dossier > .sheaf { transition-delay: 620ms; }
-.archive[data-view='detail'] .dossier > .dossier__paper { transition-delay: 300ms; }
+.archive[data-view='detail'] .dossier .sheaf { transition-delay: 620ms; }
+.archive[data-view='detail'] .dossier .dossier__paper { transition-delay: 300ms; }
 .archive[data-view='detail'] .dossier > .dossier__foot { transition-delay: 700ms; }
 .sheaf[hidden], .cite-slip[hidden] { display: none; }
 
@@ -1051,7 +1053,7 @@ a.cite:hover, a.cite:focus-visible { color: var(--accent); text-decoration-style
 }
 
 /* A draft turned over by its corner (src/app/ui/peel.ts) */
-.dossier > .peel { position: absolute; z-index: 3; pointer-events: none; opacity: 1; transform: none; transition: none; }
+.dossier .peel { position: absolute; z-index: 3; pointer-events: none; opacity: 1; transform: none; transition: none; }
 .peel > .dossier__paper { position: absolute; inset: 0; margin: 0; transition: none; }
 .peel__under { z-index: 0; }
 .peel__front { z-index: 1; }
@@ -1119,8 +1121,127 @@ a.cite:hover, a.cite:focus-visible { color: var(--accent); text-decoration-style
   background: linear-gradient(transparent, rgb(29 27 23 / 0));
   transition: background 400ms var(--ease);
 }
-.archive[data-view='detail'] .dossier > .pages__curl { transform: translateY(-100%); }
+.archive[data-view='detail'] .dossier .pages__curl { transform: translateY(-100%); }
 .pages__curl.is-more { background: linear-gradient(transparent, rgb(29 27 23 / .09)); }
 .pages__foot { font-size: .5rem; letter-spacing: .16em; color: rgb(29 27 23 / .5); }
 .archive:has(.companion:not([hidden])) .pages__curl { display: none; }
 @media (max-width: 720px) { .pages__fold span { right: .3rem; } }
+
+
+/* ---------- Sat at the reading table: the page lies on the sheet on the blotter ----------
+   The room reports where that sheet is on the screen (--pin is the transform that
+   lays a box of --pw × --ph over it, perspective and all); the sheet, its draft
+   tabs and the strip of other files go with it, and what you press stays flat on
+   the screen: the way back, Previous / Next, the note. */
+.archive[data-pin] .dossier {
+  position: fixed;
+  inset: 0;
+  width: auto;
+  display: block;
+  padding: 0;
+}
+.archive[data-pin] .dossier { pointer-events: none; }
+.archive[data-pin] .dossier__sheet {
+  display: block;
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: var(--pw, 560px);
+  height: var(--ph, 780px);
+  transform-origin: 0 0;
+  transform: var(--pin, scale(0));
+  opacity: 1;
+  transition: none;
+  pointer-events: none;
+}
+.archive[data-pin]:not([data-pinned]) .dossier__sheet { visibility: hidden; }
+.archive[data-pin] .dossier__sheet > * { pointer-events: auto; }
+.archive[data-pin] .dossier__paper {
+  position: absolute;
+  inset: 0;
+  flex: none;
+  /* a sheet on a desk: a hair of shadow right under it, a softer one a little further out */
+  box-shadow: 0 .5px 0 rgb(0 0 0 / .35), 0 2px 3px rgb(0 0 0 / .28), 3px 6px 10px -3px rgb(0 0 0 / .32);
+}
+/* the strip of the other files lies on the inside of the open cover, left of the sheet */
+.archive[data-pin] .ds-table { position: absolute; left: calc(var(--pw, 560px) * -0.6); top: calc(var(--ph, 780px) - 5.6rem); width: calc(var(--pw, 560px) * .56); margin: 0; }
+.archive[data-pin] .dossier__foot {
+  position: absolute;
+  left: calc(50% - 23rem);
+  width: 46rem;
+  bottom: 1.4rem;
+  border-top: 0;
+  pointer-events: auto;
+  /* the page runs off the bottom of the screen: the buttons stand on a shade, not on its text */
+  padding: 2.6rem 1rem 0;
+  background: linear-gradient(0deg, rgb(10 9 8 / .9) 52%, transparent);
+}
+.archive[data-pin] .dossier__spine { left: calc(var(--qx0, 0px) - 2.4rem); top: var(--qy0, 0px); }
+.archive[data-pin] .dossier__scan { display: none; }
+
+/* how the light falls across the sheet: darker where the lamps reach less, from the room's own sums */
+.archive[data-pin] .dossier__shade {
+  display: block;
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+  opacity: 1 !important;
+  transition: opacity 600ms var(--ease);
+  background:
+    linear-gradient(180deg, rgb(10 7 4 / var(--sd-t, 0)), rgb(10 7 4 / var(--sd-b, 0))),
+    linear-gradient(90deg, rgb(10 7 4 / var(--sd-l, 0)), transparent 38%, transparent 62%, rgb(10 7 4 / var(--sd-r, 0)));
+}
+.archive.is-seating[data-pin] .dossier__shade { opacity: 0 !important; transition: none; }
+
+/* ---------- A second file laid on the right blotter ----------
+   Same as the first: the sheet is laid over the one in the room (--pin2), and
+   what you press stays flat under it. */
+.archive[data-pin] .companion {
+  position: fixed;
+  inset: 0;
+  width: auto;
+  transform: none;
+  display: block;
+  pointer-events: none;
+  z-index: 5;
+}
+.archive[data-pin]:not([data-paired]) .companion__sheet { visibility: hidden; }
+.archive[data-pin] .companion__sheet {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: var(--pw2, 560px);
+  height: var(--ph2, 780px);
+  transform-origin: 0 0;
+  transform: var(--pin2, scale(0));
+  pointer-events: auto;
+}
+.archive[data-pin] .companion__paper {
+  position: absolute;
+  inset: 0;
+  padding: 2rem 2.2rem 3rem;
+  box-shadow: 0 .5px 0 rgb(0 0 0 / .35), 0 2px 3px rgb(0 0 0 / .28), 3px 6px 10px -3px rgb(0 0 0 / .32);
+}
+.archive[data-pin] .companion__paper .dossier__title { font-size: 2.2rem; }
+.archive[data-pin] .companion__bar {
+  position: absolute;
+  left: var(--bx, 0px);
+  top: calc(var(--by, 0px) + .4rem);
+  min-width: 14rem;
+  pointer-events: auto;
+}
+.companion__shade { display: none; }
+.archive[data-pin] .companion__shade {
+  display: block;
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+  background:
+    linear-gradient(180deg, rgb(10 7 4 / var(--sd2-t, 0)), rgb(10 7 4 / var(--sd2-b, 0))),
+    linear-gradient(90deg, rgb(10 7 4 / var(--sd2-l, 0)), transparent 38%, transparent 62%, rgb(10 7 4 / var(--sd2-r, 0)));
+}
+/* both on the table: the first keeps its place on the left blotter */
+.archive[data-pin]:has(.companion:not([hidden])) .dossier { --w: auto; left: 0; }
+.archive[data-pin]:has(.companion:not([hidden])) .ds-table { display: none; }
