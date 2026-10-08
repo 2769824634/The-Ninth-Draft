@@ -1270,3 +1270,6 @@ a.cite:hover, a.cite:focus-visible { color: var(--accent); text-decoration-style
   filter: drop-shadow(1px 2px 1.5px rgb(0 0 0 / .55)) drop-shadow(5px 9px 9px rgb(0 0 0 / .35));
 }
 .archive[data-pin] :is(.dossier__paper, .companion__paper) { box-shadow: inset 0 -1px 0 rgb(0 0 0 / .18), 0 1px 0 rgb(255 255 255 / .1); }
+
+/* the sheet being peeled to another draft stays under the light shading (it used to lie over it and show unshaded) */
+.archive[data-pin] .dossier .peel { z-index: 2; }
