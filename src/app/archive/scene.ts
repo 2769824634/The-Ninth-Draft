@@ -17,7 +17,7 @@
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 import { Spring, SpringV3, damp } from '../spring';
-import { reducedMotion } from '../prefs';
+import { prefs, reducedMotion } from '../prefs';
 import { islandNow } from '../island';
 import { StacksRoom, AR, WINDOWS, type StacksCategory } from './room';
 import { setStacksAniso } from './textures';
@@ -86,6 +86,8 @@ export interface StacksEvents {
   tray(): void;
   safe(): void;
   dehumidifier(): void;
+  /** The window cord clicked. */
+  blinds(): void;
 }
 
 interface View {
@@ -149,7 +151,7 @@ export class StacksScene {
   private examLevel: number[] = [];
   private hush = 0;
   private blindK = 0;
-  blindsShut = false;
+  blindsShut = !!prefs.get('blindsShut');
   private examFlick: number[] = [];
   /** Where a page is being read, if one is. */
   private readPoint: THREE.Vector3 | null = null;
@@ -398,11 +400,14 @@ export class StacksScene {
     this.blindK += ((this.blindsShut ? 1 : 0) - this.blindK) * Math.min(1, dt * 3);
     r.setBlades(this.blindK);
     const open = 1 - 0.72 * this.blindK;
-    this.hemi.intensity = L.hemi * (1 - wet * 0.2) * open * (1 - 0.6 * this.hush);
+    // sunlight through open louvres: the room beyond the window light sits a little darker
+    const beamK = day * (1 - wet) * (1 - this.blindK) * Math.max(0, Math.min(1, (hour - 6.5) / 1.5)) * Math.max(0, Math.min(1, (19 - hour) / 1.5));
+    const shade = 1 - 0.14 * beamK;
+    this.hemi.intensity = L.hemi * (1 - wet * 0.2) * open * (1 - 0.6 * this.hush) * shade;
     this.sun.intensity = L.sun * (1 - wet * 0.4) * open;
     this.sun.visible = this.sun.intensity > 0.05;
     this.sun.color.set('#fff1d8').lerp(new THREE.Color('#dfe6ee'), wet).lerp(new THREE.Color('#ffc890'), dusk * (1 - wet) * 0.7);
-    this.scene.environmentIntensity = L.env * (1 - wet * 0.2) * open * (1 - 0.6 * this.hush);
+    this.scene.environmentIntensity = L.env * (1 - wet * 0.2) * open * (1 - 0.6 * this.hush) * shade;
     // outside at night: the sodium lamp always, the moon when it is up and the sky is clear
     const moon = this.moonK * L.night;
     r.street.intensity = L.street * (this.moonK > 0.18 ? 0.5 : 1) * open;
@@ -413,12 +418,15 @@ export class StacksScene {
     const patch = new THREE.Color('#fff3d6').lerp(new THREE.Color('#ffb46a'), dusk);
     const nightPatch = new THREE.Color('#ff9a3c').lerp(new THREE.Color('#9fb2e6'), Math.min(1, this.moonK * 1.6));
     r.sunPatches.forEach((m, i) => {
-      const dayOp = open * day * (0.22 - wet * 0.17), nightOp = open * L.night * (0.07 + this.moonK * 0.12) * (1 - wet * 0.4);
+      const dayOp = open * day * (0.34 - wet * 0.29), nightOp = open * L.night * (0.07 + this.moonK * 0.12) * (1 - wet * 0.4);
       m.material.opacity = dayOp + nightOp;
       m.material.color.copy(patch).lerp(nightPatch, nightOp / Math.max(1e-4, dayOp + nightOp));
       // the patches creep across the floor with the sun
       m.position.x = Math.min(AR.x1 - 0.85, WINDOWS[i] + 0.55 + (Math.min(19, Math.max(7, hour)) - 13) * 0.08);
     });
+    const still = this.reduce || window.matchMedia('(max-width: 900px)').matches;
+    r.setBeams(beamK, t, still ? 0 : 1);
+    r.tickCord(dt);
     r.exitMat.emissiveIntensity = 0.3 + L.night * 0.9;
 
     // lamps
@@ -693,6 +701,7 @@ export class StacksScene {
       else if (p.tray) this.on.tray();
       else if (p.safe) this.on.safe();
       else if (p.dehumidifier) this.on.dehumidifier();
+      else if (p.blinds) this.on.blinds();
       else if (p.zone) this.goZone(p.zone as StacksZone);
     });
     new ResizeObserver(() => this.resize()).observe(c);

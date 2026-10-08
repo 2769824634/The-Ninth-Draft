@@ -16,7 +16,7 @@ import * as THREE from 'three';
 import { reducedMotion } from '../prefs';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 import {
-  INK, KU, DIN, DINB, RED, clockFace, contactShadow, drawerCard, envelopeTops, fileTab, hygroFace, ledgerSpread, louvreLight, mapSheet, panelling, plate, rng, runner, sheet, teakFloor, windowView, woodTex,
+  INK, KU, DIN, DINB, RED, clockFace, contactShadow, drawerCard, envelopeTops, fileTab, hygroFace, ledgerSpread, beamLight, louvreLight, mapSheet, panelling, plate, rng, runner, sheet, teakFloor, windowView, woodTex,
 } from './textures';
 
 export const AR = { x0: -5.6, x1: 5.6, z0: -3.6, z1: 3.6, h: 3.4, wall: 0.22, slab: 0.24 };
@@ -180,6 +180,44 @@ export class StacksRoom {
     for (const b of this.blades) b.rotation.x = -1.0 + 0.95 * shut;
   }
   readonly sunPatches: THREE.Mesh<THREE.PlaneGeometry, THREE.MeshBasicMaterial>[] = [];
+  /** Shafts of daylight from each window to its patch on the floor, and the dust hanging in them. */
+  private beams: { g: THREE.Group; mats: THREE.MeshBasicMaterial[]; dust: THREE.Points }[] = [];
+  /** The cord on the wall that opens and shuts all four windows. */
+  private cord: THREE.Group | null = null;
+  private cordPull = 0;
+  /** Light the shafts (0–1) and drift the dust; `motion` 0 holds it still. */
+  setBeams(k: number, t: number, motion: number) {
+    this.beams.forEach((b, i) => {
+      const patch = this.sunPatches[i];
+      b.g.visible = k > 0.01;
+      if (!b.g.visible) return;
+      const from = new THREE.Vector3(WINX[i], 2.45, AR.z0 + 0.04);
+      const to = new THREE.Vector3(patch.position.x, 0.02, patch.position.z);
+      b.g.position.copy(from).lerp(to, 0.5);
+      b.g.lookAt(to);
+      b.g.scale.set(1, 1, from.distanceTo(to) / 3);
+      b.mats.forEach((m) => (m.opacity = 0.17 * k));
+      (b.dust.material as THREE.PointsMaterial).opacity = 0.7 * k;
+      const a = b.dust.geometry.getAttribute('position') as THREE.BufferAttribute;
+      for (let j = 0; j < a.count; j++) {
+        const ph = j * 1.7 + i;
+        a.setXYZ(j, Math.sin(ph) * 0.55 + Math.sin(t * 0.18 * motion + ph * 2) * 0.05, Math.cos(ph * 1.3) * 0.12 + Math.sin(t * 0.23 * motion + ph) * 0.06, ((j * 0.618) % 1) * 2.6 - 1.3 + Math.sin(t * 0.15 * motion + ph) * 0.04);
+      }
+      a.needsUpdate = true;
+    });
+  }
+  /** The cord goes down a little when it is pulled and swings back. */
+  pullCord(on: boolean) {
+    this.cordPull = 1;
+    void on;
+  }
+  tickCord(dt: number) {
+    if (!this.cord) return;
+    this.cordPull = Math.max(0, this.cordPull - dt * 2.4);
+    const e = Math.sin(this.cordPull * Math.PI);
+    this.cord.position.y = 2.95 - 0.1 * e;
+    this.cord.rotation.z = Math.sin(this.cordPull * 14) * 0.06 * this.cordPull;
+  }
   readonly exitMat: THREE.MeshStandardMaterial;
   readonly ledMat: THREE.MeshStandardMaterial;
 
@@ -1413,7 +1451,51 @@ export class StacksRoom {
       m.position.set(wx + 0.55, 0.01, AR.z0 + 1.6);
       this.group.add(m);
       this.sunPatches.push(m);
+      // a shaft from the window to the patch: two crossed sheets, and a few motes in it
+      const bg = new THREE.Group();
+      const bt = beamLight();
+      const mats: THREE.MeshBasicMaterial[] = [];
+      for (const rz of [0, Math.PI / 2]) {
+        const bm = new THREE.MeshBasicMaterial({ map: bt, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, fog: false });
+        const pl = new THREE.Mesh(new THREE.PlaneGeometry(1.4, 3), bm);
+        pl.rotation.order = 'ZXY';
+        pl.rotation.set(Math.PI / 2, rz, 0);
+        bg.add(pl);
+        mats.push(bm);
+      }
+      const dg = new THREE.BufferGeometry();
+      dg.setAttribute('position', new THREE.BufferAttribute(new Float32Array(30 * 3), 3));
+      const dust = new THREE.Points(dg, new THREE.PointsMaterial({ color: '#fff1d0', size: 0.022, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending, fog: false }));
+      dust.frustumCulled = false;
+      bg.add(dust);
+      bg.visible = false;
+      this.group.add(bg);
+      this.beams.push({ g: bg, mats, dust });
     }
+    this.blindCord();
+  }
+
+  /** A pull cord on the wall between two windows: a brass knob and a tassel; tug it to open or shut every window. */
+  private blindCord() {
+    const M = this.M;
+    const g = new THREE.Group();
+    g.position.set(1.2, 2.95, AR.z0 + 0.06);
+    this.group.add(g);
+    this.cord = g;
+    this.cyl(g, 0.007, 0.007, 1.1, 0, -0.55, 0, std({ color: "#efe6c8", roughness: 0.9 }));
+    const knob = new THREE.Mesh(new THREE.SphereGeometry(0.04, 14, 10), M.brass ?? std({ color: '#a8843f', metalness: 0.7, roughness: 0.35 }));
+    knob.position.y = -1.12;
+    g.add(knob);
+    const tassel = new THREE.Mesh(new THREE.ConeGeometry(0.022, 0.1, 10), std({ color: '#8a3b2a', roughness: 0.8 }));
+    tassel.position.y = -1.2;
+    tassel.rotation.x = Math.PI;
+    g.add(tassel);
+    const hb = new THREE.Mesh(BOX, new THREE.MeshBasicMaterial({ visible: false }));
+    hb.scale.set(0.16, 0.5, 0.16);
+    hb.position.y = -1.0;
+    hb.userData = { blinds: true, key: 'blinds' };
+    g.add(hb);
+    this.hits.push(hb);
   }
 
   /* ---------------- formal drawers: opened, with the files hanging in them ---------------- */

@@ -10,6 +10,8 @@ export interface Prefs {
   lang: 'en' | 'zh';
   /** A file taken to the table opens at once, instead of waiting shut on the blotter for the reader to open it. */
   openAtOnce?: boolean;
+  /** The archive's window blinds were left shut. */
+  blindsShut?: boolean;
 }
 
 const KEY = 'n9:prefs';
