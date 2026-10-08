@@ -83,7 +83,9 @@ export class Sheet {
     );
     // the cover swings open on its spine, then is set aside
     flap.animate([{ transform: 'perspective(1800px) rotateY(0deg)' }, { transform: 'perspective(1800px) rotateY(-168deg)' }], { duration: 440, delay: 800, easing: 'cubic-bezier(.55,0,.25,1)', fill: 'both' });
-    window.setTimeout(() => audio.paper(), 820);
+    window.setTimeout(() => audio.flap(), 800);
+    window.setTimeout(() => audio.slide(), 980);
+    window.setTimeout(() => audio.settle(), 1230);
     const out = cover.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 240, delay: 1200, fill: 'forwards' });
     out.onfinish = () => cover.remove();
   }
@@ -98,6 +100,7 @@ export class Sheet {
     const tx = to?.x ?? cx, ty = to?.y ?? r.bottom + r.height * 0.4;
     const cover = this.make(rec, r);
     const flap = cover.firstElementChild as HTMLElement;
+    audio.flap();
     flap.animate([{ transform: 'perspective(1800px) rotateY(-168deg)' }, { transform: 'perspective(1800px) rotateY(0deg)' }], { duration: 300, easing: 'cubic-bezier(.45,0,.3,1)', fill: 'both' });
     const back = cover.animate(
       [
@@ -123,11 +126,13 @@ export class Sheet {
     const paper = this.paper;
     const away = table ? `translateX(${-dir * 38}%) rotate(${-dir * 1.6}deg)` : `translate(${-dir * 4}%, 26%) scale(.97)`;
     const come = table ? `translateX(${dir * 38}%) rotate(${dir * 1.6}deg)` : `translate(${dir * 4}%, 26%) scale(.97)`;
+    audio.slide();
     const a = paper.animate([{ transform: 'none', opacity: 1 }, { transform: away, opacity: 0 }], { duration: 230, easing: EASE_IN, fill: 'forwards' });
     a.onfinish = () => {
       fill();
       paper.scrollTop = 0;
       paper.animate([{ transform: come, opacity: 0 }, { transform: 'none', opacity: 1 }], { duration: 440, easing: EASE_OUT });
+      window.setTimeout(() => audio.settle(), 300);
       a.cancel();
     };
   }

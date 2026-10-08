@@ -346,5 +346,7 @@
   "Revise yourself out? Your card and your flat will be removed from this device. Keep your phrase if you want them back.": "把自己修订掉？身份证和屋子会从这台设备上删掉。想找回来，记好口令。",
   "Your identity card, as it stands. Tap to turn it over.": "你的身份证，填到哪印到哪。点一下翻面。",
   "Your identity card. Tap to turn it over.": "你的身份证。点一下翻面。",
-  "Letterboxes on your floor": "你这一层的信箱"
+  "Letterboxes on your floor": "你这一层的信箱",
+  "p. {n}": "第 {n} 页",
+  "Page {n} of {m}": "第 {n} 页 / 共 {m} 页"
 }
