@@ -476,8 +476,16 @@ export class Stacks {
       const level = stamp ? Stacks.EXAM[clearanceKey(stamp)] ?? 0 : 0;
       s.room.exams.forEach((_, k) => k !== i && s.setExam(k, 0));
       if (i >= 0) {
-        if (level > 0 && (s.examWanted[i] ?? 0) === 0) audio.tube();
-        s.setExam(i, level);
+        // the same file under the same lamp (stepping through its drafts): the lamp keeps the state the reader left it in;
+        // only its strength follows the draft, so it neither restarts nor lights itself
+        const keep = this.examAt?.i === i && this.examAt.at === at;
+        const now = s.examWanted[i] ?? 0;
+        if (keep) {
+          if (now > 0 && level > 0) s.setExam(i, level);
+        } else {
+          if (level > 0 && now === 0) audio.tube();
+          s.setExam(i, level);
+        }
       }
       this.examAt = at && i >= 0 ? { i, level, at } : null;
       if (!at) s.setReadPoint(null);
