@@ -63,6 +63,11 @@ export function office() {
   data.files = data.files.filter((f) => on(f.file));
   data.tapes = data.tapes.filter((t) => t.kind !== 'record' || on(t.label));
   data.slides = data.slides.filter((f) => on(f.file));
+  // the counts under the room's name, as they stand today
+  const stat = (k: string, n: number) => document.querySelectorAll<HTMLElement>(`[data-stat="${k}"]`).forEach((el) => (el.textContent = String(n)));
+  stat('log', data.log.length);
+  stat('files', data.files.length);
+  stat('tapes', data.tapes.length);
   const root = $('of');
   const base = data.base;
   const voice = new Archivist(lines as unknown as ArchivistLines, 'office.idle');

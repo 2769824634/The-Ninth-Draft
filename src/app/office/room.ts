@@ -11,6 +11,7 @@
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 import { rainTexture, woodTexture } from '../library/textures';
+import { islandRaining } from '../weather';
 import { TapeShelf, type ShelfTape, type Well } from './cassettes';
 import { Projector } from './projector';
 import { TrayCrate, type TrayInfo } from './trays';
@@ -194,6 +195,7 @@ export class Room {
     night.name = 'night-view';
     night.userData.mat = nightMat;
     const rain = new THREE.Mesh(plane, new THREE.MeshBasicMaterial({ map: this.rain, transparent: true, opacity: 0.4, depthWrite: false }));
+    rain.visible = islandRaining();
     const cx = (WIN.x0 + WIN.x1) / 2, cy = (WIN.y0 + WIN.y1) / 2;
     day.position.set(cx, cy, z0 - wall - 0.25);
     night.position.set(cx, cy, z0 - wall - 0.249);

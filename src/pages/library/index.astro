@@ -26,7 +26,7 @@ const zones = [
     <div class="lib__head">
       <p class="lib__kicker micro"><span data-l="en">Room 03 / Reading room</span><span data-l="zh">03 室 / 阅览室</span></p>
       <h1 class="lib__title"><span data-l="en">Library</span><span data-l="zh">资料室</span></h1>
-      <p class="lib__stats micro"><span data-l="en">{volumes} volumes · {cards} cards · open stacks</span><span data-l="zh">藏书 {volumes} 册 · 卡片 {cards} 张 · 开架</span></p>
+      <p class="lib__stats micro"><span data-l="en"><b data-stat="volumes">{volumes}</b> volumes · <b data-stat="cards">{cards}</b> cards · open stacks</span><span data-l="zh">藏书 <b data-stat="volumes">{volumes}</b> 册 · 卡片 <b data-stat="cards">{cards}</b> 张 · 开架</span></p>
       <nav class="lib__zones" id="lib-zones" aria-label="Corners of the room">
         {zones.map((z, i) => (
           <button type="button" data-zone={z.id} aria-pressed={i === 0 ? 'true' : 'false'}>

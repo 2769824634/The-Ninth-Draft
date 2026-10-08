@@ -15,6 +15,7 @@
  * notes never reach the press, and redactions stay black.
  */
 import type { ClientAttachment, ClientRecord } from './records';
+import { islandRaining } from '../app/weather';
 
 type L = { en: string; zh: string };
 
@@ -253,7 +254,8 @@ export function buildIssues(records: ClientRecord[]): Issue[] {
         tv: television(n, s),
         corrections: x.corrections.filter((c) => c !== lead),
         notices: x.notices.filter((m) => m !== lead),
-        weather: pick(WEATHER, 1),
+        // the same sky the rooms show for that day (src/app/weather.ts)
+        weather: pick(islandRaining(x.date) ? WEATHER : DRY, 1),
         tide,
         classifieds: run(CLASSIFIEDS, 12, s % CLASSIFIEDS.length),
         office: OFFICE[(n * 5 + (s % 2)) % OFFICE.length],
@@ -393,6 +395,15 @@ const WEATHER: L[] = [
   { en: 'Overcast, 28°C. Rain expected, as it has been since March.', zh: '阴，28°C。预计有雨，从三月起一直预计有雨。' },
   { en: 'Showers over the Axis. Woodlands had them an hour ago.', zh: '中枢有阵雨。兀兰一小时前已经下过。' },
   { en: 'Fine spells between showers, none of them long.', zh: '阵雨之间偶有晴天，都不长。' },
+];
+
+/** Days the sums in weather.ts call dry. */
+const DRY: L[] = [
+  { en: 'Fair, 31°C. Hazy over the strait by evening.', zh: '晴，31°C。傍晚海峡上空起薄霾。' },
+  { en: 'Dry, light winds, 31°C. Laundry poles out by eight.', zh: '无雨，微风，31°C。八点前把晾衣竹竿伸出去。' },
+  { en: 'Sunny spells, 30°C. No rain forecast. The forecast has been wrong before.', zh: '间中晴朗，30°C。预报无雨。预报以前也错过。' },
+  { en: 'Hot and still, 32°C. The Office asks residents to water the corridor plants.', zh: '闷热无风，32°C。记录署请居民给走廊上的盆栽浇水。' },
+  { en: 'Clear morning, cloud after lunch, 30°C. Should stay dry.', zh: '早上晴，午饭后起云，30°C。应该不会下雨。' },
 ];
 
 const CLASSIFIEDS: L[] = [
