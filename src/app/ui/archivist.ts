@@ -7,6 +7,11 @@ import { reducedMotion } from '../prefs';
 import { audio } from '../audio';
 import { isZh } from '../i18n';
 import zhLines from '../../data/archivist.zh.json';
+import { islandRaining } from '../weather';
+
+/** Lines that say it is raining right now. On a dry island day they stay unsaid, so the clerk agrees with the window. */
+const WET_NOW = /raining|this rain|this weather|rain didn't|rain off the windows|rain gets louder|rain on the skylight|wet shoes|下雨了|在下雨|这种天气|雨没出去|窗上的雨水|雨声就大了|雨打在|鞋是湿的|这个雨/i;
+const DRY_TODAY = !islandRaining();
 
 type Vars = Record<string, string | number>;
 
@@ -43,7 +48,12 @@ export class Archivist {
     const list = Array.isArray(g) ? g : sub && g ? g[sub] : null;
     if (!list || !list.length) return null;
     const prev = this.last.get(key);
-    const pool = list.length > 1 ? list.filter((l) => l !== prev) : list;
+    let usable = list;
+    if (DRY_TODAY) {
+      const dry = list.filter((l) => !WET_NOW.test(l));
+      if (dry.length) usable = dry;
+    }
+    const pool = usable.length > 1 ? usable.filter((l) => l !== prev) : usable;
     const raw = pool[Math.floor(Math.random() * pool.length)];
     this.last.set(key, raw);
     return raw.replace(/\{(\w+)\}/g, (_, k) => String(vars[k] ?? ''));
@@ -52,7 +62,8 @@ export class Archivist {
   /** A whole group of lines in the current language (e.g. the boot sequence). */
   list(group: string): string[] {
     const g = (isZh() ? (zhLines as unknown as ArchivistLines) : this.lines)[group];
-    return Array.isArray(g) ? g : [];
+    const all = Array.isArray(g) ? g : [];
+    return DRY_TODAY ? all.filter((l) => !WET_NOW.test(l)) : all;
   }
 
   /** Say something. `priority` lines interrupt; others wait for a quiet moment. */

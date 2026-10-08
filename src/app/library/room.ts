@@ -11,6 +11,7 @@ import * as THREE from 'three';
 import { Spring } from '../spring';
 import { catCardTexture, drawerTagTexture, fillerSpineTexture, parquetTexture, plasterTexture, rainTexture, stampMarkTexture, windowView, woodTexture } from './textures';
 import type { ShelfPose } from './books';
+import { islandRaining } from '../weather';
 
 export const ROOM = { x0: -12, x1: 12, z0: -7, z1: 7, h: 6.4, wall: 0.45, slab: 0.3 };
 export const TABLE_H = 0.76;
@@ -77,6 +78,8 @@ export class Room {
   readonly shaftMat: THREE.ShaderMaterial;
   readonly dust: THREE.Points;
   readonly rain = rainTexture();
+  /** Rain on the glass only on the island's wet days (src/app/weather.ts), the same sky as the archive. */
+  readonly wet = islandRaining();
   private beamGroup = new THREE.Group();
   /** The uncatalogued volumes, one instanced mesh per run. */
   readonly fillers: THREE.InstancedMesh[] = [];
@@ -195,6 +198,7 @@ export class Room {
       this.nightGlass.push(nightMat);
       const night = new THREE.Mesh(g, nightMat);
       const rain = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ map: this.rain, transparent: true, opacity: 0.32, depthWrite: false }));
+      rain.visible = this.wet;
       [day, night, rain].forEach((mesh, i) => {
         mesh.position.set(cx, sill, z0 - wall * 0.7 + i * 0.004);
         this.group.add(mesh);

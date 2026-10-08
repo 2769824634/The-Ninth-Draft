@@ -51,7 +51,7 @@ const zones = [
     <div class="lib__head">
       <p class="lib__kicker micro"><span data-l="en">Room 04 / Basement · Data Section</span><span data-l="zh">04 室 / 地下一层 · 数据组</span></p>
       <h1 class="lib__title"><span data-l="en">Office</span><span data-l="zh">办公室</span></h1>
-      <p class="lib__stats micro"><span data-l="en">{data.log.length} revisions logged · {data.files.length} files · one computer · {tapes.length} tapes</span><span data-l="zh">修订 {data.log.length} 条 · 档案 {data.files.length} 份 · 电脑一台 · 磁带 {tapes.length} 盘</span></p>
+      <p class="lib__stats micro"><span data-l="en"><b data-stat="log">{data.log.length}</b> revisions logged · <b data-stat="files">{data.files.length}</b> files · one computer · <b data-stat="tapes">{tapes.length}</b> tapes</span><span data-l="zh">修订 <b data-stat="log">{data.log.length}</b> 条 · 档案 <b data-stat="files">{data.files.length}</b> 份 · 电脑一台 · 磁带 <b data-stat="tapes">{tapes.length}</b> 盘</span></p>
       <nav class="lib__zones" id="of-zones" aria-label="Corners of the room">
         {zones.map((z, i) => (
           <button type="button" data-zone={z.id} aria-pressed={i === 0 ? 'true' : 'false'}><i>{String(i).padStart(2, '0')}</i><span data-l="en">{z.en}</span><span data-l="zh">{z.zh}</span></button>

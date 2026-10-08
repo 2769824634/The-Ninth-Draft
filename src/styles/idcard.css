@@ -5,7 +5,7 @@
    ========================================================================== */
 
 /* ---------- the identity card: a laminated card, two faces ---------- */
-.idc { position: relative; width: 100%; max-width: 22rem; aspect-ratio: 1.586; perspective: 1400px; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+.idc { position: relative; width: 100%; max-width: 22rem; aspect-ratio: 1.586; container-type: inline-size; perspective: 1400px; cursor: pointer; -webkit-tap-highlight-color: transparent; }
 .idc__in { position: absolute; inset: 0; transform-style: preserve-3d; transition: transform 720ms cubic-bezier(.3, 1.35, .45, 1); }
 .idc.is-back .idc__in { transform: rotateY(180deg); }
 .idc__face {
@@ -20,7 +20,8 @@
   background: var(--idc-print), linear-gradient(160deg, var(--idc-paper-a), var(--idc-paper-b));
   box-shadow: 0 1px 1px rgb(0 0 0 / .18), 0 12px 24px -12px rgb(0 0 0 / .5);
   backface-visibility: hidden;
-  font-size: clamp(.5rem, 2.6vw, .64rem);
+  /* type scales with the card itself, so a small card in the margin keeps its layout */
+  font-size: clamp(.38rem, 2.9cqi, .64rem);
 }
 .idc__back { transform: rotateY(180deg); }
 /* the laminate: a sheen that crosses once when the card comes out of the machine */
@@ -31,7 +32,9 @@
 .idc__band { display: flex; align-items: baseline; gap: .45em; margin: -.55rem -.7rem .45rem; padding: .32rem .7rem; background: var(--idc-band); color: var(--idc-band-ink, #f6efdc); font-family: var(--f-mono); letter-spacing: .14em; }
 .idc__band b { font-weight: 600; font-size: 1.25em; }
 .idc__band span { font-family: var(--f-sans); letter-spacing: .1em; }
-.idc__band em { margin-left: auto; font-style: normal; font-size: .82em; opacity: .85; }
+.idc__band em { margin-left: auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; font-style: normal; font-size: .82em; opacity: .85; }
+/* one line for the band, whatever the stock's hole or corner takes from it */
+.idc__band { flex-wrap: nowrap; white-space: nowrap; }
 .idc__body { display: grid; grid-template-columns: 31% 1fr; gap: .7rem; }
 .idc__photo canvas { display: block; width: 100%; aspect-ratio: 4 / 5; border: 1px solid rgb(0 0 0 / .35); background: #ddd2b8; filter: sepia(.25) contrast(1.05); }
 .idc__fields { margin: 0; display: grid; gap: .32rem; align-content: start; }
@@ -42,7 +45,9 @@
 .idc__f dd { margin: .05rem 0 0; font-family: var(--f-mono); font-size: 1.12em; letter-spacing: .06em; line-height: 1.25; overflow-wrap: anywhere; }
 .idc__name dd { font-family: var(--f-display); font-weight: 800; font-size: 1.55em; letter-spacing: .03em; line-height: 1; }
 .idc__code { font-family: var(--f-mono); font-weight: 600; font-size: 1.5em; letter-spacing: .3em; color: #1d1a16; padding: .05rem 0 .1rem; border-bottom: 1px dotted rgb(0 0 0 / .3); }
-.idc__no { position: absolute; left: .7rem; bottom: .42rem; margin: 0; font-family: var(--f-mono); font-size: 1.15em; letter-spacing: .18em; }
+/* the front stacks top to bottom, so the card number sits under the fields and never on them */
+.idc__front { display: flex; flex-direction: column; }
+.idc__no { margin: auto 0 0; padding-top: .2rem; font-family: var(--f-mono); font-size: 1.15em; letter-spacing: .18em; }
 .idc__dash { color: #a2978a; letter-spacing: .1em; }
 .idc__back .idc__fields { margin-top: .2rem; max-width: 72%; }
 .idc__addr dd { font-size: 1.05em; }
@@ -245,6 +250,7 @@
 @media (prefers-reduced-motion: reduce) { .keytag.is-given { animation: none; } }
 
 /* ---------- my home ---------- */
+.home[hidden] { display: none; }
 .home { display: grid; grid-template-columns: minmax(0, 1fr) 22rem; gap: 2.6rem; align-items: start; }
 .home__door { margin: 0; font-family: var(--f-display); font-weight: 800; font-stretch: 112%; font-size: clamp(2.6rem, 8vw, 5rem); line-height: 1; letter-spacing: -.01em; }
 .home__addr { margin: .5rem 0 0; font-family: var(--f-serif); font-size: 1.15rem; color: var(--ink-2); }

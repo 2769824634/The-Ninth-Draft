@@ -597,7 +597,8 @@ export class LibraryScene {
       p.globe.emissiveIntensity = 0.55 + L.night * 0.8;
     }
     for (const g of this.room.nightGlass) g.opacity = L.night;
-    this.room.shaftMat.uniforms.uOpacity.value = this.tier < 3 ? (1 - L.night) * 0.075 : 0;
+    // a wet day lets less sun through the arches
+    this.room.shaftMat.uniforms.uOpacity.value = this.tier < 3 ? (1 - L.night) * 0.075 * (this.room.wet ? 0.35 : 1) : 0;
     (this.room.dust.material as THREE.PointsMaterial).opacity = 0.15 + (1 - L.night) * 0.4;
     this.room.rain.offset.y += dt * 0.03;
     const dp = this.room.dust.geometry.attributes.position as THREE.BufferAttribute;
