@@ -1,5 +1,7 @@
 /**
  * The resident's identity card and the reader's pass, as markup. The card
+ * comes in three stocks, one for each box on the form (G, R, N): the colour,
+ * the security print and the cut differ, the words on it do not. The card
  * prints its labels in both languages, the way the island's cards do, and
  * its values the way the register keeps them, so it reads the same whichever
  * language the page is in. Styles: src/styles/idcard.css.
@@ -38,8 +40,12 @@ export function cardHTML(v: Partial<Visitor> & { code?: string }, o: { reissued?
   const no = v.no && v.code ? cardNo({ no: v.no, code: v.code }) : '';
   const code = v.origin ? codeRow(v) : '';
   const home = v.home;
+  // each kind of card has its own stock: colour, print and cut (idcard.css), never a word for the kind
+  const kind = ` idc--${v.origin ?? 'blank'}`;
+  const mark = v.origin === 'R' && v.since ? `<span class="idc__wm" aria-hidden="true">${String(v.since % 100).padStart(2, '0')}</span>` : v.origin === 'N' ? '<i class="idc__hole" aria-hidden="true"></i>' : v.origin === 'G' ? '<i class="idc__rose" aria-hidden="true"></i>' : '';
   return `
-  <div class="idc__face idc__front">
+  <div class="idc__face idc__front${kind}">
+    ${mark}
     <p class="idc__band"><b>GERIMIS</b><span>霏微</span><em>IDENTITY CARD · 居民身份证</em></p>
     <div class="idc__body">
       <div class="idc__photo"><canvas width="150" height="188" aria-hidden="true"></canvas></div>
@@ -55,7 +61,7 @@ export function cardHTML(v: Partial<Visitor> & { code?: string }, o: { reissued?
     </div>
     <p class="idc__no">${no || '<span class="idc__dash">V — — — — — — —</span>'}</p>
   </div>
-  <div class="idc__face idc__back">
+  <div class="idc__face idc__back${kind}">
     <dl class="idc__fields">
       ${row('Address', '住址', home ? `${esc(`BLK ${home.blk}${home.street ? ` ${home.street}` : ''}`.toUpperCase())}<br>${doorText(home)} · GERIMIS ${home.postcode}` : dash, ' idc__addr')}
       ${row('Date of issue', '签发日期', v.at ? issued(v.at) : dash)}
