@@ -18,6 +18,8 @@ import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeom
 import {
   INK, KU, DIN, DINB, RED, clockFace, contactShadow, drawerCard, envelopeTops, fileTab, hygroFace, ledgerSpread, beamLight, filedStamp, louvreLight, mapSheet, panelling, plate, rng, runner, sheet, teakFloor, windowView, woodTex,
 } from './textures';
+import { Studer } from './studer';
+import { REEL_BOXES } from './reels';
 
 export const AR = { x0: -5.6, x1: 5.6, z0: -3.6, z1: 3.6, h: 3.4, wall: 0.22, slab: 0.24 };
 const CAB = { w: 0.47, d: 0.62, h: 1.32, n: 4 };
@@ -343,6 +345,8 @@ export class StacksRoom {
     this.cord.rotation.z = Math.sin(this.cordPull * 14) * 0.06 * this.cordPull;
   }
   readonly exitMat: THREE.MeshStandardMaterial;
+  /** The reel-to-reel machine on its sideboard, in the corner right of the reading table. */
+  readonly studer: Studer;
   readonly ledMat: THREE.MeshStandardMaterial;
 
   private M = {
@@ -390,6 +394,10 @@ export class StacksRoom {
     this.door();
     // the reading table first: its two lamps are desks 0 and 1, the intake lamp is desk 2
     this.readingTable();
+    this.studer = new Studer(REEL_BOXES);
+    this.studer.group.position.set(5.17, 0, AR.z0 + 0.27);
+    this.group.add(this.studer.group);
+    this.hits.push(...this.studer.hits);
     this.counter(opts.today);
     this.cardIndex();
     this.odds();
