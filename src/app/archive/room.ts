@@ -16,7 +16,7 @@ import * as THREE from 'three';
 import { reducedMotion } from '../prefs';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 import {
-  INK, KU, DIN, DINB, RED, clockFace, contactShadow, drawerCard, envelopeTops, fileTab, hygroFace, ledgerSpread, beamLight, waterBeads, louvreLight, mapSheet, panelling, plate, rng, runner, sheet, teakFloor, windowView, woodTex,
+  INK, KU, DIN, DINB, RED, clockFace, contactShadow, drawerCard, envelopeTops, fileTab, hygroFace, ledgerSpread, beamLight, louvreLight, mapSheet, panelling, plate, rng, runner, sheet, teakFloor, windowView, woodTex,
 } from './textures';
 
 export const AR = { x0: -5.6, x1: 5.6, z0: -3.6, z1: 3.6, h: 3.4, wall: 0.22, slab: 0.24 };
@@ -185,6 +185,46 @@ export class StacksRoom {
       this.flyers.push({ m, from: from.clone(), to: to.clone(), t: -i * 0.35 });
     });
   }
+  /** Water dripping off the wet umbrella's rim: swells, lets go, falls, and rings the puddle. */
+  private drips: { m: THREE.Mesh; ring: THREE.Mesh; at: THREE.Vector3; t: number; vy: number; ly: number }[] = [];
+  private tickDrips(dt: number) {
+    if (!this.rainNow) return;
+    const still = this.still;
+    for (const d of this.drips) {
+      const floor = 0.012;
+      if (still) {
+        d.m.position.copy(d.at).y -= 0.012;
+        d.m.scale.set(1, 1.35, 1);
+        continue;
+      }
+      d.t += dt;
+      const hang = 1.8;
+      if (d.t < hang) {
+        // swelling on the rim
+        const k = d.t / hang;
+        d.m.scale.setScalar(0.35 + 0.65 * k).y *= 1 + 0.5 * k * k;
+        d.m.position.copy(d.at).y -= 0.014 * k * k;
+        d.vy = 0;
+        (d.ring.material as THREE.MeshBasicMaterial).opacity = Math.max(0, (d.ring.material as THREE.MeshBasicMaterial).opacity - dt * 2);
+      } else {
+        d.vy += 9.8 * dt;
+        d.m.position.y -= d.vy * dt;
+        d.m.scale.set(0.85, 1.4, 0.85);
+        if (d.m.position.y <= floor) {
+          // landed: a ring on the puddle, then a new drop starts to swell
+          d.ring.position.set(d.m.position.x, 0.009, d.m.position.z);
+          d.ring.scale.setScalar(0.01);
+          (d.ring.material as THREE.MeshBasicMaterial).opacity = 0.5;
+          d.t = 0;
+          d.m.position.copy(d.at);
+          d.m.scale.setScalar(0.35);
+        }
+      }
+      const mat = d.ring.material as THREE.MeshBasicMaterial;
+      if (mat.opacity > 0) d.ring.scale.addScalar(dt * 0.12);
+    }
+  }
+
   private tickFlyers(dt: number) {
     for (let i = this.flyers.length - 1; i >= 0; i--) {
       const f = this.flyers[i];
@@ -1286,21 +1326,37 @@ export class StacksRoom {
     canopy.position.y = 0.45;
     um.add(canopy);
     this.cyl(um, 0.008, 0.008, 0.8, 0, 0.1, 0, M.chrome);
-    // not dry yet: beads of water on the cloth, and a drip hanging from each rib tip
-    const beads = new THREE.Mesh(
-      new THREE.ConeGeometry(0.484, 0.222, 8, 1, true),
-      std({ map: waterBeads(), transparent: true, roughness: 0.04, metalness: 0, side: THREE.DoubleSide, depthWrite: false, envMapIntensity: 2.2 }),
-    );
-    beads.position.y = 0.45;
-    um.add(beads);
-    const dropMat = std({ color: '#cfe0e6', roughness: 0.02, metalness: 0, transparent: true, opacity: 0.7 });
-    for (let a = 0; a < 8; a++) {
-      const th = (a / 8) * Math.PI * 2 + 0.39;
-      const d = new THREE.Mesh(new THREE.SphereGeometry(0.011, 8, 6), dropMat);
-      d.scale.y = 1.5;
-      d.position.set(Math.cos(th) * 0.485, 0.325, Math.sin(th) * 0.485);
+    // not dry yet: small clear beads sitting on the cloth, and the lowest rim points dripping into the puddle
+    const bead = std({ color: '#dfeaee', roughness: 0.03, metalness: 0, transparent: true, opacity: 0.62, envMapIntensity: 2.4 });
+    let sd = 11;
+    const rd = () => ((sd = (sd * 16807) % 2147483647) / 2147483647);
+    for (let i = 0; i < 22; i++) {
+      const th = rd() * Math.PI * 2, f = 0.25 + rd() * 0.7;
+      const r = 0.48 * f, y = 0.45 + 0.11 - 0.22 * f;
+      const d = new THREE.Mesh(new THREE.SphereGeometry(1, 8, 6), bead);
+      const rr = 0.006 + rd() * 0.007;
+      d.scale.set(rr, rr * 0.6, rr);
+      d.position.set(Math.cos(th) * r, y + 0.004, Math.sin(th) * r);
       um.add(d);
     }
+    um.updateWorldMatrix(true, false);
+    const rim: { p: THREE.Vector3; w: THREE.Vector3 }[] = [];
+    for (let a = 0; a < 8; a++) {
+      const p = new THREE.Vector3(Math.cos(a * 0.785) * 0.48, 0.34, Math.sin(a * 0.785) * 0.48);
+      rim.push({ p, w: um.localToWorld(p.clone()) });
+    }
+    rim.sort((x, y) => x.w.y - y.w.y);
+    const ringMat = new THREE.MeshBasicMaterial({ color: '#cfe0e6', transparent: true, opacity: 0, depthWrite: false });
+    rim.slice(0, 3).forEach((r, i) => {
+      const m = new THREE.Mesh(new THREE.SphereGeometry(0.011, 8, 6), bead);
+      m.position.copy(r.w);
+      this.group.add(m);
+      const ring = new THREE.Mesh(new THREE.RingGeometry(0.9, 1, 24), ringMat.clone());
+      ring.rotation.x = -Math.PI / 2;
+      this.group.add(ring);
+      this.drips.push({ m, ring, at: r.w.clone(), t: i * 1.1 + 0.4, vy: 0, ly: 0 });
+    });
+    this.wet.push(...this.drips.flatMap((d) => [d.m, d.ring]));
     const pud = new THREE.Mesh(new THREE.CircleGeometry(0.55, 32), std({ color: '#8f8a80', roughness: 0.05, metalness: 0.3, transparent: true, opacity: 0.55 }));
     pud.rotation.x = -Math.PI / 2;
     pud.scale.set(1.3, 0.7, 1);
@@ -1745,6 +1801,7 @@ export class StacksRoom {
     }
     this.tickLeaving(motion ? dt : 1);
     this.tickFlyers(dt);
+    this.tickDrips(motion ? dt : 0);
     // each reading lamp turns to the file on its own blotter
     for (const R of this.readLamps) {
       const file = this.side === R.side ? this.seated : this.aside;

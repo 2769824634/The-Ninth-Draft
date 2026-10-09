@@ -670,32 +670,3 @@ export function fileInside(rec: { file: string; title: string; category: string;
   }
   return tex(c);
 }
-
-/** Beads of rain water on a wet cloth: clear drops with a dark rim and a bright catch of light, on nothing else. */
-export function waterBeads() {
-  const c = document.createElement('canvas');
-  c.width = 512;
-  c.height = 256;
-  const g = c.getContext('2d')!;
-  let seed = 7;
-  const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
-  for (let i = 0; i < 420; i++) {
-    const x = rnd() * 512, y = rnd() * 256, r = 1 + rnd() * rnd() * 4;
-    const body = g.createRadialGradient(x - r * 0.3, y - r * 0.35, r * 0.1, x, y, r);
-    body.addColorStop(0, 'rgba(215,232,240,.32)');
-    body.addColorStop(0.7, 'rgba(150,180,195,.2)');
-    body.addColorStop(1, 'rgba(25,35,40,.5)');
-    g.fillStyle = body;
-    g.beginPath();
-    g.ellipse(x, y, r, r * 1.08, 0, 0, Math.PI * 2);
-    g.fill();
-    g.fillStyle = 'rgba(255,255,255,.8)';
-    g.beginPath();
-    g.arc(x - r * 0.35, y - r * 0.4, Math.max(0.6, r * 0.22), 0, Math.PI * 2);
-    g.fill();
-  }
-  const tex = new THREE.CanvasTexture(c);
-  tex.colorSpace = THREE.SRGBColorSpace;
-  tex.wrapS = THREE.RepeatWrapping;
-  return tex;
-}
