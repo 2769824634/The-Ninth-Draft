@@ -23,8 +23,16 @@ import { StacksRoom, AR, WINDOWS, type StacksCategory } from './room';
 import { setStacksAniso } from './textures';
 import { laidOver } from './homography';
 
-export type StacksZone = 'overview' | 'formal' | 'routine' | 'reading' | 'counter' | 'door';
-export const STACKS_ZONES: StacksZone[] = ['overview', 'formal', 'routine', 'reading', 'counter', 'door'];
+export type StacksZone = 'overview' | 'formal' | 'routine' | 'reading' | 'counter' | 'door' | 'reel';
+export const STACKS_ZONES: StacksZone[] = ['overview', 'formal', 'routine', 'reading', 'counter', 'door', 'reel'];
+
+/** What the reel machine is doing, read each frame: where the tape is and how long it is (seconds), the level, the timer window. */
+export interface ReelState {
+  pos: number;
+  len: number;
+  level: number;
+  timer: string;
+}
 
 /**
  * The light falling on a page read at some place in the room, worked out from
@@ -88,6 +96,8 @@ export interface StacksEvents {
   blinds(): void;
   /** The accession register on the intake desk clicked. */
   ledger(): void;
+  /** Something on the reel machine: 'machine', a key (play, stop, rew, ff, zero, locstart, rec, reset), or 'box:<tape id>'. */
+  reel(what: string): void;
 }
 
 interface View {
@@ -227,6 +237,9 @@ export class StacksScene {
         return { at: new THREE.Vector3(3.6, 1.0, 1.7), dir: new THREE.Vector3(3, 4, 8).normalize(), w: 3.6, h: 2.2 };
       case 'door':
         return { at: new THREE.Vector3(-4.0, 1.2, 2.2), dir: new THREE.Vector3(6, 3.2, 4).normalize(), w: 3.8, h: 2.6 };
+      case 'reel':
+        // in front of the machine and above it, over the fan's head, the shelf of tapes in the frame; on a phone the machine sits high, above the slip
+        return { at: this.room.studer.faceCentre().add(new THREE.Vector3(0, this.camera.aspect < 0.85 ? -0.42 : -0.12, 0)), dir: new THREE.Vector3(-0.12, 0.56, 1).normalize(), w: 0.9, h: 0.92 };
       default:
         return { at: new THREE.Vector3(0.2, 0.9, 0.2), dir: new THREE.Vector3(7.2, 8.6, 12).normalize(), w: 13.2, h: 8.8 };
     }
@@ -341,6 +354,12 @@ export class StacksScene {
     this.paperSent = '';
   }
 
+  private reelSrc: (() => ReelState) | null = null;
+  /** Where the reel machine reads its state from each frame. */
+  setReelSource(fn: () => ReelState) {
+    this.reelSrc = fn;
+  }
+
   setDesk(i: number, on: boolean, instant = false) {
     this.desks[i] = on;
     if (instant) this.deskLevel[i] = on ? 1 : 0;
@@ -453,6 +472,7 @@ export class StacksScene {
 
     const it = islandNow();
     r.tick(t, dt, { h: it.hours, m: it.minutes, s: it.seconds + it.ms / 1000 }, this.reduce ? 0 : 1);
+    r.studer.tick(dt, { ...(this.reelSrc?.() ?? { pos: 0, len: 0, level: 0, timer: '0.00.00' }), motion: 1 });
 
     // camera
     const target = this.viewOf(this.zoneNow);
@@ -626,6 +646,9 @@ export class StacksScene {
     // up close at a drawer, only its files answer; a file is found only in a drawer that is out
     const all = this.raycaster.intersectObjects(this.room.hits, false).filter((h) => {
       const f = h.object.userData.file as string | undefined;
+      // the machine's keys and the tape boxes answer only up close; from across the room the machine is one thing
+      if (h.object.userData.near) return this.zoneNow === 'reel' && !this.drawer && !this.seated;
+      if (h.object.userData.far && this.zoneNow === 'reel') return false;
       if (this.drawer) return !!f && this.room.fileReachable(f);
       return !f;
     });
@@ -664,6 +687,7 @@ export class StacksScene {
       else if (p.dehumidifier) this.on.dehumidifier();
       else if (p.blinds) this.on.blinds();
       else if (p.ledger) this.on.ledger();
+      else if (typeof p.reel === 'string') this.on.reel(p.reel);
       else if (p.zone) this.goZone(p.zone as StacksZone);
     });
     new ResizeObserver(() => this.resize()).observe(c);
