@@ -670,3 +670,39 @@ export function fileInside(rec: { file: string; title: string; category: string;
   }
   return tex(c);
 }
+
+/** The clerk's FILED stamp, struck on a folder when it is shelved: the date and how many times it has been out. */
+export function filedStamp(date: string, loans: number, last?: string) {
+  const c = document.createElement('canvas');
+  c.width = 384;
+  c.height = 224;
+  const g = c.getContext('2d')!;
+  g.translate(192, 112);
+  g.rotate(-0.1);
+  g.strokeStyle = g.fillStyle = 'rgba(170,32,28,.9)';
+  g.lineWidth = 7;
+  g.strokeRect(-170, -92, 340, 184);
+  g.lineWidth = 2;
+  g.strokeRect(-160, -82, 320, 164);
+  g.textAlign = 'center';
+  g.font = `800 66px ${DINB}`;
+  g.fillText('FILED', 0, -22);
+  g.font = `700 32px ${DIN}`;
+  g.fillText(date, 0, 22);
+  g.font = `600 26px ${DIN}`;
+  g.fillText(loans ? `OUT ${loans} ${loans === 1 ? 'TIME' : 'TIMES'}${last ? ` · LAST ${last}` : ''}` : 'NEVER LOANED', 0, 62);
+  // a stamp never prints solid: lift a few specks of ink out of it
+  g.globalCompositeOperation = 'destination-out';
+  let s = 5;
+  for (let i = 0; i < 160; i++) {
+    s = (s * 16807) % 2147483647;
+    const x = (s % 340) - 170;
+    s = (s * 16807) % 2147483647;
+    const y = (s % 184) - 92;
+    g.fillStyle = `rgba(0,0,0,${0.3 + (s % 5) / 10})`;
+    g.fillRect(x, y, 2 + (s % 3), 2);
+  }
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  return tex;
+}

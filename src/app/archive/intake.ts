@@ -80,6 +80,11 @@ export const intake = {
   loans(day: string): Loan[] {
     return read(day).loans.slice().reverse();
   },
+  /** How many times it has been taken to the table, and when it last went out ("10-09 10:32"). */
+  history(day: string, file: string) {
+    const l = read(day).loans.filter((x) => x.file === file);
+    return { n: l.length, last: l.length ? l[l.length - 1].out.slice(5) : undefined };
+  },
   everRead(day: string, file: string) {
     return read(day).loans.some((l) => l.file === file);
   },

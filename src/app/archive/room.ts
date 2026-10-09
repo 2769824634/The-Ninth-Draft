@@ -16,7 +16,7 @@ import * as THREE from 'three';
 import { reducedMotion } from '../prefs';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 import {
-  INK, KU, DIN, DINB, RED, clockFace, contactShadow, drawerCard, envelopeTops, fileTab, hygroFace, ledgerSpread, beamLight, louvreLight, mapSheet, panelling, plate, rng, runner, sheet, teakFloor, windowView, woodTex,
+  INK, KU, DIN, DINB, RED, clockFace, contactShadow, drawerCard, envelopeTops, fileTab, hygroFace, ledgerSpread, beamLight, filedStamp, louvreLight, mapSheet, panelling, plate, rng, runner, sheet, teakFloor, windowView, woodTex,
 } from './textures';
 import { Studer } from './studer';
 import { REEL_BOXES } from './reels';
@@ -166,7 +166,6 @@ export class StacksRoom {
   /** Shafts of daylight from each window to its patch on the floor, and the dust hanging in them. */
   private beams: { g: THREE.Group; mats: THREE.MeshBasicMaterial[]; dust: THREE.Points }[] = [];
   /** The envelopes in the in-tray at the intake desk: as many as there are arrivals still to be filed. */
-  private trayFiles: THREE.Object3D[] = [];
   private trayG?: THREE.Object3D;
   /** The in-tray, in the room: where a file handed back is carried to. */
   trayPoint() {
@@ -174,18 +173,100 @@ export class StacksRoom {
     this.trayG?.updateWorldMatrix(true, false);
     return this.trayG ? this.trayG.localToWorld(v) : v;
   }
-  /** Folders carried from the tray to their cabinets to be shelved. */
-  private flyers: { m: THREE.Mesh; from: THREE.Vector3; to: THREE.Vector3; t: number }[] = [];
-  carryFromTray(homes: THREE.Vector3[]) {
-    if (this.still) return;
-    const from = this.trayPoint();
-    homes.forEach((to, i) => {
-      const m = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.012, 0.22), this.M.kraft);
-      m.castShadow = true;
-      m.position.copy(from);
-      this.group.add(m);
-      this.flyers.push({ m, from: from.clone(), to: to.clone(), t: -i * 0.35 });
+  /** One folder, shut, face up: the same boards and printed face as the one on the reading table. */
+  private folderModel(category: string, map: THREE.Texture) {
+    const W = 0.235, D = 0.32;
+    const g = new THREE.Group();
+    const body = category === 'events' ? this.M.kraft : category === 'programs' ? std({ color: '#55625a', roughness: 0.85 }) : this.M.manila;
+    const slab = this.rbox(g, W, 0.01, D, 0.002, 0, 0.005, 0, body);
+    slab.castShadow = true;
+    const face = new THREE.Mesh(new THREE.PlaneGeometry(W - 0.005, D - 0.005), std({ map, roughness: 0.85 }));
+    face.rotation.x = -Math.PI / 2;
+    face.position.set(0, 0.0102, 0);
+    g.add(face);
+    return g;
+  }
+
+  /** The folders lying in the in-tray, each one the file it is: its own colour and printed face. */
+  private trayStack = new THREE.Group();
+  private trayModels = new Map<string, THREE.Group>();
+  setTray(items: { file: string; category: string; map: () => THREE.Texture }[]) {
+    const keep = new Set(items.map((i) => i.file));
+    for (const [f, g] of this.trayModels) {
+      if (keep.has(f)) continue;
+      this.trayStack.remove(g);
+      this.trayModels.delete(f);
+    }
+    items.slice(0, 7).forEach((it, i) => {
+      let g = this.trayModels.get(it.file);
+      if (!g) {
+        g = this.folderModel(it.category, it.map());
+        this.trayModels.set(it.file, g);
+        this.trayStack.add(g);
+      }
+      g.scale.setScalar(0.8);
+      g.position.set((i % 2) * 0.012 - 0.006, 0.054 + i * 0.011, ((i * 7) % 3) * 0.006 - 0.006);
+      g.rotation.y = Math.PI / 2 + ((i % 3) - 1) * 0.07;
     });
+    // beyond seven the pile is only deeper: the rest are not drawn
+    for (const [f, g] of this.trayModels) g.visible = items.slice(0, 7).some((i) => i.file === f);
+  }
+  /** Called as each folder is stamped, so the sound lands with the stamp. */
+  stampSound?: () => void;
+
+  /** Folders taken out of the tray, stamped FILED, and carried to their cabinets. */
+  private flyers: { m: THREE.Group; stamp: THREE.Mesh; from: THREE.Vector3; to: THREE.Vector3; u: number; struck: boolean }[] = [];
+  fileFromTray(items: { file: string; category: string; map: () => THREE.Texture; date: string; loans: number; last?: string; home: THREE.Vector3 }[]) {
+    if (this.still) return;
+    this.trayG?.updateWorldMatrix(true, false);
+    items.forEach((it, i) => {
+      let g = this.trayModels.get(it.file);
+      if (!g) {
+        g = this.folderModel(it.category, it.map());
+        this.trayStack.add(g);
+      } else this.trayModels.delete(it.file);
+      // lift it out of the tray's pile into the room, where it is now
+      const at = g.getWorldPosition(new THREE.Vector3());
+      const rot = g.getWorldQuaternion(new THREE.Quaternion());
+      const yaw = new THREE.Euler().setFromQuaternion(rot, 'YXZ').y;
+      this.trayStack.remove(g);
+      this.group.add(g);
+      g.position.copy(at);
+      g.rotation.set(0, yaw, 0);
+      g.scale.setScalar(0.8);
+      const stamp = new THREE.Mesh(new THREE.PlaneGeometry(0.17, 0.1), new THREE.MeshBasicMaterial({ map: filedStamp(it.date, it.loans, it.last), transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2 }));
+      stamp.rotation.x = -Math.PI / 2;
+      stamp.position.set(0.02, 0.0125, 0.03);
+      stamp.visible = false;
+      g.add(stamp);
+      this.flyers.push({ m: g, stamp, from: at.clone(), to: it.home.clone(), u: -(i * 0.8), struck: false });
+    });
+  }
+  private tickFlyers(dt: number) {
+    for (let i = this.flyers.length - 1; i >= 0; i--) {
+      const f = this.flyers[i];
+      f.u += dt;
+      if (f.u >= 0 && !f.struck) {
+        f.struck = true;
+        f.stamp.visible = true;
+        this.stampSound?.();
+      }
+      // the stamp comes down hard and settles
+      if (f.struck) f.stamp.scale.setScalar(1 + Math.max(0, 0.25 - f.u) * 2.4);
+      const k = Math.min(1, Math.max(0, (f.u - 0.9) / 1.2));
+      const e = k < 0.5 ? 4 * k ** 3 : 1 - (-2 * k + 2) ** 3 / 2;
+      f.m.position.lerpVectors(f.from, f.to, e);
+      f.m.position.y += Math.sin(Math.PI * e) * 0.35;
+      f.m.rotation.y += (k > 0 ? dt * 1.2 : 0);
+      if (f.u >= 2.3) {
+        this.group.remove(f.m);
+        f.m.traverse((o) => {
+          const m = o as THREE.Mesh;
+          if (m.isMesh && m === f.stamp) m.geometry.dispose();
+        });
+        this.flyers.splice(i, 1);
+      }
+    }
   }
   /** Water dripping off the wet umbrella's rim: swells, lets go, falls, and rings the puddle. */
   private drips: { m: THREE.Mesh; ring: THREE.Mesh; at: THREE.Vector3; t: number; vy: number; ly: number }[] = [];
@@ -227,26 +308,6 @@ export class StacksRoom {
     }
   }
 
-  private tickFlyers(dt: number) {
-    for (let i = this.flyers.length - 1; i >= 0; i--) {
-      const f = this.flyers[i];
-      f.t = Math.min(1.2, f.t + dt / 1.1);
-      const k = Math.min(1, Math.max(0, f.t));
-      const e = k < 0.5 ? 4 * k ** 3 : 1 - (-2 * k + 2) ** 3 / 2;
-      f.m.visible = f.t > 0;
-      f.m.position.lerpVectors(f.from, f.to, e);
-      f.m.position.y += Math.sin(Math.PI * e) * 0.35;
-      f.m.rotation.y = e * 1.4;
-      if (f.t >= 1.2) {
-        this.group.remove(f.m);
-        f.m.geometry.dispose();
-        this.flyers.splice(i, 1);
-      }
-    }
-  }
-  setTray(n: number) {
-    this.trayFiles.forEach((e, i) => (e.visible = i < Math.min(7, n)));
-  }
   /** The cord on the wall that opens and shuts all four windows. */
   private cord: THREE.Group | null = null;
   private cordPull = 0;
@@ -1081,11 +1142,8 @@ export class StacksRoom {
     ctr.add(tray);
     this.trayG = tray;
     this.rbox(tray, 0.38, 0.05, 0.28, 0.005, 0, 0.025, 0, M.steelDark);
-    for (let i = 0; i < 7; i++) {
-      const e = this.rbox(tray, 0.3, 0.012, 0.22, 0.002, (i % 2) * 0.01, 0.055 + i * 0.013, ((i * 7) % 3) * 0.005 - 0.005, i % 3 ? M.kraft : M.kraftD);
-      e.rotation.y = ((i % 3) - 1) * 0.05;
-      this.trayFiles.push(e);
-    }
+    this.trayStack = new THREE.Group();
+    tray.add(this.trayStack);
     this.quad(tray, 0.24, 0.1, plate([[`700 44px ${KU}`, '今日入库', 18, 58], [`600 20px ${DIN}`, `RECEIVED · ${dd}.${mm}.99`, 20, 90]], 256, 108, '#efe9da', INK, INK), 0, 0.03, 0.142, 0, 0);
     const hb = new THREE.Mesh(BOX, new THREE.MeshBasicMaterial({ visible: false }));
     hb.scale.set(0.42, 0.3, 0.4);
