@@ -482,10 +482,19 @@
 .stackshud__reelkeys { display: flex; flex-wrap: wrap; gap: .4rem; margin-top: .7rem !important; }
 .stackshud__slip .stackshud__reelkeys .stackshud__slipbtn { padding: .55rem .9rem; border: 1px solid currentColor; text-decoration: none; text-align: center; min-width: 3rem; }
 .stackshud__slip [data-reel][aria-pressed='true'] { text-decoration: none; font-weight: 700; }
+/* the visitor's own reels: the name on the spine, written on the slip in pencil */
+.stackshud__slip[data-kind='reel'] > p.micro { color: #5f5a50; line-height: 1.5; }
+.stackshud__home { display: flex; align-items: baseline; gap: .5rem; }
+.stackshud__home > span { font: 600 .72rem/1 var(--f-mono); letter-spacing: .06em; }
+.stackshud__home input { flex: 1; min-width: 0; font: inherit; color: inherit; background: transparent; border: 0; border-bottom: 1px dashed currentColor; padding: .15rem 0; border-radius: 0; }
+.stackshud__home input:focus { outline: none; border-bottom-style: solid; }
 @media (max-width: 900px) {
   .stackshud__slip[data-kind='reel'] { bottom: 3.6rem; padding: .8rem .9rem .9rem; }
   .stackshud__slip[data-kind='reel'] ul { display: flex; flex-wrap: wrap; gap: .25rem .9rem; }
   .stackshud__slip[data-kind='reel'] li + li { margin-top: 0; }
   .stackshud__slip[data-kind='reel'] li .micro, .stackshud__slip[data-kind='reel'] > p.micro { display: none; }
+  .stackshud__slip[data-kind='reel'] .stackshud__home { flex-basis: 100%; }
+  .stackshud__home input { font-size: 16px; }
+  .stackshud__slip[data-kind='reel'] .stackshud__home .micro { display: inline; }
   .stackshud__slip .stackshud__reelkeys .stackshud__slipbtn { padding: .5rem .75rem; }
 }

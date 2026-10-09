@@ -53,6 +53,9 @@ function startAmbient() {
 
 /* ---------- The archive's own things ---------- */
 let roomOn = false;
+let roomShown = false;
+/** The visitor switched the room's things off: the archive still works, it just keeps quiet. */
+let roomQuiet = false;
 let roomWet = false;
 let fanGain: GainNode | null = null;
 let dehumTimer = 0;
@@ -345,8 +348,10 @@ export const audio = {
   },
   theme(_night: boolean) {},
   /** The archive is on screen (or not): its fan, its dehumidifier, the street outside when it isn't raining. */
-  room(on: boolean, wet = false) {
+  room(shown: boolean, wet = false) {
     roomWet = wet;
+    roomShown = shown;
+    const on = shown && !roomQuiet;
     if (on === roomOn) return;
     roomOn = on;
     window.clearTimeout(dehumTimer);
@@ -358,6 +363,11 @@ export const audio = {
       trafficTimer = window.setTimeout(traffic, (8 + Math.random() * 20) * 1000);
     }
     fanGain?.gain.setTargetAtTime(on ? 0.018 : 0, ctx.currentTime, on ? 1.5 : 0.4);
+  },
+  /** The switch for the room's own sounds (fan, dehumidifier, street). */
+  roomSounds(on: boolean) {
+    roomQuiet = !on;
+    this.room(roomShown, roomWet);
   },
   flick() {
     if (!live()) return;

@@ -335,7 +335,7 @@ class Reel {
   }
 }
 
-type Box = { m: THREE.Group; lid: THREE.Object3D; home: THREE.Vector3; out: number; want: number };
+type Box = { m: THREE.Group; lid: THREE.Object3D; home: THREE.Vector3; out: number; want: number; spine: THREE.MeshStandardMaterial; ink: string };
 type Carry = { box: Box; up: boolean; t: number; done: () => void; fired: boolean; id: string | null };
 
 export class Studer {
@@ -435,14 +435,12 @@ export class Studer {
       const x = -SB.w / 2 + 0.06 + i * pitch;
       m.position.set(x, 0.08 + 0.1425, 0.045);
       g.add(m);
-      this.boxes.set(t.id, { m, lid, home: m.position.clone(), out: 0, want: 0 });
+      this.boxes.set(t.id, { m, lid, home: m.position.clone(), out: 0, want: 0, spine, ink: t.ink || inks[i % inks.length] });
       this.hit({ reel: `box:${t.id}`, key: `reel:box:${t.id}`, near: true }, 0.024, 0.29, 0.3, x, 0.225, 0.045);
     });
-    // a few blank boxes leaning at the end, and a roll of splicing tape
-    for (let i = 0; i < 4; i++) {
-      const m = box(g, 0.02, 0.285, 0.29, -SB.w / 2 + 0.06 + (n + 1 + i) * pitch + i * 0.004, 0.08 + 0.1425, 0.045, std({ color: ['#b8b2a3', '#9aa3a0', '#b8b2a3', '#7d8288'][i], roughness: 0.85 }));
-      m.rotation.z = i === 3 ? -0.18 : 0;
-    }
+    // one old box leaning at the end, and a roll of splicing tape
+    const lean = box(g, 0.02, 0.285, 0.29, -SB.w / 2 + 0.06 + (n + 1) * pitch + 0.012, 0.08 + 0.1425, 0.045, std({ color: '#7d8288', roughness: 0.85 }));
+    lean.rotation.z = -0.18;
     cyl(g, 0.026, 0.012, 0.26, 0.11, 0.12, std({ color: '#d9d2c0', roughness: 0.4, transparent: true, opacity: 0.9 }));
 
     /* -------- the plinth: a low black stand with a raised rim, as in the photograph -------- */
@@ -672,6 +670,15 @@ export class Studer {
   setLamp(id: string, on: boolean) {
     const l = this.lamps.get(id);
     if (l) l.on = on;
+  }
+
+  /** Write a new label on a box's spine (a visitor's own reel, or a blank again). */
+  setSpine(id: string, code: string, title: string) {
+    const b = this.boxes.get(id);
+    if (!b) return;
+    b.spine.map?.dispose();
+    b.spine.map = boxSpine(code, title, b.ink);
+    b.spine.needsUpdate = true;
   }
 
   /** Draw one tape box a little out of the shelf (or push it home). */

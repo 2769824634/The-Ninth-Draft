@@ -28,7 +28,9 @@ import { esc } from '../ui/text';
 import { clearanceKey } from '../clearance';
 import type { Archivist } from '../ui/archivist';
 import { Deck } from '../office/deck';
-import { REELS } from './reels';
+import { REELS, BLANK_TITLE } from './reels';
+import { HOME_SLOTS, homeCode, listHome, saveHome, clearHome, nameFrom } from './homeReels';
+import type { TapeData } from '../../lib/tapes';
 
 const ZH_CAT: Record<string, string> = { personnel: '人员', events: '事件', programs: '计划' };
 const REGIONS = [
@@ -129,6 +131,9 @@ export class Stacks {
   /** The reel machine's transport: the same tape chain as the office deck. */
   private deck = new Deck('reel');
   private rewinding = false;
+  /** A visitor's own reels, by slot: kept only in their browser. */
+  private homes = new Map<string, TapeData>();
+  private picker: HTMLInputElement | null = null;
   /** Where the tape was when PLAY was last pressed, for LOC START. */
   private playFrom = 0;
   private reelSaid = false;
@@ -207,12 +212,82 @@ export class Stacks {
       return { pos, len: this.deck.length, level: this.deck.level, timer: this.timer(pos) };
     });
     this.deck.onChange = () => this.reelChanged();
+    void this.loadHomes();
+  }
+
+  /* ---------------- a visitor's own reels ---------------- */
+  private allReels(): TapeData[] {
+    return [...REELS, ...HOME_SLOTS.map((s) => this.homes.get(s)).filter((t): t is TapeData => !!t)];
+  }
+
+  private homeTape(slot: string, name: string, blob: Blob): TapeData {
+    const old = this.homes.get(slot);
+    if (old?.src) URL.revokeObjectURL(old.src);
+    return { id: slot, kind: 'music', label: homeCode(slot), title: { en: name, zh: name }, src: URL.createObjectURL(blob) };
+  }
+
+  private async loadHomes() {
+    for (const r of await listHome()) {
+      this.homes.set(r.slot, this.homeTape(r.slot, r.name, r.blob));
+      this.scene?.room.studer.setSpine(r.slot, homeCode(r.slot), r.name);
+    }
+    this.refreshReelSlip();
+  }
+
+  private refreshReelSlip() {
+    if (this.slip.dataset.kind === 'reel' && !this.slip.hidden) this.reelSlip();
+  }
+
+  /** Choose a file from the visitor's device for a blank box. */
+  private pickHome(slot: string) {
+    if (!this.picker) {
+      this.picker = document.createElement('input');
+      this.picker.type = 'file';
+      this.picker.accept = 'audio/*';
+      this.picker.hidden = true;
+      document.body.append(this.picker);
+    }
+    const input = this.picker;
+    input.value = '';
+    input.onchange = async () => {
+      const f = input.files?.[0];
+      if (!f) return;
+      const name = await nameFrom(f);
+      await saveHome({ slot, name, blob: f });
+      this.homes.set(slot, this.homeTape(slot, name, f));
+      this.scene?.room.studer.setSpine(slot, homeCode(slot), name);
+      this.refreshReelSlip();
+      this.loadReel(slot);
+    };
+    input.click();
+  }
+
+  private async renameHome(slot: string, name: string) {
+    const t = this.homes.get(slot);
+    name = name.trim().slice(0, 28);
+    if (!t || !name || name === t.title.zh) return;
+    t.title = { en: name, zh: name };
+    const all = await listHome();
+    const r = all.find((x) => x.slot === slot);
+    if (r) await saveHome({ ...r, name });
+    this.scene?.room.studer.setSpine(slot, homeCode(slot), name);
+  }
+
+  private async emptyHome(slot: string) {
+    if (this.deck.tape?.id === slot) return;
+    const t = this.homes.get(slot);
+    if (t?.src) URL.revokeObjectURL(t.src);
+    this.homes.delete(slot);
+    await clearHome(slot);
+    this.scene?.room.studer.setSpine(slot, homeCode(slot), BLANK_TITLE);
+    this.reelSlip();
   }
 
   /* ---------------- show / hide ---------------- */
   show() {
     void this.ready.then(() => this.scene?.resume());
     audio.rain(this.rain);
+    audio.roomSounds(!prefs.get('roomQuiet'));
     audio.room(true, this.rain);
   }
 
@@ -308,9 +383,15 @@ export class Stacks {
     document.querySelectorAll<HTMLButtonElement>('#stacks-cats [data-cat]').forEach((b) => b.addEventListener('click', () => this.openCabinet(Number(b.dataset.cat))));
     document.querySelectorAll<HTMLButtonElement>('.stackshud__rockers [data-row]').forEach((b) => b.addEventListener('click', () => this.toggleRow(Number(b.dataset.row))));
     document.querySelectorAll<HTMLButtonElement>('[data-blinds]').forEach((b) => b.addEventListener('click', () => this.toggleBlinds()));
+    document.querySelectorAll<HTMLButtonElement>('[data-roomsnd]').forEach((b) => b.addEventListener('click', () => this.toggleRoomSounds()));
     document.querySelectorAll<HTMLButtonElement>('.stackshud__desks [data-desk]').forEach((b) => b.addEventListener('click', () => this.toggleDesk(Number(b.dataset.desk))));
     document.querySelectorAll<HTMLButtonElement>('#ds-switches [data-ls]').forEach((b) => b.addEventListener('click', () => this.readSwitch(b.dataset.ls!)));
     this.$('stacks-cards-btn').addEventListener('click', () => this.cards.show());
+    this.slip.addEventListener('change', (e) => {
+      const el = e.target as HTMLInputElement;
+      const slot = el.dataset?.homeName;
+      if (slot) void this.renameHome(slot, el.value).then(() => this.reelChanged());
+    });
     this.slip.addEventListener('click', (e) => {
       const el = e.target as HTMLElement;
       if (el.closest('.x')) return this.closeSlip();
@@ -397,7 +478,18 @@ export class Stacks {
     this.markRows();
   }
 
+  /** Fan, dehumidifier and street on or off; the music and the rain have their own switches. */
+  private toggleRoomSounds() {
+    const quiet = !prefs.get('roomQuiet');
+    prefs.set('roomQuiet', quiet);
+    audio.roomSounds(!quiet);
+    audio.rocker();
+    this.markRows();
+    this.markReadSwitches();
+  }
+
   private markRows() {
+    document.querySelectorAll<HTMLButtonElement>('[data-roomsnd]').forEach((b) => b.setAttribute('aria-pressed', String(!prefs.get('roomQuiet'))));
     document.querySelectorAll<HTMLButtonElement>('[data-blinds]').forEach((b) => b.setAttribute('aria-pressed', String(!!this.scene?.blindsShut)));
     document.querySelectorAll<HTMLButtonElement>('.stackshud__rockers [data-row]').forEach((b) => {
       const i = Number(b.dataset.row);
@@ -536,6 +628,7 @@ export class Stacks {
       prefs.set('openAtOnce', !prefs.get('openAtOnce'));
       audio.rocker();
     } else if (which === 'blinds') this.toggleBlinds();
+    else if (which === 'roomsnd') return this.toggleRoomSounds();
     else if (which === 'desks') {
       const on = !(this.lights.desks[0] || this.lights.desks[1]);
       for (const i of [0, 1]) if (this.lights.desks[i] !== on) this.toggleDesk(i);
@@ -562,6 +655,7 @@ export class Stacks {
     set('row', at === 'drawer' ? this.lights.rows[1] : this.lights.rows[3]);
     set('desks', this.lights.desks[1] || at === 'table', at === 'table');
     set('blinds', !!this.scene?.blindsShut);
+    set('roomsnd', !prefs.get('roomQuiet'));
     set('atonce', !!prefs.get('openAtOnce'), at === 'table');
     set('seat', this.scene?.room.sideNow === 'r', at === 'table');
   }
@@ -1092,12 +1186,14 @@ export class Stacks {
     const zh = isZh();
     const on = this.deck.tape;
     const name = (id: string) => {
-      const t = REELS.find((r) => r.id === id);
+      const t = this.allReels().find((r) => r.id === id);
+      if (!t && id.startsWith('home-')) return `${homeCode(id)} · ${zh ? '空白' : 'blank'}`;
       return t ? `${t.label} · ${zh ? t.title.zh : t.title.en}` : id;
     };
     if (what === 'machine') return zh ? `Studer A807 MK II 盘式录音机 · ${on ? `机上：${name(on.id)}` : '没上盘'}` : `Studer A807 MK II tape recorder · ${on ? `on it: ${name(on.id)}` : 'no tape on'}`;
     if (what.startsWith('box:')) {
       const id = what.slice(4);
+      if (id.startsWith('home-') && !this.homes.has(id)) return zh ? `${name(id)} · 放一首你自己的歌（从你的设备选，只留在本机）` : `${name(id)} · play a song of your own (from your device, stays on it)`;
       return on?.id === id ? (zh ? `${name(id)} · 在机上` : `${name(id)} · on the machine`) : zh ? `${name(id)} · 上机` : `${name(id)} · put it on`;
     }
     const keys: Record<string, [string, string]> = {
@@ -1123,7 +1219,17 @@ export class Stacks {
       this.reelSaid = true;
       return;
     }
-    if (what.startsWith('box:') || what.startsWith('load:')) return this.loadReel(what.split(':')[1]);
+    if (what.startsWith('home-pick')) {
+      const free = HOME_SLOTS.find((s) => !this.homes.has(s));
+      if (free) this.pickHome(free);
+      return;
+    }
+    if (what.startsWith('home-clear:')) return void this.emptyHome(what.slice(11));
+    if (what.startsWith('box:') || what.startsWith('load:')) {
+      const id = what.split(':')[1];
+      if (id.startsWith('home-') && !this.homes.has(id)) return this.pickHome(id);
+      return this.loadReel(id);
+    }
     if (what === 'unload') return this.loadReel(null);
     st?.pressKey(what);
     audio.unlock();
@@ -1162,7 +1268,7 @@ export class Stacks {
   private loadReel(id: string | null) {
     const st = this.scene?.room.studer;
     const d = this.deck;
-    const next = id ? REELS.find((t) => t.id === id) ?? null : null;
+    const next = id ? this.allReels().find((t) => t.id === id) ?? null : null;
     if (id && !next) return;
     if (next && d.tape?.id === next.id) return;
     audio.unlock();
@@ -1218,7 +1324,7 @@ export class Stacks {
       st.setLamp('l-rew', d.winding < 0);
       st.setLamp('l-ff', d.winding > 0);
     }
-    if (this.slip.dataset.kind === 'reel' && !this.slip.hidden) this.reelSlip();
+    this.refreshReelSlip();
   }
 
   /** The slip by the machine: the tapes on the shelf, and the transport keys (for a finger, the real ones are small). */
@@ -1235,14 +1341,27 @@ export class Stacks {
           : d.mode === 'end'
             ? zh ? `${on.label} 放完了` : `${on.label} has run out`
             : zh ? `机上：${on.label} · ${on.title.zh}，停着` : `On the machine: ${on.label} · ${on.title.en}, stopped`;
-    const li = REELS.map((t) => {
+    const li = this.allReels().map((t) => {
       const here = on?.id === t.id;
       return `<li><button type="button" data-reel="load:${esc(t.id)}"${here ? ' aria-pressed="true"' : ''}>${esc(t.label)} · ${esc(zh ? t.title.zh : t.title.en)}</button> <span class="micro">${here ? (zh ? '在机上' : 'on the machine') : zh ? '上机' : 'put it on'}</span></li>`;
     }).join('');
     const k = (id: string, label: string) => `<button type="button" class="stackshud__slipbtn" data-reel="${id}">${label}</button>`;
+    const own = HOME_SLOTS.filter((s) => this.homes.has(s))
+      .map((s) => {
+        const t = this.homes.get(s)!;
+        const here = on?.id === s;
+        return `<li class="stackshud__home"><span>${esc(t.label)}</span> <input type="text" maxlength="28" data-home-name="${s}" value="${esc(t.title.zh)}" aria-label="${zh ? '盒脊上的名字' : 'Name on the spine'}">${here ? '' : ` <button type="button" class="micro" data-reel="home-clear:${s}">${zh ? '清空' : 'empty'}</button>`}</li>`;
+      })
+      .join('');
+    const canAdd = HOME_SLOTS.some((s) => !this.homes.has(s));
+    const homeBlock =
+      `<p class="micro">${zh ? '自带盘带：从你的设备选一个音频文件，只留在你自己的浏览器里，不上传，别人听不到。' : 'Your own reels: pick an audio file from your device. It stays in your browser; nothing is uploaded and nobody else hears it.'}</p>` +
+      (own ? `<ul>${own}</ul>` : '') +
+      (canAdd ? `<p><button type="button" class="stackshud__slipbtn" data-reel="home-pick">${zh ? '放自己的歌' : 'Play your own'}</button></p>` : '');
     const html =
       `<h3>Studer A807 MK II</h3><p>${esc(state)}</p><ul>${li}</ul>` +
       `<p class="stackshud__reelkeys">${k('rew', '◁')}${k('ff', '▷')}${k('play', 'PLAY')}${k('stop', 'STOP')}${on ? k('unload', zh ? '下盘' : 'Take off') : ''}</p>` +
+      homeBlock +
       `<p class="micro">${zh ? '7½ 英寸每秒，两轨立体声。' : '7½ inches a second, two-track stereo.'}</p>`;
     if (fresh || this.slip.hidden || this.slip.dataset.kind !== 'reel') this.showSlip(html, 'reel');
     else this.slip.innerHTML = `<button type="button" class="x" aria-label="Close">×</button>${html}`;
