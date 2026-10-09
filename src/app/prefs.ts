@@ -12,6 +12,8 @@ export interface Prefs {
   openAtOnce?: boolean;
   /** The archive's window blinds were left shut. */
   blindsShut?: boolean;
+  /** The archive's own sounds (fan, dehumidifier, street) were switched off. */
+  roomQuiet?: boolean;
   /** Reading lamp brightness: 0 dim, 1 mid, 2 bright. */
   lampLevel?: number;
 }

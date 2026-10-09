@@ -6,6 +6,7 @@
 import list from '../../data/tapes.json';
 import type { TapeData } from '../../lib/tapes';
 import type { ReelTape } from './studer';
+import { HOME_SLOTS, homeCode } from './homeReels';
 
 type Entry = TapeData & { reel?: boolean; room?: string };
 
@@ -16,4 +17,11 @@ export const REELS: TapeData[] = (list.tapes as Entry[])
   .filter((t) => t.kind === 'music' || t.reel)
   .map((t) => ({ ...t, src: t.src ? `${BASE}${t.src.replace(/^\//, '')}` : undefined }));
 
-export const REEL_BOXES: ReelTape[] = REELS.map((t, i) => ({ id: t.id, code: t.label, title: `${t.title.en} · ${t.title.zh}`, ink: INKS[i % INKS.length] }));
+/** Blank boxes at the end of the row, for a visitor's own recordings (see homeReels.ts). */
+export const BLANK_TITLE = 'Blank · 空白';
+export const HOME_INK = '#cfc6b2';
+
+export const REEL_BOXES: ReelTape[] = [
+  ...REELS.map((t, i) => ({ id: t.id, code: t.label, title: `${t.title.en} · ${t.title.zh}`, ink: INKS[i % INKS.length] })),
+  ...HOME_SLOTS.map((slot) => ({ id: slot, code: homeCode(slot), title: BLANK_TITLE, ink: HOME_INK })),
+];

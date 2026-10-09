@@ -119,6 +119,7 @@ const links = new Set(records.flatMap((r) => r.related.filter((f) => records.som
         <button type="button" data-ls="desks" aria-pressed="false"><i></i><span data-l="en">Reading lamp</span><span data-l="zh">阅读灯</span></button>
         <button type="button" data-ls="level" aria-pressed="false"><i></i><span data-l="en">Lamp brightness: <b id="ds-lv-en">mid</b></span><span data-l="zh">台灯亮度：<b id="ds-lv-zh">中</b></span></button>
         <button type="button" data-ls="blinds" aria-pressed="false"><i></i><span data-l="en">Window blinds shut</span><span data-l="zh">关百叶窗</span></button>
+        <button type="button" data-ls="roomsnd" aria-pressed="true"><i></i><span data-l="en">Room sounds</span><span data-l="zh">物件声</span></button>
         <button type="button" data-ls="atonce" aria-pressed="false"><i></i><span data-l="en">Open files at once</span><span data-l="zh">直接翻开</span></button>
         <button type="button" data-ls="seat" aria-pressed="false"><i></i><span data-l="en">Sit at the right</span><span data-l="zh">坐右边</span></button>
       </div>
@@ -158,6 +159,7 @@ const links = new Set(records.flatMap((r) => r.related.filter((f) => records.som
         </div>
         <div class="stackshud__desks">
           <button type="button" data-blinds aria-pressed="false"><i></i><span data-l="en">Window blinds</span><span data-l="zh">窗帘</span></button>
+          <button type="button" data-roomsnd aria-pressed="true"><i></i><span data-l="en">Room sounds</span><span data-l="zh">物件声</span></button>
           {[0, 1, 2].map((i) => (
             <button type="button" data-desk={i} aria-pressed="false"><i></i><span data-l="en">{['Reading lamp 1', 'Reading lamp 2', 'Intake lamp'][i]}</span><span data-l="zh">{['阅档台灯 1', '阅档台灯 2', '入库台灯'][i]}</span></button>
           ))}
