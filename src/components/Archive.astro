@@ -114,13 +114,12 @@ const links = new Set(records.flatMap((r) => r.related.filter((f) => records.som
       </div>
       <div class="dsv__switches" id="ds-switches" hidden>
         <span class="micro"><span data-l="en">Lights here</span><span data-l="zh">这里的灯</span></span>
-        <button type="button" data-ls="exam" aria-pressed="false"><i></i><span data-l="en">Swing-arm lamp</span><span data-l="zh">摇臂灯</span></button>
         <button type="button" data-ls="row" aria-pressed="false"><i></i><span data-l="en">Pendants overhead</span><span data-l="zh">头顶吊灯</span></button>
         <button type="button" data-ls="desks" aria-pressed="false"><i></i><span data-l="en">Reading lamp</span><span data-l="zh">阅读灯</span></button>
+        <button type="button" data-ls="level" aria-pressed="false"><i></i><span data-l="en">Lamp brightness: <b id="ds-lv-en">mid</b></span><span data-l="zh">台灯亮度：<b id="ds-lv-zh">中</b></span></button>
         <button type="button" data-ls="blinds" aria-pressed="false"><i></i><span data-l="en">Window blinds shut</span><span data-l="zh">关百叶窗</span></button>
         <button type="button" data-ls="atonce" aria-pressed="false"><i></i><span data-l="en">Open files at once</span><span data-l="zh">直接翻开</span></button>
         <button type="button" data-ls="seat" aria-pressed="false"><i></i><span data-l="en">Sit at the right</span><span data-l="zh">坐右边</span></button>
-        <label class="dsv__bright"><span data-l="en">Paper brightness</span><span data-l="zh">纸面亮度</span><input type="range" id="ds-bright" min="60" max="160" value="88" aria-label="Paper brightness" /></label>
       </div>
     </div>
     <div class="inspect__no">

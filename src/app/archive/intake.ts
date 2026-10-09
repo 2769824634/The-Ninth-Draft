@@ -18,16 +18,18 @@ interface Book {
   day: string;
   filed: string[];
   loans: Loan[];
+  /** Files handed back at the desk and lying in the tray, not yet shelved. */
+  back: string[];
 }
 
 function read(day: string): Book {
   try {
     const b = JSON.parse(localStorage.getItem(KEY) || 'null') as Book | null;
-    if (b && Array.isArray(b.loans)) return { day, filed: b.day === day ? b.filed ?? [] : [], loans: b.loans };
+    if (b && Array.isArray(b.loans)) return { day, filed: b.day === day ? b.filed ?? [] : [], loans: b.loans, back: b.back ?? [] };
   } catch {
     /* private mode */
   }
-  return { day, filed: [], loans: [] };
+  return { day, filed: [], loans: [], back: [] };
 }
 
 function write(b: Book) {
@@ -62,6 +64,16 @@ export const intake = {
     const b = read(day);
     const l = [...b.loans].reverse().find((x) => x.file === file && !x.back);
     if (l) l.back = at;
+    b.back = [...new Set([...b.back, file])];
+    write(b);
+  },
+  /** Handed back and lying in the tray, waiting to be shelved. */
+  returned(day: string) {
+    return read(day).back;
+  },
+  shelve(day: string, files: string[]) {
+    const b = read(day);
+    b.back = b.back.filter((f) => !files.includes(f));
     write(b);
   },
   /** Newest first. */

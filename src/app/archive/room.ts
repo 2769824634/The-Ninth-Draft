@@ -16,7 +16,7 @@ import * as THREE from 'three';
 import { reducedMotion } from '../prefs';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 import {
-  INK, KU, DIN, DINB, RED, clockFace, contactShadow, drawerCard, envelopeTops, fileTab, hygroFace, ledgerSpread, beamLight, louvreLight, mapSheet, panelling, plate, rng, runner, sheet, teakFloor, windowView, woodTex,
+  INK, KU, DIN, DINB, RED, clockFace, contactShadow, drawerCard, envelopeTops, fileTab, hygroFace, ledgerSpread, beamLight, waterBeads, louvreLight, mapSheet, panelling, plate, rng, runner, sheet, teakFloor, windowView, woodTex,
 } from './textures';
 
 export const AR = { x0: -5.6, x1: 5.6, z0: -3.6, z1: 3.6, h: 3.4, wall: 0.22, slab: 0.24 };
@@ -51,24 +51,6 @@ export interface Pendant {
   glass: THREE.MeshStandardMaterial;
   row: number;
   at: THREE.Vector3;
-}
-
-/**
- * An examination lamp: a daylight tube at a reading place. The Records Office
- * reads its higher clearances under it, because erasures and scraped-out
- * figures only show in cold light; a lower clearance makes do with the warm
- * lamps. `place` is 'cabinet' (one over each group of formal cabinets) or
- * 'table'.
- */
-export interface ExamLamp {
-  light: THREE.SpotLight;
-  tube: THREE.MeshStandardMaterial;
-  place: 'cabinet' | 'table';
-  ci: number;
-  /** The cold haze round a lit tube, so it reads as on from any side. */
-  glow: THREE.SpriteMaterial;
-  /** How strong the tube is for how near it hangs to the page: the table's is a hand's breadth away. */
-  gain: number;
 }
 
 let haze: THREE.Texture | null = null;
@@ -158,7 +140,6 @@ export class StacksRoom {
   readonly group = new THREE.Group();
   readonly pendants: Pendant[] = [];
   readonly desks: DeskLamp[] = [];
-  readonly exams: ExamLamp[] = [];
   readonly rockers: THREE.Mesh[] = [];
   /** Invisible boxes the pointer can find: userData says what each one is. */
   readonly hits: THREE.Object3D[] = [];
@@ -184,6 +165,43 @@ export class StacksRoom {
   private beams: { g: THREE.Group; mats: THREE.MeshBasicMaterial[]; dust: THREE.Points }[] = [];
   /** The envelopes in the in-tray at the intake desk: as many as there are arrivals still to be filed. */
   private trayFiles: THREE.Object3D[] = [];
+  private trayG?: THREE.Object3D;
+  /** The in-tray, in the room: where a file handed back is carried to. */
+  trayPoint() {
+    const v = new THREE.Vector3(0, 0.12, 0);
+    this.trayG?.updateWorldMatrix(true, false);
+    return this.trayG ? this.trayG.localToWorld(v) : v;
+  }
+  /** Folders carried from the tray to their cabinets to be shelved. */
+  private flyers: { m: THREE.Mesh; from: THREE.Vector3; to: THREE.Vector3; t: number }[] = [];
+  carryFromTray(homes: THREE.Vector3[]) {
+    if (this.still) return;
+    const from = this.trayPoint();
+    homes.forEach((to, i) => {
+      const m = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.012, 0.22), this.M.kraft);
+      m.castShadow = true;
+      m.position.copy(from);
+      this.group.add(m);
+      this.flyers.push({ m, from: from.clone(), to: to.clone(), t: -i * 0.35 });
+    });
+  }
+  private tickFlyers(dt: number) {
+    for (let i = this.flyers.length - 1; i >= 0; i--) {
+      const f = this.flyers[i];
+      f.t = Math.min(1.2, f.t + dt / 1.1);
+      const k = Math.min(1, Math.max(0, f.t));
+      const e = k < 0.5 ? 4 * k ** 3 : 1 - (-2 * k + 2) ** 3 / 2;
+      f.m.visible = f.t > 0;
+      f.m.position.lerpVectors(f.from, f.to, e);
+      f.m.position.y += Math.sin(Math.PI * e) * 0.35;
+      f.m.rotation.y = e * 1.4;
+      if (f.t >= 1.2) {
+        this.group.remove(f.m);
+        f.m.geometry.dispose();
+        this.flyers.splice(i, 1);
+      }
+    }
+  }
   setTray(n: number) {
     this.trayFiles.forEach((e, i) => (e.visible = i < Math.min(7, n)));
   }
@@ -587,182 +605,8 @@ export class StacksRoom {
     this.pendants.push({ light, fill, bulb, glass, row, at: new THREE.Vector3(x, AR.h - drop, z) });
   }
 
-  /**
-   * The examination lamp. Over a cabinet group it is a wall bracket that swings
-   * a tube out over the pulled drawer; on the reading table it is a twin-tube
-   * desk fitting on a weighted foot. Enamel housing, opal tube, a pull switch.
-   */
-  private examLamp(p: THREE.Object3D, x: number, y: number, z: number, place: 'cabinet' | 'table', ci: number) {
-    const M = this.M;
-    const g = new THREE.Group();
-    g.position.set(x, y, z);
-    p.add(g);
-    const enamel = std({ color: '#d9d6cc', roughness: 0.35, metalness: 0.15 });
-    const tube = std({ color: '#f4f6f8', emissive: '#e6eeff', emissiveIntensity: 0.02, roughness: 0.2 });
-    const light = new THREE.SpotLight('#d4e2ff', 0, 3.2, 0.95, 0.8, 1.6);
-    let housing: THREE.Object3D;
-    if (place === 'cabinet') {
-      // wall plate, a jointed arm out over the drawers, the tube along the cabinets
-      this.rbox(g, 0.02, 0.14, 0.09, 0.004, 0.01, 0, 0, M.steelDark);
-      const arm = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3([new THREE.Vector3(0.02, 0, 0), new THREE.Vector3(0.3, 0.05, 0), new THREE.Vector3(0.62, -0.02, 0), new THREE.Vector3(0.78, -0.12, 0)]), 20, 0.009, 8), M.chrome);
-      arm.castShadow = true;
-      g.add(arm);
-      this.cyl(g, 0.016, 0.016, 0.03, 0.3, 0.05, 0, M.steelDark, 12).rotation.x = Math.PI / 2;
-      housing = new THREE.Group();
-      housing.position.set(0.82, -0.16, 0);
-      housing.rotation.z = -0.35;
-      g.add(housing);
-      light.position.set(0.86, -0.2, 0);
-      light.target.position.set(0.95, -1.15, 0);
-    } else {
-      this.armLamp(g);
-      return;
-    }
-    // the head: an enamel trough with an opal tube in it, end caps, a pull cord
-    this.rbox(housing, 0.075, 0.045, 0.56, 0.01, 0, 0.012, 0, enamel);
-    const t1 = this.cyl(housing, 0.013, 0.013, 0.5, 0, -0.012, 0, tube, 16);
-    t1.rotation.x = Math.PI / 2;
-    t1.castShadow = false;
-    for (const sz of [-1, 1]) this.box(housing, 0.08, 0.05, 0.012, 0, 0.008, sz * 0.27, M.steelDark);
-    this.box(housing, 0.002, 0.14, 0.002, 0.03, -0.07, 0.24, M.cream, false);
-    const bead = new THREE.Mesh(new THREE.SphereGeometry(0.007, 8, 6), M.black);
-    bead.position.set(0.03, -0.14, 0.24);
-    housing.add(bead);
-    light.castShadow = false;
-    g.add(light, light.target);
-    const glow = new THREE.SpriteMaterial({ map: hazeTexture(), color: '#dfe9ff', transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false });
-    const halo = new THREE.Sprite(glow);
-    halo.scale.set(0.78, 0.2, 1);
-    // a little in front of the reflector and under it, where the tubes are bare
-    halo.position.set(0, -0.03, 0);
-    housing.add(halo);
-    this.exams.push({ light, tube, place, ci, glow, gain: 1 });
-  }
-
-  /** The reading table's examination lamp: set by the aim of its arm, which follows the file. */
-  private arm?: { yaw: THREE.Group; head: THREE.Group; g: THREE.Group; aim: THREE.Vector3; ready: boolean };
-
-  /**
-   * A clamp-on swing-arm lamp: clamp at the back edge of the table, a swivel,
-   * two sprung arms and a green enamel shade over an opal bulb. The arm is
-   * solved from where its head should hang (tickArm), so it swings to follow a
-   * file carried across the room and settles over it on the blotter.
-   */
-  private armLamp(g: THREE.Group) {
-    const M = this.M;
-    const enamel = std({ color: '#4f6350', roughness: 0.4, metalness: 0.2, side: THREE.DoubleSide });
-    const bulb = std({ color: '#f4f6f8', emissive: '#e6eeff', emissiveIntensity: 0.02, roughness: 0.2 });
-    // the clamp and the swivel post
-    this.rbox(g, 0.085, 0.03, 0.07, 0.006, 0, 0.015, 0, M.steelDark);
-    this.cyl(g, 0.007, 0.007, 0.06, 0, -0.01, 0.0, M.chrome, 10);
-    this.rbox(g, 0.03, 0.012, 0.04, 0.004, 0, 0.036, 0, M.steelDark);
-    this.cyl(g, 0.026, 0.026, 0.022, 0, 0.05, 0, M.brass, 20);
-    this.cyl(g, 0.011, 0.011, 0.04, 0, 0.08, 0, M.chrome, 12);
-    const yaw = new THREE.Group();
-    yaw.position.set(0, 0.1, 0);
-    g.add(yaw);
-    const L1 = 0.3, L2 = 0.3;
-    // one arm: a pair of rods between two brass knuckles
-    const rods = (len: number, ang: number, at: THREE.Vector3) => {
-      const a = new THREE.Group();
-      a.position.copy(at);
-      a.rotation.x = -ang;
-      for (const sx of [-0.011, 0.011]) {
-        const r = this.cyl(a, 0.0045, 0.0045, len, sx, 0, len / 2, M.chrome, 8);
-        r.rotation.x = Math.PI / 2;
-        r.castShadow = false;
-      }
-      for (const z of [0, len]) {
-        const k = this.cyl(a, 0.015, 0.015, 0.05, 0, 0, z, M.brass, 14);
-        k.rotation.z = Math.PI / 2;
-        k.castShadow = false;
-      }
-      return a;
-    };
-    const lower = rods(L1, 0.9, new THREE.Vector3());
-    const upper = rods(L2, 0.1, new THREE.Vector3());
-    yaw.add(lower, upper);
-    // the return spring along the lower arm
-    const pts: THREE.Vector3[] = [];
-    for (let i = 0; i <= 60; i++) pts.push(new THREE.Vector3(0, 0.024 + 0.011 * Math.sin(i * 1.1), 0.05 + (i / 60) * (L1 - 0.1)).add(new THREE.Vector3(0.011 * Math.cos(i * 1.1), 0, 0)));
-    const spring = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 240, 0.0016, 5), M.chrome);
-    spring.castShadow = false;
-    lower.add(spring);
-    // the head, hung from its joint: shade, rim, bulb, a click target
-    const head = new THREE.Group();
-    yaw.add(head);
-    const prof = [[0.012, -0.02], [0.04, -0.028], [0.072, -0.06], [0.094, -0.108], [0.097, -0.13], [0.091, -0.13], [0.088, -0.108], [0.068, -0.062], [0.036, -0.036], [0.012, -0.032]];
-    const shade = new THREE.Mesh(new THREE.LatheGeometry(prof.map(([r, y]) => new THREE.Vector2(r, y)), 36), enamel);
-    shade.castShadow = false;
-    head.add(shade);
-    const rim = new THREE.Mesh(new THREE.TorusGeometry(0.094, 0.0035, 8, 36), M.brass);
-    rim.rotation.x = Math.PI / 2;
-    rim.position.y = -0.13;
-    head.add(rim);
-    const knob = new THREE.Mesh(new THREE.SphereGeometry(0.014, 12, 10), M.brass);
-    head.add(knob);
-    const glass = new THREE.Mesh(new THREE.SphereGeometry(0.032, 16, 12), bulb);
-    glass.position.y = -0.085;
-    glass.castShadow = false;
-    head.add(glass);
-    const light = new THREE.SpotLight('#d4e2ff', 0, 3.2, 0.78, 0.7, 1.6);
-    light.position.set(0, -0.09, 0);
-    light.target.position.set(0, -1, 0);
-    light.castShadow = true;
-    light.shadow.mapSize.set(1024, 1024);
-    light.shadow.camera.near = 0.04;
-    light.shadow.bias = -0.0004;
-    light.shadow.normalBias = 0.006;
-    head.add(light, light.target);
-    const glow = new THREE.SpriteMaterial({ map: roundGlow(), color: '#dfe9ff', transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false });
-    const halo = new THREE.Sprite(glow);
-    halo.scale.set(0.3, 0.3, 1);
-    halo.position.y = -0.1;
-    head.add(halo);
-    const hb = new THREE.Mesh(BOX, new THREE.MeshBasicMaterial({ visible: false }));
-    hb.scale.set(0.22, 0.17, 0.22);
-    hb.position.y = -0.07;
-    hb.userData = { exam: this.exams.length, key: `exam:${this.exams.length}` };
-    head.add(hb);
-    this.hits.push(hb);
-    this.exams.push({ light, tube: bulb, place: 'table', ci: -1, glow, gain: 0.07 });
-    this.arm = { yaw, head, g, aim: new THREE.Vector3(-0.55, 0.79, 0.11), ready: false };
-    this.armParts = { lower, upper, L1, L2 };
-  }
-
-  private armParts?: { lower: THREE.Group; upper: THREE.Group; L1: number; L2: number };
-
-  /** Swing the arm so its head hangs over `target` (a point in the table's frame); `snap` skips the swing. */
-  private tickArm(dt: number, target: THREE.Vector3, snap: boolean) {
-    const A = this.arm, P = this.armParts;
-    if (!A || !P) return;
-    this.tableTop.updateWorldMatrix(true, false);
-    A.g.updateWorldMatrix(true, false);
-    const want = A.g.worldToLocal(this.tableTop.localToWorld(target.clone()));
-    if (snap || !A.ready) A.aim.copy(want);
-    else A.aim.lerp(want, 1 - Math.exp(-dt * 4.5));
-    A.ready = true;
-    // where the joint of the head hangs: up and behind the paper, so the shade never covers it
-    const jx = A.aim.x, jy = A.aim.y + 0.34 - 0.1, jz = A.aim.z - 0.26;
-    const psi = Math.atan2(jx, jz);
-    const r = Math.max(0.05, Math.hypot(jx, jz)), v = jy;
-    const { L1, L2 } = P;
-    const d = Math.min(L1 + L2 - 0.01, Math.max(Math.abs(L1 - L2) + 0.02, Math.hypot(r, v)));
-    const a = Math.atan2(v, r) + Math.acos(Math.min(1, Math.max(-1, (L1 * L1 + d * d - L2 * L2) / (2 * L1 * d))));
-    const e = new THREE.Vector2(L1 * Math.cos(a), L1 * Math.sin(a));
-    const hr = d * Math.cos(Math.atan2(v, r)), hv = d * Math.sin(Math.atan2(v, r));
-    const b = Math.atan2(hv - e.y, hr - e.x);
-    A.yaw.rotation.y = psi;
-    P.lower.rotation.x = -a;
-    P.upper.position.set(0, e.y, e.x);
-    P.upper.rotation.x = -b;
-    A.head.position.set(0, hv, hr);
-    // the shade tips to look at the paper
-    const to = new THREE.Vector3(0, A.aim.y + 0.02 - (A.yaw.position.y + hv), Math.hypot(A.aim.x, A.aim.z) - hr);
-    A.head.quaternion.setFromUnitVectors(new THREE.Vector3(0, -1, 0), to.normalize());
-  }
-
-  private readLamp?: { g: THREE.Group; sp: THREE.SpotLight };
+  /** The two reading lamps, each turned to the file on its own blotter. */
+  private readLamps: { g: THREE.Group; sp: THREE.SpotLight; side: 'l' | 'r' }[] = [];
 
   /** A brass desk lamp with an opal inside to its shade. */
   private deskLamp(p: THREE.Object3D, x: number, y: number, z: number, ry: number, index: number) {
@@ -792,10 +636,10 @@ export class StacksRoom {
     sp.position.set(0, 0.35, 0.19);
     sp.target.position.set(0, -0.8, 0.25);
     // the right-hand reading lamp is turned in over its blotter and throws its light on the file there
-    if (index === 1) {
+    if (index < 2) {
       sp.target.position.set(0, 0.03, 0.52);
       sp.angle = 0.7;
-      this.readLamp = { g: l, sp };
+      this.readLamps.push({ g: l, sp, side: index === 0 ? 'l' : 'r' });
     }
     sp.shadow.mapSize.set(1024, 1024);
     sp.shadow.bias = -0.0005;
@@ -808,11 +652,6 @@ export class StacksRoom {
     }
     l.add(sp, sp.target);
     this.desks.push({ light: sp, inner });
-    if (index === 0) {
-      // not on the table any more: it is built only so the desk numbering holds
-      l.visible = false;
-      return;
-    }
     // the lamp and its chain answer a click
     const hb = new THREE.Mesh(BOX, new THREE.MeshBasicMaterial({ visible: false }));
     hb.scale.set(0.3, 0.55, 0.42);
@@ -1192,6 +1031,7 @@ export class StacksRoom {
     const tray = new THREE.Group();
     tray.position.set(-0.55, L, 0.22);
     ctr.add(tray);
+    this.trayG = tray;
     this.rbox(tray, 0.38, 0.05, 0.28, 0.005, 0, 0.025, 0, M.steelDark);
     for (let i = 0; i < 7; i++) {
       const e = this.rbox(tray, 0.3, 0.012, 0.22, 0.002, (i % 2) * 0.01, 0.055 + i * 0.013, ((i * 7) % 3) * 0.005 - 0.005, i % 3 ? M.kraft : M.kraftD);
@@ -1281,10 +1121,8 @@ export class StacksRoom {
     mag.position.set(0.55, 0.778, -0.35);
     rt.add(mag);
     rt.add(this.tableTop);
-    // the examination lamp stands behind the reading place, its tube low over the far edge of the sheet
-    this.examLamp(rt, -0.55, 0.765, -0.3, 'table', -1);
-    // desk 0 is the old left lamp: the swing-arm lamp stands there now, so it is not built; desk 1 is the reading lamp over the right blotter
-    this.deskLamp(rt, -0.98, 0.765, -0.28, 0.4, 0);
+    // desks 0 and 1 are the reading lamps over the left and right blotters
+    this.deskLamp(rt, -0.95, 0.765, -0.22, 0.88, 0);
     this.deskLamp(rt, 0.95, 0.765, -0.22, -0.88, 1);
     this.chair(rt, -0.55, 0.72, Math.PI);
     this.chair(rt, 0.55, 0.72, Math.PI);
@@ -1448,6 +1286,21 @@ export class StacksRoom {
     canopy.position.y = 0.45;
     um.add(canopy);
     this.cyl(um, 0.008, 0.008, 0.8, 0, 0.1, 0, M.chrome);
+    // not dry yet: beads of water on the cloth, and a drip hanging from each rib tip
+    const beads = new THREE.Mesh(
+      new THREE.ConeGeometry(0.484, 0.222, 8, 1, true),
+      std({ map: waterBeads(), transparent: true, roughness: 0.04, metalness: 0, side: THREE.DoubleSide, depthWrite: false, envMapIntensity: 2.2 }),
+    );
+    beads.position.y = 0.45;
+    um.add(beads);
+    const dropMat = std({ color: '#cfe0e6', roughness: 0.02, metalness: 0, transparent: true, opacity: 0.7 });
+    for (let a = 0; a < 8; a++) {
+      const th = (a / 8) * Math.PI * 2 + 0.39;
+      const d = new THREE.Mesh(new THREE.SphereGeometry(0.011, 8, 6), dropMat);
+      d.scale.y = 1.5;
+      d.position.set(Math.cos(th) * 0.485, 0.325, Math.sin(th) * 0.485);
+      um.add(d);
+    }
     const pud = new THREE.Mesh(new THREE.CircleGeometry(0.55, 32), std({ color: '#8f8a80', roughness: 0.05, metalness: 0.3, transparent: true, opacity: 0.55 }));
     pud.rotation.x = -Math.PI / 2;
     pud.scale.set(1.3, 0.7, 1);
@@ -1643,7 +1496,7 @@ export class StacksRoom {
   /** With two files out, they are drawn in towards each other a little so both can be read at once. */
   static readonly PAIR_L = new THREE.Vector3(-0.3, 0.79, 0.11);
   static readonly PAIR_R = new THREE.Vector3(0.3, 0.79, 0.11);
-  /** Which blotter the file being read is on: the left under the swing-arm lamp, the right under the reading lamp. */
+  /** Which blotter the file being read is on: each under its own reading lamp. */
   private side: 'l' | 'r' = 'l';
   /** The file being read at the table, open on the blotter. */
   private seated: string | null = null;
@@ -1704,7 +1557,7 @@ export class StacksRoom {
     this.aimTable(false);
   }
 
-  /** Whether a file is open on the left blotter (under the swing-arm lamp) or the right (under the reading lamp). */
+  /** Whether a file is open on the left blotter or the right. */
   occupied(which: 'l' | 'r') {
     const main = this.seated ? this.side : null;
     const other = this.aside ? (this.side === 'l' ? 'r' : 'l') : null;
@@ -1890,19 +1743,12 @@ export class StacksRoom {
       // a file laid beside the one being read has only its sheet out: its cover is not in the way
       c.flap.visible = f !== this.aside;
     }
-    // the lamp's arm swings after a file being carried, and rests over the reading place
-    let at = StacksRoom.SEAT;
-    const leftFile = this.side === 'l' ? this.seated : this.aside;
-    if (leftFile) at = this.seatFor(leftFile === this.seated);
-    for (const c of this.covers.values()) if (c.carry) at = c.g.position;
-    for (const l of this.leaving) at = l.c.g.position;
     this.tickLeaving(motion ? dt : 1);
-    this.tickArm(dt, at, !motion);
-    // the reading lamp on the right turns to the file on that blotter
-    const R = this.readLamp;
-    if (R) {
-      const rightFile = this.side === 'r' ? this.seated : this.aside;
-      const spot = rightFile ? this.seatFor(rightFile === this.seated) : StacksRoom.SEAT_R;
+    this.tickFlyers(dt);
+    // each reading lamp turns to the file on its own blotter
+    for (const R of this.readLamps) {
+      const file = this.side === R.side ? this.seated : this.aside;
+      const spot = file ? this.seatFor(file === this.seated) : R.side === 'l' ? StacksRoom.SEAT : StacksRoom.SEAT_R;
       this.tableTop.updateWorldMatrix(true, false);
       R.g.updateWorldMatrix(true, false);
       const loc = R.g.worldToLocal(this.tableTop.localToWorld(spot.clone()));

@@ -80,8 +80,6 @@ export interface StacksEvents {
   bank(bi: number): void;
   rocker(i: number): void;
   desk(i: number): void;
-  /** An examination lamp (its tube or its pull cord) clicked. */
-  exam(i: number): void;
   index(): void;
   tray(): void;
   safe(): void;
@@ -148,13 +146,11 @@ export class StacksScene {
   private flicker = [0, 0, 0, 0];
   private desks = [false, false, false];
   private deskLevel = [0, 0, 0];
-  /** Examination tubes: wanted level, level now, and time since the starter kicked in (-1 = steady). */
-  private exam: number[] = [];
-  private examLevel: number[] = [];
+  /** How far the room is hushed for a classified file: the rest of the lights fade, the reading lamp stays. */
   private hush = 0;
+  private hushTo = 0;
   private blindK = 0;
   blindsShut = !!prefs.get('blindsShut');
-  private examFlick: number[] = [];
   /** Where a page is being read, if one is. */
   private readPoint: THREE.Vector3 | null = null;
   private paperNow: PaperLit & { lux: number; r: number; g: number; bl: number } = { color: '#ffd9a0', b: 0.5, lx: 0.22, ly: -0.08, lamps: 0, moon: 0, street: 0, day: 0, lux: 0, r: 1, g: 0.85, bl: 0.6 };
@@ -185,7 +181,7 @@ export class StacksScene {
     // reading table, the desk. Phones get fewer.
     const lite = matchMedia('(pointer: coarse)').matches;
     this.room.pendants.forEach((p, i) => (p.light.castShadow = lite ? p.row === 1 && i === 0 : p.row === 1 || p.row === 3));
-    this.room.desks.forEach((d, i) => (d.light.castShadow = i === 1));
+    this.room.desks.forEach((d, i) => (d.light.castShadow = i < 2));
 
     this.sun.position.set(-4, 9, 6);
     this.sun.castShadow = true;
@@ -326,21 +322,10 @@ export class StacksScene {
     else if (on && !this.reduce) this.flicker[i] = 0.42;
   }
 
-  /**
-   * An examination tube at `level` (0 off, 1 full). A tube switched on from
-   * cold flickers on its starter before it holds; off, it simply goes out.
-   */
-  setExam(i: number, level: number, instant = false) {
-    const was = this.exam[i] ?? 0;
-    this.exam[i] = level;
-    if (instant || this.reduce) {
-      this.examLevel[i] = level;
-      this.examFlick[i] = -1;
-    } else if (level > 0 && was === 0 && (this.examLevel[i] ?? 0) < 0.05) this.examFlick[i] = 0;
-  }
-
-  get examWanted() {
-    return this.exam.slice();
+  /** Hush the room for a file of this clearance (0: nothing, 1: only the reading lamps). */
+  setHush(level: number) {
+    this.hushTo = level;
+    if (this.reduce) this.hush = level;
   }
 
   /** A point in the room, where it is on the screen. */
@@ -440,12 +425,8 @@ export class StacksScene {
         this.rowLevel[i] = want;
       } else this.rowLevel[i] += (want - this.rowLevel[i]) * Math.min(1, dt * (want ? 7 : 4.5));
     }
-    // reading a classified file under the swing-arm lamp: the rest of the room fades out
-    let hush = 0;
-    r.exams.forEach((e, i) => {
-      if (e.place === 'table' && this.seated && r.occupied('l') && (this.exam[i] ?? 0) >= 0.4) hush = Math.max(hush, this.examLevel[i] ?? 0);
-    });
-    this.hush += (hush - this.hush) * Math.min(1, dt * 2.2);
+    // reading a classified file at the table: the rest of the room fades out, the reading lamps stay
+    this.hush += ((this.seated ? this.hushTo : 0) - this.hush) * Math.min(1, dt * 2.2);
     const quiet = 1 - 0.92 * this.hush;
     for (const p of r.pendants) {
       const lv = this.rowLevel[p.row] * quiet;
@@ -455,39 +436,17 @@ export class StacksScene {
       p.bulb.emissiveIntensity = 0.05 + lv * (0.6 + L.night * 1.9);
       p.glass.emissiveIntensity = 0.02 + lv * (0.15 + L.night * 0.75);
     }
+    const lampK = [0.65, 1, 1.4][Math.min(2, Math.max(0, Number(prefs.get('lampLevel') ?? 1)))];
     r.desks.forEach((d, i) => {
-      // the old left lamp is gone; the right one comes on by itself when a file is open under it
-      const wanted = i === 0 ? false : this.desks[i] || (i === 1 && this.seated && r.occupied('r'));
+      // each reading lamp comes on by itself when a file is open under it; the pull chain overrides
+      const wanted = this.desks[i] || (i < 2 && this.seated && r.occupied(i === 0 ? 'l' : 'r'));
       this.deskLevel[i] += ((wanted ? 1 : 0) - this.deskLevel[i]) * Math.min(1, dt * (wanted ? 7 : 4.5));
-      d.light.intensity = L.desk * this.deskLevel[i] * (i === 1 ? 1 : quiet) * (i === 2 ? 0.38 : i === 1 ? LAMP * 1.7 : LAMP);
+      d.light.intensity = L.desk * this.deskLevel[i] * (i === 2 ? 0.38 : LAMP * 1.7 * lampK);
       d.light.visible = d.light.intensity > 0.01;
       d.inner.emissiveIntensity = 0.05 + this.deskLevel[i] * (0.4 + L.night * 0.8);
     });
     r.pictureLight.intensity = this.rowLevel[0] * (0.6 + L.night * 2.4);
     r.pictureLight.visible = r.pictureLight.intensity > 0.01;
-    // examination tubes: the starter's stutter, then a steady cold light
-    r.exams.forEach((e, i) => {
-      const want = this.exam[i] ?? 0;
-      let lv = this.examLevel[i] ?? 0;
-      const fl = this.examFlick[i] ?? -1;
-      if (fl >= 0) {
-        const t = (this.examFlick[i] = fl + dt);
-        const seq = t < 0.07 ? 0.6 : t < 0.2 ? 0 : t < 0.27 ? 0.85 : t < 0.42 ? 0.04 : t < 0.47 ? 1 : t < 0.6 ? 0.25 : -1;
-        if (seq < 0) {
-          this.examFlick[i] = -1;
-          lv = want * 0.8;
-        } else lv = seq * want;
-      } else lv += (want - lv) * Math.min(1, dt * (want > lv ? 5 : 16));
-      this.examLevel[i] = lv;
-      // the swing-arm lamp is for the left blotter: it is not lit for a file read at the right one
-      const live = e.place === 'table' && this.seated && !r.occupied('l') ? 0 : 1;
-      e.light.intensity = (1.4 + L.night * 9) * lv * e.gain * live;
-      e.light.visible = e.light.intensity > 0.01;
-      // the same warm white as the reading lamp; cold only for a classified file
-      if (e.place === 'table') e.light.color.set('#ffe3b8').lerp(new THREE.Color('#d4e2ff'), Math.min(1, Math.max(0, (want - 0.3) / 0.7)));
-      e.tube.emissiveIntensity = 0.02 + lv * (0.7 + L.night * 1.6);
-      e.glow.opacity = lv * (0.08 + L.night * 0.22);
-    });
     if (this.readPoint && this.seated) this.readPoint.copy(this.room.mainSpot());
     if (this.readPoint) this.reportPaper(dt);
     this.reportSheet();
@@ -568,7 +527,6 @@ export class StacksScene {
       }
     }
     for (const d of room.desks) lamps += spot(d.light);
-    for (const e of room.exams) lamps += spot(e.light);
     // what comes in at the windows (the back wall) is stronger near it and thins out across the room
     const win = this.v4.set(p.x, 2.4, AR.z0);
     const near = 0.5 + 1.85 * Math.exp(-(p.z - AR.z0) / 2.6);
@@ -700,7 +658,6 @@ export class StacksScene {
       else if (typeof p.bank === 'number') this.on.bank(p.bank);
       else if (typeof p.rocker === 'number') this.on.rocker(p.rocker);
       else if (typeof p.desk === 'number') this.on.desk(p.desk);
-      else if (typeof p.exam === 'number') this.on.exam(p.exam);
       else if (p.index) this.on.index();
       else if (p.tray) this.on.tray();
       else if (p.safe) this.on.safe();
