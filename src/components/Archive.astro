@@ -34,6 +34,7 @@ const stackZones = [
   { id: 'reading', en: 'Reading table', zh: '阅档桌' },
   { id: 'counter', en: 'Intake desk', zh: '入库台' },
   { id: 'door', en: 'Door and switches', zh: '门口和开关' },
+  { id: 'reel', en: 'Tape machine', zh: '录音机' },
 ];
 const links = new Set(records.flatMap((r) => r.related.filter((f) => records.some((x) => x.file === f)).map((f) => [r.file, f].sort().join('|')))).size;
 ---

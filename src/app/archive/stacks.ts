@@ -27,6 +27,8 @@ import { canvasFontsReady } from '../scene/textures';
 import { esc } from '../ui/text';
 import { clearanceKey } from '../clearance';
 import type { Archivist } from '../ui/archivist';
+import { Deck } from '../office/deck';
+import { REELS } from './reels';
 
 const ZH_CAT: Record<string, string> = { personnel: '人员', events: '事件', programs: '计划' };
 const REGIONS = [
@@ -117,6 +119,11 @@ export class Stacks {
   private table: string[] = [];
   private hovered = '';
   private cards: Cards;
+  /** The reel machine's transport: the same tape chain as the office deck. */
+  private deck = new Deck();
+  /** Where the tape was when PLAY was last pressed, for LOC START. */
+  private playFrom = 0;
+  private reelSaid = false;
   private $ = (id: string) => document.getElementById(id)!;
 
   constructor(private root: HTMLElement, private categories: Category[], private records: ArchiveRecord[], theme: 'day' | 'night', private voice: Archivist, private hooks: StacksHooks) {
@@ -141,7 +148,7 @@ export class Stacks {
   }
 
   private async build() {
-    await canvasFontsReady(GLYPHS);
+    await canvasFontsReady(GLYPHS + REELS.map((t) => t.title.zh).join(''));
     const cats: StacksCategory[] = this.categories.map((c, i) => {
       const list = this.byCat(i);
       return { id: c.id, zh: ZH_CAT[c.id] ?? c.label, en: c.label, code: c.code, range: list.length ? `${list[0].file} — ${list[list.length - 1].file}` : '' };
@@ -162,6 +169,7 @@ export class Stacks {
         dehumidifier: () => this.emptyTank(),
         blinds: () => this.toggleBlinds(),
         ledger: () => this.loanBook(),
+        reel: (w) => this.reelAct(w),
         paper: (v) => this.hooks.paper(v),
         sheet: (v) => this.hooks.sheet(v),
         side: (v) => this.hooks.side(v),
@@ -186,6 +194,11 @@ export class Stacks {
     this.markRows();
     void this.layTable();
     void this.ready.then(() => this.setTray());
+    s.setReelSource(() => {
+      const pos = this.deck.position;
+      return { pos, len: this.deck.length, level: this.deck.level, timer: this.timer(pos) };
+    });
+    this.deck.onChange = () => this.reelChanged();
   }
 
   /* ---------------- show / hide ---------------- */
@@ -195,6 +208,7 @@ export class Stacks {
   }
 
   hide() {
+    this.deck.stop();
     audio.rain(false);
     this.closeSlip();
     this.callout.classList.remove('is-on');
@@ -290,6 +304,8 @@ export class Stacks {
       const el = e.target as HTMLElement;
       if (el.closest('.x')) return this.closeSlip();
       if (el.closest('[data-act="file-all"]')) return this.fileArrivals();
+      const rl = el.closest<HTMLElement>('[data-reel]')?.dataset.reel;
+      if (rl) return this.reelAct(rl);
       const tk = el.closest<HTMLElement>('[data-take]')?.dataset.take;
       const tr = tk ? this.find(tk) : null;
       if (tr) {
@@ -351,6 +367,8 @@ export class Stacks {
   }
 
   private markZone(z: StacksZone) {
+    if (z === 'reel') this.reelSlip(true);
+    else if (this.slip.dataset.kind === 'reel') this.closeSlip();
     document.querySelectorAll<HTMLButtonElement>('#stacks-zones [data-zone]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.zone === z)));
     this.root.dataset.zone = z;
     // the drawer goes home when the visitor walks off
@@ -420,6 +438,7 @@ export class Stacks {
     else if (kind === 'blinds') text = zh ? `窗帘拉绳 · 拉一下${this.scene?.blindsShut ? '拉开' : '合上'}四扇窗` : `Window cord · pull to ${this.scene?.blindsShut ? 'open' : 'shut'} all four windows`;
     else if (kind === 'ledger') text = zh ? '登记簿 · 借阅记录' : 'Register · loan ledger';
     else if (kind === 'safe') text = zh ? '绝密柜 · 锁着' : 'Strong cabinet · locked';
+    else if (kind === 'reel') text = this.reelHover(arg);
     else if (kind === 'dehumidifier') text = this.tankFull() ? (zh ? '除湿机 · 水箱满了，倒一下' : 'Dehumidifier · the tank is full, empty it') : zh ? '除湿机 · 在转' : 'Dehumidifier · running';
     else if (kind === 'zone') text = arg === 'reading' ? (zh ? `阅档桌 · 桌上 ${this.table.length} 份` : `Reading table · ${this.table.length} on it`) : zh ? '入库台' : 'Intake desk';
     this.callout.textContent = text;
@@ -934,7 +953,8 @@ export class Stacks {
     return this.records.filter((r) => islandDay(r.date) === this.today);
   }
 
-  private showSlip(html: string) {
+  private showSlip(html: string, kind = '') {
+    this.slip.dataset.kind = kind;
     this.slip.innerHTML = `<button type="button" class="x" aria-label="Close">×</button>${html}`;
     this.slip.hidden = false;
     this.slip.animate?.([{ opacity: 0, transform: 'translateY(.6rem) rotate(-.6deg)' }, { opacity: 1, transform: 'rotate(-.6deg)' }], { duration: reducedMotion() ? 0 : 320, easing: 'ease-out' });
@@ -943,6 +963,7 @@ export class Stacks {
 
   closeSlip() {
     this.slip.hidden = true;
+    this.slip.dataset.kind = '';
   }
 
   private list(recs: ArchiveRecord[]) {
@@ -1036,5 +1057,158 @@ export class Stacks {
     const zh = isZh();
     this.voice.say('stacks.routine');
     this.showSlip(`<h3>${zh ? `例行文件 · ${REGIONS[bi].zh}` : `Routine paperwork · ${REGIONS[bi].en}`}</h3><p>${zh ? '巴士班次、水表读数、失物招领……按区、按季度归在这两排柜子里。署里正一个区一个区地上架，上好了这些抽屉就能拉开。' : 'Bus timetables, meter readings, lost property… filed here by district and by quarter. The Office is shelving them one district at a time; the drawers open once they are in.'}</p>`);
+  }
+
+  /* ---------------- the reel machine ---------------- */
+  /** The timer window: hours.minutes.seconds of tape played. */
+  private timer(pos: number) {
+    const t = Math.max(0, Math.floor(pos));
+    return `${Math.floor(t / 3600)}.${two(Math.floor(t / 60) % 60)}.${two(t % 60)}`;
+  }
+
+  private reelHover(what: string) {
+    const zh = isZh();
+    const on = this.deck.tape;
+    const name = (id: string) => {
+      const t = REELS.find((r) => r.id === id);
+      return t ? `${t.label} · ${zh ? t.title.zh : t.title.en}` : id;
+    };
+    if (what === 'machine') return zh ? `Studer A807 MK II 盘式录音机 · ${on ? `机上：${name(on.id)}` : '没上盘'}` : `Studer A807 MK II tape recorder · ${on ? `on it: ${name(on.id)}` : 'no tape on'}`;
+    if (what.startsWith('box:')) {
+      const id = what.slice(4);
+      return on?.id === id ? (zh ? `${name(id)} · 在机上` : `${name(id)} · on the machine`) : zh ? `${name(id)} · 上机` : `${name(id)} · put it on`;
+    }
+    const keys: Record<string, [string, string]> = {
+      play: ['PLAY · 放', 'PLAY'],
+      stop: ['STOP · 停', 'STOP'],
+      rew: ['◁ · 倒带', '◁ · rewind'],
+      ff: ['▷ · 快进', '▷ · fast forward'],
+      zero: ['ZERO LOC · 倒回开头', 'ZERO LOC · back to the start'],
+      locstart: ['LOC START · 回到上次按 PLAY 的地方', 'LOC START · back to where PLAY was last pressed'],
+      rec: ['REC · 两个声道都在 SAFE，录不了', 'REC · both channels on SAFE, it will not record'],
+      reset: ['RESET TIMER · 计时归零', 'RESET TIMER'],
+    };
+    const k = keys[what];
+    return k ? (zh ? k[0] : k[1]) : '';
+  }
+
+  private reelAct(what: string) {
+    const d = this.deck;
+    const st = this.scene?.room.studer;
+    if (what === 'machine') {
+      this.goZone('reel');
+      if (!this.reelSaid) this.voice.say('stacks.reel', {}, false);
+      this.reelSaid = true;
+      return;
+    }
+    if (what.startsWith('box:') || what.startsWith('load:')) return this.loadReel(what.split(':')[1]);
+    if (what === 'unload') return this.loadReel(null);
+    st?.pressKey(what);
+    audio.unlock();
+    switch (what) {
+      case 'play':
+        if (!d.tape) {
+          audio.rocker();
+          this.reelSlip();
+          return;
+        }
+        // the machine plays through the site's sound: switch it on if it is off
+        if (!prefs.get('sound')) document.getElementById('btn-sound')?.click();
+        this.playFrom = d.mode === 'end' ? 0 : d.position;
+        d.play();
+        break;
+      case 'stop':
+        d.stop();
+        break;
+      case 'rew':
+      case 'zero':
+        d.wind(0);
+        break;
+      case 'ff':
+        d.wind(d.length);
+        break;
+      case 'locstart':
+        d.wind(this.playFrom);
+        break;
+      default:
+        audio.rocker();
+    }
+    this.reelChanged();
+  }
+
+  /** Take the reel down (back into its box) and put another up; null only takes it down. */
+  private loadReel(id: string | null) {
+    const st = this.scene?.room.studer;
+    const d = this.deck;
+    const next = id ? REELS.find((t) => t.id === id) ?? null : null;
+    if (id && !next) return;
+    if (next && d.tape?.id === next.id) return;
+    audio.unlock();
+    const still = reducedMotion();
+    const up = () => {
+      if (!next) return;
+      st?.pullBox(next.id);
+      audio.slide();
+      st?.mount(next.id, still, () => {
+        st.pullBox(null);
+        d.load(next);
+        this.reelChanged();
+      });
+      if (!st) {
+        d.load(next);
+        this.reelChanged();
+      }
+    };
+    if (d.tape) {
+      const old = d.tape.id;
+      d.eject();
+      st?.pullBox(old);
+      if (st) st.mount(null, still, () => {
+        st.pullBox(null);
+        up();
+      });
+      else up();
+    } else up();
+    this.reelChanged();
+  }
+
+  /** The lamps on the machine and the slip follow the transport. */
+  private reelChanged() {
+    const st = this.scene?.room.studer;
+    const d = this.deck;
+    if (st) {
+      st.setLamp('l-play', d.mode === 'play');
+      st.setLamp('l-stop', d.mode === 'stop' || d.mode === 'end' || d.mode === 'empty');
+      st.setLamp('l-rew', d.winding < 0);
+      st.setLamp('l-ff', d.winding > 0);
+    }
+    if (this.slip.dataset.kind === 'reel' && !this.slip.hidden) this.reelSlip();
+  }
+
+  /** The slip by the machine: the tapes on the shelf, and the transport keys (for a finger, the real ones are small). */
+  private reelSlip(fresh = false) {
+    const zh = isZh();
+    const d = this.deck;
+    const on = d.tape;
+    const state = !on
+      ? zh ? '没上盘。从架子上挑一盘。' : 'No tape on. Pick one off the shelf.'
+      : d.mode === 'play'
+        ? zh ? `在放：${on.label} · ${on.title.zh}` : `Playing: ${on.label} · ${on.title.en}`
+        : d.mode === 'rew'
+          ? zh ? (d.winding < 0 ? '在倒带' : '在快进') : d.winding < 0 ? 'Rewinding' : 'Winding on'
+          : d.mode === 'end'
+            ? zh ? `${on.label} 放完了` : `${on.label} has run out`
+            : zh ? `机上：${on.label} · ${on.title.zh}，停着` : `On the machine: ${on.label} · ${on.title.en}, stopped`;
+    const li = REELS.map((t) => {
+      const here = on?.id === t.id;
+      return `<li><button type="button" data-reel="load:${esc(t.id)}"${here ? ' aria-pressed="true"' : ''}>${esc(t.label)} · ${esc(zh ? t.title.zh : t.title.en)}</button> <span class="micro">${here ? (zh ? '在机上' : 'on the machine') : zh ? '上机' : 'put it on'}</span></li>`;
+    }).join('');
+    const k = (id: string, label: string) => `<button type="button" class="stackshud__slipbtn" data-reel="${id}">${label}</button>`;
+    const html =
+      `<h3>Studer A807 MK II</h3><p>${esc(state)}</p><ul>${li}</ul>` +
+      `<p class="stackshud__reelkeys">${k('rew', '◁')}${k('ff', '▷')}${k('play', 'PLAY')}${k('stop', 'STOP')}${on ? k('unload', zh ? '下盘' : 'Take off') : ''}</p>` +
+      `<p class="micro">${zh ? '7½ 英寸每秒，两轨立体声。' : '7½ inches a second, two-track stereo.'}</p>`;
+    if (fresh || this.slip.hidden || this.slip.dataset.kind !== 'reel') this.showSlip(html, 'reel');
+    else this.slip.innerHTML = `<button type="button" class="x" aria-label="Close">×</button>${html}`;
   }
 }

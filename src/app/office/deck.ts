@@ -51,6 +51,8 @@ export class Deck {
   private media: HTMLAudioElement | null = null;
   private mediaNode: MediaElementAudioSourceNode | null = null;
   private rewFrom = 0;
+  /** Where a wind is going: 0 for a rewind, further on for a fast-forward. */
+  private windTo = 0;
 
   private chain() {
     if (this.ctx) return true;
@@ -195,8 +197,20 @@ export class Deck {
   get position() {
     if (!this.ctx) return this.pos;
     if (this.mode === 'play') return this.pos + (this.ctx.currentTime - this.runAt);
-    if (this.mode === 'rew') return Math.max(0, this.rewFrom - (this.ctx.currentTime - this.runAt) * this.rewSpeed());
+    if (this.mode === 'rew') {
+      const run = (this.ctx.currentTime - this.runAt) * this.rewSpeed();
+      return this.windTo >= this.rewFrom ? Math.min(this.windTo, this.rewFrom + run) : Math.max(this.windTo, this.rewFrom - run);
+    }
     return this.pos;
+  }
+
+  /** How long the tape in the deck plays, in seconds (a guess until a recording has loaded). */
+  get length() {
+    const t = this.tape;
+    if (!t) return 0;
+    if (t.src) return this.media && isFinite(this.media.duration) && this.media.duration > 0 ? this.media.duration : 240;
+    if (t.kind === 'music' && t.song && SONGS[t.song]) return songLength(SONGS[t.song]());
+    return 90;
   }
 
   /** Tape counter: about one count a second, as on the real one. */
@@ -284,26 +298,50 @@ export class Deck {
   }
 
   rewind() {
+    this.wind(0);
+  }
+
+  /** Which way the tape is spooling: -1 back, 1 on, 0 not winding. */
+  get winding() {
+    return this.mode !== 'rew' ? 0 : this.windTo >= this.rewFrom ? 1 : -1;
+  }
+
+  /** The stop key: whatever is moving stops where it is. */
+  stop() {
+    if (this.mode === 'play') return this.pause();
+    if (this.mode !== 'rew') return;
+    this.pos = this.position;
+    this.halt();
+    this.thunk();
+    this.set('stop');
+  }
+
+  /** Spool the tape to `to` seconds, fast, with the motors whirring: back to the start, or on ahead. */
+  wind(to: number) {
     if (!this.tape || !this.chain() || !this.ctx) return;
     const from = this.mode === 'end' ? this.pos : this.position;
+    to = Math.max(0, Math.min(to, this.length));
     this.halt();
-    if (from < 0.5) {
-      this.pos = 0;
+    if (Math.abs(from - to) < 0.5) {
+      this.pos = to;
       this.thunk(0.6);
       return this.set('stop');
     }
     this.thunk();
     this.rewFrom = from;
+    this.windTo = to;
     this.runAt = this.ctx.currentTime;
-    const dur = from / this.rewSpeed();
+    const dur = Math.abs(from - to) / this.rewSpeed();
     this.whir(dur);
     this.set('rew');
     const run = ++this.run;
     window.setTimeout(() => {
       if (run !== this.run) return;
-      this.pos = 0;
-      this.part = 0;
-      this.nextStep = 0;
+      this.pos = to;
+      if (!to) {
+        this.part = 0;
+        this.nextStep = 0;
+      }
       this.thunk(0.7);
       this.set('stop');
     }, dur * 1000);
@@ -311,7 +349,7 @@ export class Deck {
 
   /** Rewinding takes a second or two, however long the tape. */
   private rewSpeed() {
-    return Math.max(this.rewFrom / 2.2, 30);
+    return Math.max(Math.abs(this.rewFrom - this.windTo) / 2.2, 30);
   }
 
   /** Stop whatever is moving, without the clunk. */

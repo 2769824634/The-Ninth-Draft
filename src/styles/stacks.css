@@ -477,3 +477,15 @@
 .stackshud__slipbtn { font: 600 .72rem/1 var(--f-mono); letter-spacing: .06em; text-transform: uppercase; padding: .55rem .9rem; border: 1px solid currentColor; border-radius: 999px; color: var(--accent); }
 .stackshud__slipbtn:hover { background: var(--accent); color: var(--bg); }
 .icard__read { color: #7a766b; }
+
+/* the reel machine's keys on the slip: big enough for a finger */
+.stackshud__reelkeys { display: flex; flex-wrap: wrap; gap: .4rem; margin-top: .7rem !important; }
+.stackshud__slip .stackshud__reelkeys .stackshud__slipbtn { padding: .55rem .9rem; border: 1px solid currentColor; text-decoration: none; text-align: center; min-width: 3rem; }
+.stackshud__slip [data-reel][aria-pressed='true'] { text-decoration: none; font-weight: 700; }
+@media (max-width: 900px) {
+  .stackshud__slip[data-kind='reel'] { bottom: 3.6rem; padding: .8rem .9rem .9rem; }
+  .stackshud__slip[data-kind='reel'] ul { display: flex; flex-wrap: wrap; gap: .25rem .9rem; }
+  .stackshud__slip[data-kind='reel'] li + li { margin-top: 0; }
+  .stackshud__slip[data-kind='reel'] li .micro, .stackshud__slip[data-kind='reel'] > p.micro { display: none; }
+  .stackshud__slip .stackshud__reelkeys .stackshud__slipbtn { padding: .5rem .75rem; }
+}
