@@ -681,12 +681,13 @@ export class Studer {
     const bx = b ? b.m.position.x : spindle.x + mc.x;
     const by = b ? b.m.position.y : 0.2225;
     const local = (x: number, y: number, z: number) => new THREE.Vector3(x, y, z).sub(mc);
-    const front = 0.21 + REEL_R + 0.05;
+    // once it is clear of the box it turns to face the room (edge-on it is only a sliver),
+    // drifting in towards the middle of the sideboard so its flange stays clear of the table
     const pts = [
-      local(bx, by, 0.165),
-      local(bx, by, 0.3),
-      local(bx, by, front),
-      local((bx + spindle.x + mc.x) / 2, by + 0.26, front + 0.03),
+      local(bx, by, 0.245),
+      local(bx, by, 0.37),
+      local(-0.2, by + 0.04, 0.42),
+      local((-0.2 + spindle.x + mc.x) / 2, by + 0.3, 0.42),
       new THREE.Vector3(spindle.x, spindle.y + 0.02, TAPE_Z + 0.2),
       new THREE.Vector3(spindle.x, spindle.y, TAPE_Z + 0.06),
       spindle.clone(),
@@ -707,16 +708,20 @@ export class Studer {
   private fly(dt: number) {
     const fl = this.flight;
     if (!fl) return;
-    fl.t = Math.min(1, fl.t + dt / 1.7);
+    fl.t = Math.min(1, fl.t + dt / 2.3);
     const t = Math.max(0, fl.t);
-    const e = t < 0.5 ? 4 * t ** 3 : 1 - (-2 * t + 2) ** 3 / 2;
+    // an even pace, like a hand carrying it: no rush in the middle
+    const e = t * t * (3 - 2 * t);
     fl.path.getPoint(e, this.supply.g.position);
-    // edge-on while in the box and coming out, turning to face the room as it rises
+    // edge-on while in the box and coming out, then turning to face the room
     const u = fl.up ? e : 1 - e;
-    const turn = Math.max(0, Math.min(1, (u - 0.32) / 0.4));
-    this.supply.g.rotation.y = (Math.PI / 2) * (1 - turn * turn * (3 - 2 * turn));
-    // hidden in its box until it is past the boxes either side, and back in it at the end
-    this.supply.g.visible = fl.t > 0 && fl.t < 1 ? this.supply.g.position.z + this.machine.position.z > 0.19 : fl.up && fl.t >= 1;
+    const turn = Math.max(0, Math.min(1, (u - 0.17) / 0.25));
+    const k = turn * turn * (3 - 2 * turn);
+    this.supply.g.rotation.y = (Math.PI / 2) * (1 - k);
+    // the hub stands proud of the flanges; while edge-on in the box keep it inside the box's sides
+    this.supply.g.scale.z = 0.4 + 0.6 * k;
+    // the drawn box hides it while it is inside; gone once it is back in at the end
+    this.supply.g.visible = fl.t < 1 || fl.up;
     if (fl.t >= 1) {
       this.flight = null;
       fl.done();
@@ -761,7 +766,7 @@ export class Studer {
     }
     for (const b of this.boxes.values()) {
       b.out += (b.want - b.out) * Math.min(1, dt * 8);
-      b.m.position.z = 0.045 + b.out * 0.12;
+      b.m.position.z = 0.045 + b.out * 0.2;
     }
     if (p.timer !== this.lcdText) {
       this.lcdText = p.timer;

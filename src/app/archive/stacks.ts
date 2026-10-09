@@ -127,7 +127,8 @@ export class Stacks {
   private hovered = '';
   private cards: Cards;
   /** The reel machine's transport: the same tape chain as the office deck. */
-  private deck = new Deck();
+  private deck = new Deck('reel');
+  private rewinding = false;
   /** Where the tape was when PLAY was last pressed, for LOC START. */
   private playFrom = 0;
   private reelSaid = false;
@@ -216,6 +217,7 @@ export class Stacks {
 
   hide() {
     this.deck.stop();
+    audio.rainUnder(0);
     audio.rain(false);
     this.closeSlip();
     this.callout.classList.remove('is-on');
@@ -1177,6 +1179,19 @@ export class Stacks {
         this.reelChanged();
       }
     };
+    if (d.tape && !still && d.position > 0.5) {
+      // as on the real machine: wind the tape back onto its own reel before it comes off
+      if (this.rewinding) return;
+      this.rewinding = true;
+      d.wind(0);
+      const wait = () => {
+        if (d.mode === 'rew') return void window.setTimeout(wait, 120);
+        this.rewinding = false;
+        if (d.tape) this.loadReel(id);
+      };
+      window.setTimeout(wait, 120);
+      return;
+    }
     if (d.tape) {
       const old = d.tape.id;
       d.eject();
@@ -1194,6 +1209,7 @@ export class Stacks {
   private reelChanged() {
     const st = this.scene?.room.studer;
     const d = this.deck;
+    audio.rainUnder(d.mode === 'play' ? 1 : 0);
     if (st) {
       st.setLamp('l-play', d.mode === 'play');
       st.setLamp('l-stop', d.mode === 'stop' || d.mode === 'end' || d.mode === 'empty');
