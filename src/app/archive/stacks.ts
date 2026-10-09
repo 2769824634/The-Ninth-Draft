@@ -213,12 +213,14 @@ export class Stacks {
   show() {
     void this.ready.then(() => this.scene?.resume());
     audio.rain(this.rain);
+    audio.room(true, this.rain);
   }
 
   hide() {
     this.deck.stop();
     audio.rainUnder(0);
     audio.rain(false);
+    audio.room(false);
     this.closeSlip();
     this.callout.classList.remove('is-on');
     this.scene?.pause();
