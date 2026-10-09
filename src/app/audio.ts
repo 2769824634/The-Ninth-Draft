@@ -1,6 +1,8 @@
 /**
  * Synthesised sound — no audio files.
- * Ambient: filtered room tone with a slow-breathing low drone (deeper at night).
+ * Ambient: no constant bed. A room sounds of its own things: in the archive a
+ * standing fan, a dehumidifier that cuts in now and then, traffic past the
+ * window on a dry day, rain on a wet one.
  * SFX: paper flick, drawer slide, folder open, stamp, typewriter tick, relay click,
  * camera shutter, push pin, plucked string.
  */
@@ -10,8 +12,6 @@ let ctx: AudioContext | null = null;
 let master: GainNode;
 let sfxBus: GainNode;
 let ambBus: GainNode;
-let droneFilter: BiquadFilterNode;
-let droneGain: GainNode;
 let noiseBuf: AudioBuffer;
 let ambientOn = false;
 
@@ -48,46 +48,117 @@ function ensure(): AudioContext | null {
 function startAmbient() {
   if (!ctx || ambientOn) return;
   ambientOn = true;
-  // Room tone: the air of a big quiet room, not a rumble. The lowest octaves are cut
-  // (on speakers and headphones they read as a truck idling outside) and it sits well back.
+  ambBus.gain.setTargetAtTime(0.5, ctx.currentTime, 2.5);
+}
+
+/* ---------- The archive's own things ---------- */
+let roomOn = false;
+let roomWet = false;
+let fanGain: GainNode | null = null;
+let dehumTimer = 0;
+let trafficTimer = 0;
+/** The standing fan: moving air, swelling a little as its head turns. No hum. */
+function startFan() {
+  if (!ctx || fanGain) return;
+  fanGain = ctx.createGain();
+  fanGain.gain.value = 0;
   const src = ctx.createBufferSource();
   src.buffer = noiseBuf;
   src.loop = true;
-  const hp = ctx.createBiquadFilter();
-  hp.type = 'highpass';
-  hp.frequency.value = 160;
-  hp.Q.value = 0.5;
-  const lp = ctx.createBiquadFilter();
-  lp.type = 'lowpass';
-  lp.frequency.value = 900;
-  const g = ctx.createGain();
-  g.gain.value = 0.07;
-  src.connect(hp).connect(lp).connect(g).connect(ambBus);
-  src.start();
-
-  // Drone: two detuned sines through a breathing filter
-  droneFilter = ctx.createBiquadFilter();
-  droneFilter.type = 'lowpass';
-  droneFilter.frequency.value = 240;
-  droneGain = ctx.createGain();
-  droneGain.gain.value = 0.03;
-  droneFilter.connect(droneGain).connect(ambBus);
-  // no 55 Hz: that one was the hum people heard as rumbling
-  for (const f of [82.6, 110.4]) {
-    const o = ctx.createOscillator();
-    o.type = 'sine';
-    o.frequency.value = f;
-    o.connect(droneFilter);
-    o.start();
-  }
+  const bp = ctx.createBiquadFilter();
+  bp.type = 'bandpass';
+  bp.frequency.value = 1500;
+  bp.Q.value = 0.6;
+  const sweep = ctx.createGain();
+  sweep.gain.value = 1;
   const lfo = ctx.createOscillator();
-  lfo.frequency.value = 0.045;
-  const lfoGain = ctx.createGain();
-  lfoGain.gain.value = 120;
-  lfo.connect(lfoGain).connect(droneFilter.frequency);
+  lfo.frequency.value = 1 / 14;
+  const depth = ctx.createGain();
+  depth.gain.value = 0.35;
+  lfo.connect(depth).connect(sweep.gain);
+  src.connect(bp).connect(sweep).connect(fanGain).connect(ambBus);
+  src.start(0, Math.random());
   lfo.start();
-
-  ambBus.gain.setTargetAtTime(0.5, ctx.currentTime, 2.5);
+}
+/** The dehumidifier cuts in for a minute every few minutes: a click, its fan and compressor, a click, a drip. */
+function dehumidifier() {
+  if (!roomOn || !ctx) return;
+  if (live() && !document.hidden) {
+    const t = ctx.currentTime;
+    const run = 40 + Math.random() * 30;
+    noise(0.02, { type: 'highpass', f0: 2600, vol: 0.12, attack: 0.001 });
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0, t);
+    g.gain.linearRampToValueAtTime(1, t + 2.5);
+    g.gain.setValueAtTime(1, t + run);
+    g.gain.linearRampToValueAtTime(0, t + run + 3);
+    g.connect(ambBus);
+    const air = ctx.createBufferSource();
+    air.buffer = noiseBuf;
+    air.loop = true;
+    const bp = ctx.createBiquadFilter();
+    bp.type = 'bandpass';
+    bp.frequency.value = 900;
+    bp.Q.value = 0.7;
+    const ag = ctx.createGain();
+    ag.gain.value = 0.05;
+    air.connect(bp).connect(ag).connect(g);
+    // the compressor: a small motor, kept in the mid range so it reads as a machine across the room, not a rumble
+    const hp = ctx.createBiquadFilter();
+    hp.type = 'highpass';
+    hp.frequency.value = 180;
+    const mg = ctx.createGain();
+    mg.gain.value = 0.006;
+    for (const f of [200, 300, 400]) {
+      const o = ctx.createOscillator();
+      o.frequency.value = f + Math.random() * 1.5;
+      o.connect(hp);
+      o.start(t);
+      o.stop(t + run + 3.2);
+    }
+    hp.connect(mg).connect(g);
+    air.start(t, Math.random());
+    air.stop(t + run + 3.2);
+    window.setTimeout(() => {
+      if (!live()) return;
+      noise(0.02, { type: 'highpass', f0: 2400, vol: 0.1, attack: 0.001 });
+      tone(1700, 0.09, { type: 'sine', vol: 0.025, to: 900, delay: 1.8 });
+    }, (run + 3) * 1000);
+  }
+  dehumTimer = window.setTimeout(dehumidifier, (150 + Math.random() * 180) * 1000);
+}
+/** On a dry day, now and then a car or a bus goes by outside, from one side of the window to the other. */
+function traffic() {
+  if (!roomOn || !ctx) return;
+  if (live() && !document.hidden && !roomWet) {
+    const t = ctx.currentTime;
+    const dur = 4 + Math.random() * 3;
+    const src = ctx.createBufferSource();
+    src.buffer = noiseBuf;
+    src.loop = true;
+    const hp = ctx.createBiquadFilter();
+    hp.type = 'highpass';
+    hp.frequency.value = 160;
+    const bp = ctx.createBiquadFilter();
+    bp.type = 'bandpass';
+    bp.Q.value = 0.7;
+    bp.frequency.setValueAtTime(450, t);
+    bp.frequency.linearRampToValueAtTime(850, t + dur * 0.5);
+    bp.frequency.linearRampToValueAtTime(400, t + dur);
+    const g = ctx.createGain();
+    const peak = 0.03 + Math.random() * 0.025;
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(peak, t + dur * 0.5);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    const pan = ctx.createStereoPanner();
+    const dir = Math.random() < 0.5 ? 1 : -1;
+    pan.pan.setValueAtTime(-0.7 * dir, t);
+    pan.pan.linearRampToValueAtTime(0.7 * dir, t + dur);
+    src.connect(hp).connect(bp).connect(g).connect(pan).connect(ambBus);
+    src.start(t, Math.random());
+    src.stop(t + dur + 0.1);
+  }
+  trafficTimer = window.setTimeout(traffic, (40 + Math.random() * 80) * 1000);
 }
 
 interface NoiseOpts { type?: BiquadFilterType; f0?: number; f1?: number; q?: number; vol?: number; delay?: number; attack?: number }
@@ -272,9 +343,21 @@ export const audio = {
     master.gain.setTargetAtTime(on ? 0.9 : 0, ctx.currentTime, on ? 0.6 : 0.15);
     if (on && rainWanted) this.rain(true);
   },
-  theme(night: boolean) {
-    if (!ctx || !droneGain) return;
-    droneGain.gain.setTargetAtTime(night ? 0.05 : 0.03, ctx.currentTime, 1.2);
+  theme(_night: boolean) {},
+  /** The archive is on screen (or not): its fan, its dehumidifier, the street outside when it isn't raining. */
+  room(on: boolean, wet = false) {
+    roomWet = wet;
+    if (on === roomOn) return;
+    roomOn = on;
+    window.clearTimeout(dehumTimer);
+    window.clearTimeout(trafficTimer);
+    if (!ensure() || !ctx) return;
+    if (on) {
+      startFan();
+      dehumTimer = window.setTimeout(dehumidifier, (20 + Math.random() * 60) * 1000);
+      trafficTimer = window.setTimeout(traffic, (8 + Math.random() * 20) * 1000);
+    }
+    fanGain?.gain.setTargetAtTime(on ? 0.018 : 0, ctx.currentTime, on ? 1.5 : 0.4);
   },
   flick() {
     if (!live()) return;
