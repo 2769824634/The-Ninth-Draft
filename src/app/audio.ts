@@ -177,11 +177,22 @@ export function audioOut(): { ctx: AudioContext; bus: GainNode; noise: AudioBuff
 /* ---------- Rain on the windows: soft hiss with a patter on top ---------- */
 let rainGain: GainNode | null = null;
 let rainWanted = false;
+/** 0–1: how far the rain is pushed back under music playing in the room. */
+let rainUnder = 0;
+let rainSoft: BiquadFilterNode | null = null;
+const RAIN = 0.55;
+function rainLevel() {
+  return rainWanted ? RAIN * (1 - 0.72 * rainUnder) : 0;
+}
 function startRain() {
   if (!ctx || rainGain) return;
   rainGain = ctx.createGain();
   rainGain.gain.value = 0;
-  rainGain.connect(ambBus);
+  // under music the rain thins to a light patter: quieter, and its low rumble goes first
+  rainSoft = ctx.createBiquadFilter();
+  rainSoft.type = 'highpass';
+  rainSoft.frequency.value = 20;
+  rainGain.connect(rainSoft).connect(ambBus);
   const hiss = ctx.createBufferSource();
   hiss.buffer = noiseBuf;
   hiss.loop = true;
@@ -213,7 +224,14 @@ export const audio = {
     rainWanted = on;
     if (!ctx) return;
     if (on) startRain();
-    rainGain?.gain.setTargetAtTime(on ? 0.55 : 0, ctx.currentTime, on ? 1.5 : 0.6);
+    rainGain?.gain.setTargetAtTime(rainLevel(), ctx.currentTime, on ? 1.5 : 0.6);
+  },
+  /** Music is playing in the room (k = 1) or not (0): the rain eases back over a few seconds, or comes up again. */
+  rainUnder(k: number) {
+    rainUnder = k;
+    if (!ctx) return;
+    rainGain?.gain.setTargetAtTime(rainLevel(), ctx.currentTime, k ? 1.4 : 2.2);
+    rainSoft?.frequency.setTargetAtTime(k ? 700 : 20, ctx.currentTime, k ? 1.4 : 2.2);
   },
   /** A wall switch: a hard plastic snap. */
   rocker() {

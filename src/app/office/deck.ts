@@ -18,6 +18,29 @@ import type { TapeData } from '../../lib/tapes';
 
 export type Mode = 'empty' | 'stop' | 'play' | 'rew' | 'end';
 
+/**
+ * How the machine colours what it plays. A cassette deck: audible wow and
+ * flutter, the top end gone above 7 kHz, hiss. A studio reel-to-reel at
+ * 7½ ips: steadier, the treble kept but softened, the low end a little
+ * fuller where the playback head bumps it, the tape saturating gently, a
+ * quieter hiss, and the sound coming out into the room rather than a headset.
+ */
+type Voice = {
+  wow: [number, number][];
+  lp: number;
+  bump: number;
+  soften: number;
+  drive: number;
+  even: number;
+  hiss: number;
+  hum: number;
+  room: number;
+};
+const VOICES: Record<'cassette' | 'reel', Voice> = {
+  cassette: { wow: [[0.55, 0.0009], [6.8, 0.00012]], lp: 7200, bump: 0, soften: 0, drive: 1.6, even: 0, hiss: 0.05, hum: 0.012, room: 0 },
+  reel: { wow: [[0.4, 0.00022], [9.5, 0.00003]], lp: 14500, bump: 2.5, soften: -2.5, drive: 1.35, even: 0.12, hiss: 0.018, hum: 0.004, room: 0.14 },
+};
+
 type Part = { say: string } | { bleep: true } | { click: true };
 
 const MALE = /male|daniel|george|arthur|oliver|alex|fred|thomas|david|mark|james|ryan|guy|yunxi|yunyang|kangkang|男/i;
@@ -53,6 +76,11 @@ export class Deck {
   private rewFrom = 0;
   /** Where a wind is going: 0 for a rewind, further on for a fast-forward. */
   private windTo = 0;
+  private tone: Voice;
+
+  constructor(kind: 'cassette' | 'reel' = 'cassette') {
+    this.tone = VOICES[kind];
+  }
 
   private chain() {
     if (this.ctx) return true;
@@ -66,7 +94,8 @@ export class Deck {
     this.input = ctx.createGain();
     const delay = ctx.createDelay(0.05);
     delay.delayTime.value = 0.012;
-    for (const [f, depth] of [[0.55, 0.0009], [6.8, 0.00012]]) {
+    const v = this.tone;
+    for (const [f, depth] of v.wow) {
       const lfo = ctx.createOscillator();
       lfo.frequency.value = f;
       const g = ctx.createGain();
@@ -76,7 +105,7 @@ export class Deck {
     }
     const lp = ctx.createBiquadFilter();
     lp.type = 'lowpass';
-    lp.frequency.value = 7200;
+    lp.frequency.value = v.lp;
     lp.Q.value = 0.4;
     const hp = ctx.createBiquadFilter();
     hp.type = 'highpass';
@@ -85,14 +114,46 @@ export class Deck {
     const curve = new Float32Array(1024);
     for (let i = 0; i < 1024; i++) {
       const x = (i / 1023) * 2 - 1;
-      curve[i] = Math.tanh(x * 1.6) / Math.tanh(1.6);
+      // tape compresses the peaks; a touch of asymmetry adds the even harmonics heard as warmth
+      curve[i] = Math.tanh(x * v.drive + v.even * x * x) / Math.tanh(v.drive + v.even);
     }
     shaper.curve = curve;
+    const dc = ctx.createBiquadFilter();
+    dc.type = 'highpass';
+    dc.frequency.value = 18;
     const level = ctx.createGain();
     level.gain.value = 1.1;
     this.analyser = ctx.createAnalyser();
     this.analyser.fftSize = 1024;
-    this.input.connect(delay).connect(lp).connect(hp).connect(shaper).connect(level).connect(this.analyser).connect(bus);
+    // the playback head's low-frequency bump, and the treble eased off a little
+    const bump = ctx.createBiquadFilter();
+    bump.type = 'peaking';
+    bump.frequency.value = 85;
+    bump.Q.value = 0.9;
+    bump.gain.value = v.bump;
+    const soften = ctx.createBiquadFilter();
+    soften.type = 'highshelf';
+    soften.frequency.value = 7000;
+    soften.gain.value = v.soften;
+    this.input.connect(delay).connect(lp).connect(hp).connect(bump).connect(soften).connect(shaper).connect(dc).connect(level).connect(this.analyser).connect(bus);
+    // the room the speaker plays into: a short, dark reflection under the dry sound
+    if (v.room > 0) {
+      const len = Math.floor(ctx.sampleRate * 0.9);
+      const ir = ctx.createBuffer(2, len, ctx.sampleRate);
+      for (let c = 0; c < 2; c++) {
+        const d = ir.getChannelData(c);
+        let lo = 0;
+        for (let i = 0; i < len; i++) {
+          lo += (Math.random() * 2 - 1 - lo) * 0.18;
+          d[i] = lo * Math.exp((-i / ctx.sampleRate) * 6.5);
+        }
+      }
+      const verb = ctx.createConvolver();
+      verb.buffer = ir;
+      const wet = ctx.createGain();
+      wet.gain.value = v.room;
+      this.analyser.connect(verb).connect(wet).connect(bus);
+    }
 
     // hiss and hum, only while the tape is moving
     this.bed = ctx.createGain();
@@ -105,13 +166,13 @@ export class Deck {
     hissHp.type = 'highpass';
     hissHp.frequency.value = 3200;
     const hissG = ctx.createGain();
-    hissG.gain.value = 0.05;
+    hissG.gain.value = v.hiss;
     hiss.connect(hissHp).connect(hissG).connect(this.bed);
     hiss.start();
     const hum = ctx.createOscillator();
     hum.frequency.value = 50;
     const humG = ctx.createGain();
-    humG.gain.value = 0.012;
+    humG.gain.value = v.hum;
     hum.connect(humG).connect(this.bed);
     hum.start();
     return true;
