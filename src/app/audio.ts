@@ -48,16 +48,21 @@ function ensure(): AudioContext | null {
 function startAmbient() {
   if (!ctx || ambientOn) return;
   ambientOn = true;
-  // Room tone
+  // Room tone: the air of a big quiet room, not a rumble. The lowest octaves are cut
+  // (on speakers and headphones they read as a truck idling outside) and it sits well back.
   const src = ctx.createBufferSource();
   src.buffer = noiseBuf;
   src.loop = true;
+  const hp = ctx.createBiquadFilter();
+  hp.type = 'highpass';
+  hp.frequency.value = 160;
+  hp.Q.value = 0.5;
   const lp = ctx.createBiquadFilter();
   lp.type = 'lowpass';
-  lp.frequency.value = 520;
+  lp.frequency.value = 900;
   const g = ctx.createGain();
-  g.gain.value = 0.22;
-  src.connect(lp).connect(g).connect(ambBus);
+  g.gain.value = 0.07;
+  src.connect(hp).connect(lp).connect(g).connect(ambBus);
   src.start();
 
   // Drone: two detuned sines through a breathing filter
@@ -65,9 +70,10 @@ function startAmbient() {
   droneFilter.type = 'lowpass';
   droneFilter.frequency.value = 240;
   droneGain = ctx.createGain();
-  droneGain.gain.value = 0.05;
+  droneGain.gain.value = 0.03;
   droneFilter.connect(droneGain).connect(ambBus);
-  for (const f of [55, 82.6, 110.4]) {
+  // no 55 Hz: that one was the hum people heard as rumbling
+  for (const f of [82.6, 110.4]) {
     const o = ctx.createOscillator();
     o.type = 'sine';
     o.frequency.value = f;
@@ -191,7 +197,7 @@ function startRain() {
   // under music the rain thins to a light patter: quieter, and its low rumble goes first
   rainSoft = ctx.createBiquadFilter();
   rainSoft.type = 'highpass';
-  rainSoft.frequency.value = 20;
+  rainSoft.frequency.value = 90;
   rainGain.connect(rainSoft).connect(ambBus);
   const hiss = ctx.createBufferSource();
   hiss.buffer = noiseBuf;
@@ -231,7 +237,7 @@ export const audio = {
     rainUnder = k;
     if (!ctx) return;
     rainGain?.gain.setTargetAtTime(rainLevel(), ctx.currentTime, k ? 1.4 : 2.2);
-    rainSoft?.frequency.setTargetAtTime(k ? 700 : 20, ctx.currentTime, k ? 1.4 : 2.2);
+    rainSoft?.frequency.setTargetAtTime(k ? 700 : 90, ctx.currentTime, k ? 1.4 : 2.2);
   },
   /** A wall switch: a hard plastic snap. */
   rocker() {
@@ -268,7 +274,7 @@ export const audio = {
   },
   theme(night: boolean) {
     if (!ctx || !droneGain) return;
-    droneGain.gain.setTargetAtTime(night ? 0.11 : 0.05, ctx.currentTime, 1.2);
+    droneGain.gain.setTargetAtTime(night ? 0.05 : 0.03, ctx.currentTime, 1.2);
   },
   flick() {
     if (!live()) return;
