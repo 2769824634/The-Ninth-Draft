@@ -88,6 +88,8 @@ export interface StacksEvents {
   dehumidifier(): void;
   /** The window cord clicked. */
   blinds(): void;
+  /** The accession register on the intake desk clicked. */
+  ledger(): void;
 }
 
 interface View {
@@ -664,11 +666,13 @@ export class StacksScene {
     const rect = this.canvas.getBoundingClientRect();
     this.raycaster.setFromCamera(new THREE.Vector2(((x - rect.left) / rect.width) * 2 - 1, -((y - rect.top) / rect.height) * 2 + 1), this.camera);
     // up close at a drawer, only its files answer; a file is found only in a drawer that is out
-    const hit = this.raycaster.intersectObjects(this.room.hits, false).find((h) => {
+    const all = this.raycaster.intersectObjects(this.room.hits, false).filter((h) => {
       const f = h.object.userData.file as string | undefined;
       if (this.drawer) return !!f && this.room.fileReachable(f);
       return !f;
     });
+    // a zone is a big box around the things in it: what is inside answers before the box does
+    const hit = (all[0] && all[0].object.userData.zone ? all.find((h) => !h.object.userData.zone && h.distance < all[0].distance + 1.2) : null) ?? all[0];
     return hit ? hit.object.userData : null;
   }
 
@@ -702,6 +706,7 @@ export class StacksScene {
       else if (p.safe) this.on.safe();
       else if (p.dehumidifier) this.on.dehumidifier();
       else if (p.blinds) this.on.blinds();
+      else if (p.ledger) this.on.ledger();
       else if (p.zone) this.goZone(p.zone as StacksZone);
     });
     new ResizeObserver(() => this.resize()).observe(c);

@@ -472,3 +472,8 @@
   .stackshud__choice { bottom: 3.4rem; }
   .icards { padding: 6.4rem 1rem 2.4rem; }
 }
+
+/* the clerk's "file them" button on the intake slip, and the mark for a card already read */
+.stackshud__slipbtn { font: 600 .72rem/1 var(--f-mono); letter-spacing: .06em; text-transform: uppercase; padding: .55rem .9rem; border: 1px solid currentColor; border-radius: 999px; color: var(--accent); }
+.stackshud__slipbtn:hover { background: var(--accent); color: var(--bg); }
+.icard__read { color: #7a766b; }

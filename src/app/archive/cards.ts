@@ -4,12 +4,14 @@
  * standing up at each heading. A record's card says where the file hangs,
  * and the visitor can walk over and take it out; nothing is fetched for them.
  */
+import { intake } from './intake';
 import type { ArchiveRecord, Category } from '../types';
 import { DISTRICT_DATA } from '../../data/gerimis/districts';
 import { currentDistrict } from '../../data/gerimis/legacy';
 import { isZh } from '../i18n';
 import { audio } from '../audio';
 import { reducedMotion } from '../prefs';
+import { islandIso } from '../island';
 import { clearanceKey } from '../clearance';
 import { esc } from '../ui/text';
 
@@ -181,7 +183,7 @@ export class Cards {
       <h3 class="icard__title">${esc(r.title)}</h3>
       ${r.subtitle ? `<p class="icard__sub">${esc(r.subtitle)}</p>` : ''}
       <dl class="icard__rows">${rows.map(([k, v]) => `<div><dt>${esc(k)}</dt><dd>${esc(v)}</dd></div>`).join('')}</dl>
-      <p class="icard__mark">${esc(mark)}</p>
+      <p class="icard__mark">${esc(mark)}${intake.everRead(islandIso(), r.file) ? `<span class="icard__read">${zh ? ' · 读过' : ' · read'}</span>` : ''}</p>
       <button type="button" class="icard__go" data-fetch="${esc(r.file)}">${w.onTable ? (zh ? '去桌上看' : 'Go to the table') : zh ? '去柜子拿' : 'Go and take it out'} <span class="kbd">Enter</span></button>
     </article>`;
   }
