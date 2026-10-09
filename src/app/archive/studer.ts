@@ -335,6 +335,9 @@ class Reel {
   }
 }
 
+type Box = { m: THREE.Group; lid: THREE.Object3D; home: THREE.Vector3; out: number; want: number };
+type Carry = { box: Box; up: boolean; t: number; done: () => void; fired: boolean; id: string | null };
+
 export class Studer {
   /** The whole thing: sideboard, plinth, machine. Its origin is on the floor, under the middle of the sideboard. */
   readonly group = new THREE.Group();
@@ -353,9 +356,11 @@ export class Studer {
   private press = new Map<string, number>();
   private lcdMat: THREE.MeshBasicMaterial;
   private lcdText = '';
-  private boxes = new Map<string, { m: THREE.Mesh; out: number; want: number }>();
-  /** A reel on its way between its box and the spindle. */
-  private flight: { path: THREE.CatmullRomCurve3; up: boolean; t: number; done: () => void } | null = null;
+  private boxes = new Map<string, Box>();
+  /** A tape being put up or taken down: its box out of the shelf, opened, the reel in or out. */
+  private carry: Carry | null = null;
+  /** The tape on the machine now. */
+  private onId: string | null = null;
   private loaded = false;
   private lastPos = 0;
   private rate = 0;
@@ -410,13 +415,27 @@ export class Studer {
     tapes.forEach((t, i) => {
       const side = std({ color: t.ink || inks[i % inks.length], roughness: 0.8 });
       const spine = std({ map: boxSpine(t.code, t.title, t.ink || inks[i % inks.length]), roughness: 0.75 });
-      // the spine, the thin face, towards the room
-      const m = new THREE.Mesh(new THREE.BoxGeometry(0.022, 0.285, 0.29), [side, side, side, side, spine, side]);
+      // a hinged box, like a book: the tray, the lid swinging on the spine, the spine towards the room
+      const m = new THREE.Group();
+      const tray = new THREE.Mesh(new THREE.BoxGeometry(0.011, 0.285, 0.29), side);
+      tray.position.x = -0.0055;
+      const lid = new THREE.Group();
+      lid.position.set(0, 0, 0.145);
+      const lidM = new THREE.Mesh(new THREE.BoxGeometry(0.011, 0.285, 0.29), side);
+      lidM.position.set(0.0055, 0, -0.145);
+      lid.add(lidM);
+      const sp = new THREE.Mesh(new THREE.PlaneGeometry(0.022, 0.285), spine);
+      sp.position.z = 0.1452;
+      // inside the tray, the paper lining the reel sits on
+      const lining = new THREE.Mesh(new THREE.PlaneGeometry(0.27, 0.27), std({ color: '#e6dfcf', roughness: 0.9 }));
+      lining.rotation.y = Math.PI / 2;
+      lining.position.x = 0.0003;
+      for (const o of [tray, lidM, sp]) o.castShadow = o.receiveShadow = true;
+      m.add(tray, lid, sp, lining);
       const x = -SB.w / 2 + 0.06 + i * pitch;
       m.position.set(x, 0.08 + 0.1425, 0.045);
-      m.castShadow = m.receiveShadow = true;
       g.add(m);
-      this.boxes.set(t.id, { m, out: 0, want: 0 });
+      this.boxes.set(t.id, { m, lid, home: m.position.clone(), out: 0, want: 0 });
       this.hit({ reel: `box:${t.id}`, key: `reel:box:${t.id}`, near: true }, 0.024, 0.29, 0.3, x, 0.225, 0.045);
     });
     // a few blank boxes leaning at the end, and a roll of splicing tape
@@ -655,76 +674,145 @@ export class Studer {
     if (l) l.on = on;
   }
 
-  /** Draw one tape box half out of the shelf (or push it home). */
+  /** Draw one tape box a little out of the shelf (or push it home). */
   pullBox(id: string | null) {
     for (const [k, b] of this.boxes) b.want = k === id ? 1 : 0;
   }
 
   /**
-   * Put a reel up (a tape id) or take it down (null). The reel travels between
-   * its box and the left spindle; `done` runs when it gets there.
+   * Put a reel up (a tape id) or take it down (null), the way a person does it:
+   * the box comes straight out of the shelf, is lifted and turned to face you in
+   * front of the machine, opened on its spine; the reel goes from the box onto the
+   * left spindle (or back into the box); the box is shut and goes home.
+   * `done` runs when the reel is on the spindle, or back in its box with the box home.
    */
   mount(id: string | null, still: boolean, done: () => void) {
     const spindle = new THREE.Vector3(-SPIN_X, SPIN_Y, TAPE_Z);
-    if (still) {
+    const boxId = id ?? this.onId;
+    const box = boxId ? this.boxes.get(boxId) : undefined;
+    if (this.carry) this.finishCarry();
+    if (still || !box) {
       this.loaded = !!id;
+      this.onId = id;
       this.supply.g.visible = !!id;
       this.supply.g.position.copy(spindle);
-      this.supply.g.rotation.y = 0;
+      this.supply.g.rotation.set(0, 0, 0);
       done();
       return;
     }
-    const b = id ? this.boxes.get(id) : [...this.boxes.values()].find((x) => x.want > 0);
-    // the reel comes edge-on out of its box (where the box will be once it is drawn out),
-    // straight forward until it clears the sideboard, then up in front of everything and back onto the spindle
-    const mc = this.machine.position;
-    const bx = b ? b.m.position.x : spindle.x + mc.x;
-    const by = b ? b.m.position.y : 0.2225;
-    const local = (x: number, y: number, z: number) => new THREE.Vector3(x, y, z).sub(mc);
-    // once it is clear of the box it turns to face the room (edge-on it is only a sliver),
-    // drifting in towards the middle of the sideboard so its flange stays clear of the table
-    const pts = [
-      local(bx, by, 0.245),
-      local(bx, by, 0.37),
-      local(-0.2, by + 0.04, 0.42),
-      local((-0.2 + spindle.x + mc.x) / 2, by + 0.3, 0.42),
-      new THREE.Vector3(spindle.x, spindle.y + 0.02, TAPE_Z + 0.2),
-      new THREE.Vector3(spindle.x, spindle.y, TAPE_Z + 0.06),
-      spindle.clone(),
-    ];
-    if (!id) pts.reverse();
-    const path = new THREE.CatmullRomCurve3(pts, false, 'centripetal');
-    this.supply.g.visible = true;
-    if (id) {
-      this.flight = { path, up: true, t: -0.25, done: () => ((this.loaded = true), done()) };
-    } else {
-      this.loaded = false;
-      this.flight = { path, up: false, t: 0, done: () => ((this.supply.g.visible = false), done()) };
-    }
-    this.fly(0);
+    // taking a tape down: it stays threaded on the machine until the open box is ready for it
+    this.loaded = !id;
+    this.supply.g.visible = !id;
+    this.carry = { box, up: !!id, t: 0, done, fired: false, id };
+    this.carryStep(0);
   }
 
-  /** The reel on its way between its box and the spindle. */
-  private fly(dt: number) {
-    const fl = this.flight;
-    if (!fl) return;
-    fl.t = Math.min(1, fl.t + dt / 2.3);
-    const t = Math.max(0, fl.t);
-    // an even pace, like a hand carrying it: no rush in the middle
-    const e = t * t * (3 - 2 * t);
-    fl.path.getPoint(e, this.supply.g.position);
-    // edge-on while in the box and coming out, then turning to face the room
-    const u = fl.up ? e : 1 - e;
-    const turn = Math.max(0, Math.min(1, (u - 0.17) / 0.25));
-    const k = turn * turn * (3 - 2 * turn);
-    this.supply.g.rotation.y = (Math.PI / 2) * (1 - k);
-    // the hub stands proud of the flanges; while edge-on in the box keep it inside the box's sides
-    this.supply.g.scale.z = 0.4 + 0.6 * k;
-    // the drawn box hides it while it is inside; gone once it is back in at the end
-    this.supply.g.visible = fl.t < 1 || fl.up;
-    if (fl.t >= 1) {
-      this.flight = null;
-      fl.done();
+  /** Jump an unfinished carry to its end (a second tape asked for mid-way). */
+  private finishCarry() {
+    const c = this.carry!;
+    this.carry = null;
+    c.box.m.position.copy(c.box.home);
+    c.box.m.rotation.set(0, 0, 0);
+    c.box.lid.rotation.y = 0;
+    this.onId = c.up ? c.id : null;
+    this.loaded = c.up;
+    this.supply.g.visible = c.up;
+    this.supply.g.position.set(-SPIN_X, SPIN_Y, TAPE_Z);
+    this.supply.g.rotation.set(0, 0, 0);
+    if (!c.fired) c.done();
+  }
+
+  private carryStep(dt: number) {
+    const c = this.carry;
+    if (!c) return;
+    c.t += dt;
+    const { m, lid, home } = c.box;
+    const ease = (x: number) => {
+      const k = Math.max(0, Math.min(1, x));
+      return k * k * (3 - 2 * k);
+    };
+    // where the box goes: straight out, then up and round to face the room in front of the plinth
+    const out = new THREE.Vector3(home.x, home.y, 0.4);
+    const shown = new THREE.Vector3(-0.13, 0.62, 0.47);
+    const SHOWN_ROT = -Math.PI / 2;
+    const LID_OPEN = -1.9;
+    // the reel's way between the open box and the spindle, in the machine's frame
+    const mc = this.machine.position;
+    const inBox = shown.clone().add(new THREE.Vector3(0, 0, 0.0065)).sub(mc);
+    const path = new THREE.CatmullRomCurve3(
+      [inBox, inBox.clone().add(new THREE.Vector3(0, 0.03, 0.09)), new THREE.Vector3(-SPIN_X, SPIN_Y, TAPE_Z + 0.09), new THREE.Vector3(-SPIN_X, SPIN_Y, TAPE_Z)],
+      false,
+      'centripetal',
+    );
+    // the timetable, in seconds
+    const T = { slide: 0.5, lift: 0.75, open: 0.45, reel: 1.0, close: 0.35, back: 0.7, home: 0.45 };
+    const seq = ['slide', 'lift', 'open', 'reel', 'close', 'back', 'home'] as const;
+    let at = 0;
+    const span: Record<string, [number, number]> = {};
+    for (const k of seq) {
+      span[k] = [at, at + T[k]];
+      at += T[k];
+    }
+    const total = at;
+    const p = (k: keyof typeof T) => ease((c.t - span[k][0]) / T[k]);
+    // box: out, up, open; then shut, down, in
+    const goOut = c.t < span.close[0];
+    if (goOut) {
+      m.position.lerpVectors(home, out, p('slide'));
+      const l = p('lift');
+      m.position.lerp(shown, l);
+      m.rotation.y = SHOWN_ROT * l;
+      lid.rotation.y = LID_OPEN * p('open');
+    } else {
+      lid.rotation.y = LID_OPEN * (1 - p('close'));
+      const b = p('back');
+      m.position.lerpVectors(shown, out, b);
+      m.rotation.y = SHOWN_ROT * (1 - b);
+      if (c.t >= span.home[0]) m.position.lerpVectors(out, home, p('home'));
+    }
+    // the reel: in the box until the lid is open, then along its way (backwards when it is coming down)
+    const r = this.supply.g;
+    const k = p('reel');
+    const e = c.up ? k : 1 - k;
+    const inTheBox = () => {
+      const w = m.localToWorld(new THREE.Vector3(0.0065, 0, 0));
+      this.machine.worldToLocal(r.position.copy(w));
+      r.rotation.set(0, m.rotation.y + Math.PI / 2, r.rotation.z);
+    };
+    if (c.t < span.reel[0]) {
+      // up: lying in the box, seen once the lid is most of the way open; down: still on the spindle
+      if (c.up) {
+        inTheBox();
+        r.visible = c.t > span.open[0] + 0.6 * T.open;
+      }
+    } else if (c.t <= span.reel[1]) {
+      r.visible = true;
+      this.loaded = false;
+      path.getPoint(e, r.position);
+      r.rotation.set(0, 0, r.rotation.z);
+    } else if (c.up) {
+      r.position.set(-SPIN_X, SPIN_Y, TAPE_Z);
+      if (!c.fired) {
+        c.fired = true;
+        this.loaded = true;
+        this.onId = c.id;
+        c.done();
+      }
+    } else {
+      // down: lying in the box as the lid comes over it (the hub stands taller than the box is deep, so it goes once the lid is partly shut)
+      inTheBox();
+      r.visible = c.t < span.close[0] + 0.4 * T.close;
+    }
+    if (c.t >= total) {
+      this.carry = null;
+      m.position.copy(home);
+      m.rotation.set(0, 0, 0);
+      lid.rotation.y = 0;
+      if (!c.up) {
+        r.visible = false;
+        this.onId = null;
+        c.done();
+      }
     }
   }
 
@@ -745,8 +833,8 @@ export class Studer {
       r.g.rotation.z += w * dt;
     }
     this.lay();
-    // the reel on its way up or down
-    this.fly(dt);
+    // a tape on its way up or down
+    this.carryStep(dt);
     // needles: VU ballistics, about 300 ms to settle, the two channels not quite together
     for (let i = 0; i < 2; i++) {
       const want = Math.min(1.05, p.level * (i ? 0.94 : 1) * (0.92 + Math.random() * 0.12));
@@ -766,7 +854,7 @@ export class Studer {
     }
     for (const b of this.boxes.values()) {
       b.out += (b.want - b.out) * Math.min(1, dt * 8);
-      b.m.position.z = 0.045 + b.out * 0.2;
+      if (this.carry?.box !== b) b.m.position.z = b.home.z + b.out * 0.03;
     }
     if (p.timer !== this.lcdText) {
       this.lcdText = p.timer;
@@ -778,7 +866,7 @@ export class Studer {
 
   /** The tape's straight runs, from where the packs are now. */
   private lay() {
-    const on = this.loaded && !this.flight;
+    const on = this.loaded;
     for (const t of this.tape) t.visible = on;
     if (!on) return;
     const z = TAPE_Z;
