@@ -99,6 +99,13 @@ export interface StacksHooks {
   search(): void;
 }
 
+const MON = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
+/** "1999-10-09" as a date stamp prints it: 9 OCT 1999. */
+const stampDate = (iso: string) => {
+  const m = iso.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  return m ? `${Number(m[3])} ${MON[Number(m[2]) - 1]} ${m[1]}` : iso;
+};
+
 export class Stacks {
   scene: StacksScene | null = null;
   private lights: Lights;
@@ -810,7 +817,6 @@ export class Stacks {
       this.drawDrawer();
     }
     this.drawTable();
-    this.setTray();
     void this.layTable(false, undefined, back);
     audio.paper();
     window.setTimeout(() => {
@@ -968,7 +974,7 @@ export class Stacks {
   }
 
   private setTray() {
-    this.scene?.room.setTray(this.onTray().length);
+    this.scene?.room.setTray(this.onTray().map((r) => ({ file: r.file, category: r.category, map: () => fileCover(r.file, r.title, r.stamp, r.category) })));
   }
 
   /** The clerk shelves the tray into the drawers. */
@@ -979,15 +985,27 @@ export class Stacks {
     const files = list.map((r) => r.file);
     intake.fileAll(this.today, files);
     intake.shelve(this.today, files);
-    this.scene?.room.carryFromTray([...this.homeOf(files).values()]);
+    const homes = this.homeOf(files);
+    const date = stampDate(this.today);
+    if (this.scene) {
+      this.scene.room.stampSound = () => audio.stamp();
+      this.scene.room.fileFromTray(list.map((r) => ({ file: r.file, category: r.category, map: () => fileCover(r.file, r.title, r.stamp, r.category), date, loans: intake.history(this.today, r.file).n, last: intake.history(this.today, r.file).last?.slice(0, 5).replace('-', '/'), home: homes.get(r.file) ?? this.scene!.room.trayPoint() })));
+    }
     this.setTray();
     if (this.open) {
       this.fillDrawer();
       this.drawDrawer();
     }
-    audio.stamp();
+    if (reducedMotion()) audio.stamp();
     this.stats();
-    this.showSlip(`<h3>${zh ? '已归档' : 'Filed'}</h3><p>${zh ? '盖了章，放进抽屉了：' : 'Stamped and put away in the drawers:'}</p>${this.list(list)}`);
+    const li = list
+      .map((r) => {
+        const h = intake.history(this.today, r.file);
+        const n = h.n ? (zh ? `借出 ${h.n} 次 · 最近 ${h.last}` : `out ${h.n} ${h.n === 1 ? 'time' : 'times'} · last ${h.last}`) : zh ? '没借出过' : 'never loaned';
+        return `<li><button type="button" data-file="${esc(r.file)}">${esc(r.file)} · ${esc(r.title)}</button> <span class="micro">${esc(this.shelfMark(r))} · ${esc(n)}</span></li>`;
+      })
+      .join('');
+    this.showSlip(`<h3>${zh ? '已归档' : 'Filed'}</h3><p>${zh ? `盖了「已归档 ${stampDate(this.today)}」的章，放进抽屉了：` : `Stamped FILED ${stampDate(this.today)} and put away in the drawers:`}</p><ul>${li}</ul>`);
   }
 
   /** The accession ledger: what has been taken to the table, and handed back. */
