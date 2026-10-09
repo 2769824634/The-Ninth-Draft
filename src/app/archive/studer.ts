@@ -355,7 +355,7 @@ export class Studer {
   private lcdText = '';
   private boxes = new Map<string, { m: THREE.Mesh; out: number; want: number }>();
   /** A reel on its way between its box and the spindle. */
-  private flight: { from: THREE.Vector3; to: THREE.Vector3; t: number; done: () => void } | null = null;
+  private flight: { path: THREE.CatmullRomCurve3; up: boolean; t: number; done: () => void } | null = null;
   private loaded = false;
   private lastPos = 0;
   private rate = 0;
@@ -665,27 +665,61 @@ export class Studer {
    * its box and the left spindle; `done` runs when it gets there.
    */
   mount(id: string | null, still: boolean, done: () => void) {
-    const box = id ? this.boxes.get(id) : null;
     const spindle = new THREE.Vector3(-SPIN_X, SPIN_Y, TAPE_Z);
-    const shelf = (b: { m: THREE.Mesh } | null | undefined) => {
-      if (!b) return spindle.clone().add(new THREE.Vector3(0, -0.4, 0.2));
-      const w = b.m.getWorldPosition(new THREE.Vector3());
-      return this.machine.worldToLocal(w);
-    };
     if (still) {
       this.loaded = !!id;
       this.supply.g.visible = !!id;
       this.supply.g.position.copy(spindle);
+      this.supply.g.rotation.y = 0;
       done();
       return;
     }
+    const b = id ? this.boxes.get(id) : [...this.boxes.values()].find((x) => x.want > 0);
+    // the reel comes edge-on out of its box (where the box will be once it is drawn out),
+    // straight forward until it clears the sideboard, then up in front of everything and back onto the spindle
+    const mc = this.machine.position;
+    const bx = b ? b.m.position.x : spindle.x + mc.x;
+    const by = b ? b.m.position.y : 0.2225;
+    const local = (x: number, y: number, z: number) => new THREE.Vector3(x, y, z).sub(mc);
+    const front = 0.21 + REEL_R + 0.05;
+    const pts = [
+      local(bx, by, 0.165),
+      local(bx, by, 0.3),
+      local(bx, by, front),
+      local((bx + spindle.x + mc.x) / 2, by + 0.26, front + 0.03),
+      new THREE.Vector3(spindle.x, spindle.y + 0.02, TAPE_Z + 0.2),
+      new THREE.Vector3(spindle.x, spindle.y, TAPE_Z + 0.06),
+      spindle.clone(),
+    ];
+    if (!id) pts.reverse();
+    const path = new THREE.CatmullRomCurve3(pts, false, 'centripetal');
+    this.supply.g.visible = true;
     if (id) {
-      this.supply.g.visible = true;
-      this.flight = { from: shelf(box), to: spindle, t: 0, done: () => ((this.loaded = true), done()) };
+      this.flight = { path, up: true, t: -0.25, done: () => ((this.loaded = true), done()) };
     } else {
       this.loaded = false;
-      const last = [...this.boxes.values()].find((b) => b.want > 0) ?? null;
-      this.flight = { from: spindle, to: shelf(last), t: 0, done: () => ((this.supply.g.visible = false), done()) };
+      this.flight = { path, up: false, t: 0, done: () => ((this.supply.g.visible = false), done()) };
+    }
+    this.fly(0);
+  }
+
+  /** The reel on its way between its box and the spindle. */
+  private fly(dt: number) {
+    const fl = this.flight;
+    if (!fl) return;
+    fl.t = Math.min(1, fl.t + dt / 1.7);
+    const t = Math.max(0, fl.t);
+    const e = t < 0.5 ? 4 * t ** 3 : 1 - (-2 * t + 2) ** 3 / 2;
+    fl.path.getPoint(e, this.supply.g.position);
+    // edge-on while in the box and coming out, turning to face the room as it rises
+    const u = fl.up ? e : 1 - e;
+    const turn = Math.max(0, Math.min(1, (u - 0.32) / 0.4));
+    this.supply.g.rotation.y = (Math.PI / 2) * (1 - turn * turn * (3 - 2 * turn));
+    // hidden in its box until it is past the boxes either side, and back in it at the end
+    this.supply.g.visible = fl.t > 0 && fl.t < 1 ? this.supply.g.position.z + this.machine.position.z > 0.19 : fl.up && fl.t >= 1;
+    if (fl.t >= 1) {
+      this.flight = null;
+      fl.done();
     }
   }
 
@@ -707,17 +741,7 @@ export class Studer {
     }
     this.lay();
     // the reel on its way up or down
-    if (this.flight) {
-      const fl = this.flight;
-      fl.t = Math.min(1, fl.t + dt / 0.9);
-      const e = fl.t < 0.5 ? 4 * fl.t ** 3 : 1 - (-2 * fl.t + 2) ** 3 / 2;
-      this.supply.g.position.lerpVectors(fl.from, fl.to, e);
-      this.supply.g.position.z += Math.sin(Math.PI * e) * 0.12;
-      if (fl.t >= 1) {
-        this.flight = null;
-        fl.done();
-      }
-    }
+    this.fly(dt);
     // needles: VU ballistics, about 300 ms to settle, the two channels not quite together
     for (let i = 0; i < 2; i++) {
       const want = Math.min(1.05, p.level * (i ? 0.94 : 1) * (0.92 + Math.random() * 0.12));
