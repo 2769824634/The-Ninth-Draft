@@ -156,7 +156,6 @@ export class Stacks {
         bank: (bi) => this.routine(bi),
         rocker: (i) => this.toggleRow(i),
         desk: (i) => this.toggleDesk(i),
-        exam: (i) => this.pullExam(i),
         index: () => this.cards.show(),
         tray: () => this.arrivals(),
         safe: () => this.strongCabinet(),
@@ -285,16 +284,6 @@ export class Stacks {
     document.querySelectorAll<HTMLButtonElement>('.stackshud__rockers [data-row]').forEach((b) => b.addEventListener('click', () => this.toggleRow(Number(b.dataset.row))));
     document.querySelectorAll<HTMLButtonElement>('[data-blinds]').forEach((b) => b.addEventListener('click', () => this.toggleBlinds()));
     document.querySelectorAll<HTMLButtonElement>('.stackshud__desks [data-desk]').forEach((b) => b.addEventListener('click', () => this.toggleDesk(Number(b.dataset.desk))));
-    const bright = document.querySelector<HTMLInputElement>('#ds-bright');
-    if (bright) {
-      const apply = () => document.documentElement.style.setProperty('--paper-b', String(+bright.value / 100));
-      try { bright.value = localStorage.getItem('n9:paper-b') ?? bright.value; } catch {}
-      apply();
-      bright.addEventListener('input', () => {
-        apply();
-        try { localStorage.setItem('n9:paper-b', bright.value); } catch {}
-      });
-    }
     document.querySelectorAll<HTMLButtonElement>('#ds-switches [data-ls]').forEach((b) => b.addEventListener('click', () => this.readSwitch(b.dataset.ls!)));
     this.$('stacks-cards-btn').addEventListener('click', () => this.cards.show());
     this.slip.addEventListener('click', (e) => {
@@ -321,6 +310,8 @@ export class Stacks {
       if (f) return this.take(f);
       const t = el.closest<HTMLElement>('[data-table-file]')?.dataset.tableFile;
       if (t) return this.readTable(t);
+      const tt = el.closest<HTMLElement>('[data-take-tray]')?.dataset.takeTray;
+      if (tt) return this.take(tt);
       const act = el.closest<HTMLElement>('[data-act]')?.dataset.act;
       if (act === 'close') this.closeCabinet();
       else if (act === 'prev') this.stepDrawer(-1);
@@ -420,9 +411,6 @@ export class Stacks {
       const on = this.lights.desks[Number(arg)];
       const what = Number(arg) === 2 ? (zh ? '入库台的灯' : 'Desk lamp at the intake desk') : zh ? '阅档桌台灯' : 'Reading lamp';
       text = zh ? `${what} · 拉一下灯绳${on ? '关掉' : '打开'}` : `${what} · pull the chain to switch it ${on ? 'off' : 'on'}`;
-    } else if (kind === 'exam') {
-      const on = (this.scene?.examWanted[Number(arg)] ?? 0) > 0;
-      text = zh ? `摇臂灯 · 拉一下灯绳${on ? '关掉' : '打开'}` : `Swing-arm lamp · pull the cord to switch it ${on ? 'off' : 'on'}`;
     } else if (kind === 'index') text = zh ? '索引卡 · 按编号、区、年份翻' : 'Card index · by number, district or year';
     else if (kind === 'tray') {
       const n = this.arrivedToday().length;
@@ -480,42 +468,22 @@ export class Stacks {
     return v ? s.screenOf(v) : null;
   }
 
-  /* ---------------- the examination lamp ---------------- */
+  /* ---------------- reading by the lamp ---------------- */
   /**
-   * How far the examination tube comes on for each clearance. Office rule:
-   * the higher the clearance, the more of it is read under the cold tube,
-   * where erasures show; the lowest two make do with the warm lamps alone.
+   * How far the rest of the room's lights fade for each clearance, leaving
+   * only the reading lamps: the higher the clearance, the darker round the table.
    */
   static readonly EXAM: Record<string, number> = { declass: 0, restr: 0, conf: 0.45, secret: 0.8, top: 1 };
-  /** The tube lit for the file being read, and where that file is being read. */
-  private examAt: { i: number; level: number; at: ReadAt } | null = null;
+  /** Where the open file is being read. */
+  private examAt: { at: ReadAt } | null = null;
 
-  /**
-   * A file opened at `at` with this clearance: point the room's light meter at
-   * that place and bring its examination tube up as far as the clearance asks.
-   * Null puts the tube out and stops measuring.
-   */
+  /** A file opened at `at` with this clearance: point the room's light meter at that place and hush the room as far as the clearance asks. */
   exam(at: ReadAt | null, stamp: string | null) {
     void this.ready.then(() => {
       const s = this.scene;
       if (!s) return;
-      const ci = at === 'drawer' ? (this.open?.ci ?? (this.taken ? this.categories.findIndex((c) => c.id === this.taken!.category) : -1)) : -1;
-      const i = !at ? -1 : s.room.exams.findIndex((e) => (at === 'table' ? e.place === 'table' : e.place === 'cabinet' && e.ci === ci));
-      const level = stamp ? Stacks.EXAM[clearanceKey(stamp)] ?? 0 : 0;
-      s.room.exams.forEach((_, k) => k !== i && s.setExam(k, 0));
-      if (i >= 0) {
-        // the same file under the same lamp (stepping through its drafts): the lamp keeps the state the reader left it in;
-        // only its strength follows the draft, so it neither restarts nor lights itself
-        const keep = this.examAt?.i === i && this.examAt.at === at;
-        const now = s.examWanted[i] ?? 0;
-        if (keep) {
-          if (now > 0 && level > 0) s.setExam(i, level);
-        } else {
-          if (level > 0 && now === 0) audio.tube();
-          s.setExam(i, level);
-        }
-      }
-      this.examAt = at && i >= 0 ? { i, level, at } : null;
+      s.setHush(at === 'table' && stamp ? Stacks.EXAM[clearanceKey(stamp)] ?? 0 : 0);
+      this.examAt = at ? { at } : null;
       if (!at) s.setReadPoint(null);
       else if (at === 'table') s.setReadPoint(s.room.readSpot());
       else if (this.open) s.setReadPoint(s.room.drawerFront(this.open.ci, this.open.d));
@@ -524,27 +492,12 @@ export class Stacks {
     });
   }
 
-  /** The pull cord on an examination lamp: on at the level of the file under it (or at work strength), or off. */
-  private pullExam(i: number) {
-    const s = this.scene;
-    if (!s) return;
-    const on = (s.examWanted[i] ?? 0) > 0;
-    const lv = on ? 0 : this.examAt?.i === i ? this.examAt.level || 0.6 : 0.6;
-    if (lv > 0) audio.tube();
-    else audio.rocker();
-    s.setExam(i, lv);
-    this.markReadSwitches();
-  }
-
   /** The switches in the margin of an open file: the tube here, the pendants over here, the table lamps. */
   private readSwitch(which: string) {
     const at = this.examAt?.at ?? null;
-    if (which === 'exam' && this.examAt && this.scene) {
-      const on = (this.scene.examWanted[this.examAt.i] ?? 0) > 0;
-      const lv = on ? 0 : this.examAt.level || 0.6;
-      if (lv > 0) audio.tube();
-      else audio.rocker();
-      this.scene.setExam(this.examAt.i, lv);
+    if (which === 'level') {
+      prefs.set('lampLevel', (Number(prefs.get('lampLevel') ?? 1) + 1) % 3);
+      audio.rocker();
     } else if (which === 'row' && at) this.toggleRow(at === 'drawer' ? 1 : 3);
     else if (which === 'seat' && this.scene) {
       this.scene.room.setSide(this.scene.room.sideNow === 'l' ? 'r' : 'l');
@@ -571,9 +524,13 @@ export class Stacks {
       b.hidden = !show;
       b.setAttribute('aria-pressed', String(on));
     };
-    set('exam', !!this.examAt && (this.scene?.examWanted[this.examAt.i] ?? 0) > 0);
+    const lv = Number(prefs.get('lampLevel') ?? 1);
+    set('level', lv !== 1, at === 'table');
+    const en = document.getElementById('ds-lv-en'), zh = document.getElementById('ds-lv-zh');
+    if (en) en.textContent = ['dim', 'mid', 'bright'][lv] ?? 'mid';
+    if (zh) zh.textContent = ['暗', '中', '亮'][lv] ?? '中';
     set('row', at === 'drawer' ? this.lights.rows[1] : this.lights.rows[3]);
-    set('desks', this.lights.desks[1], at === 'table');
+    set('desks', this.lights.desks[1] || at === 'table', at === 'table');
     set('blinds', !!this.scene?.blindsShut);
     set('atonce', !!prefs.get('openAtOnce'), at === 'table');
     set('seat', this.scene?.room.sideNow === 'r', at === 'table');
@@ -669,6 +626,7 @@ export class Stacks {
       if (rec) this.readTable(file);
       return;
     }
+    if (this.inTray(file)) return this.toTable(rec, read, !read);
     if (!this.open || this.where(rec).ci !== this.open.ci) return this.fetch(rec, read);
     if (this.taken && this.taken !== rec) this.scene?.room.liftFile(this.taken.file, 0);
     this.taken = rec;
@@ -703,8 +661,8 @@ export class Stacks {
     const rec = this.taken;
     if (!rec) return;
     if (act === 'back') return this.putBack();
-    // a file is read at the table, sat down to it: there is no reading it held up in the aisle
-    this.toTable(rec, true);
+    // "table": stay at the drawer and keep taking; "read": carry it over and sit down to it
+    this.toTable(rec, act === 'read', act === 'table');
   }
 
   private drawDrawer() {
@@ -727,10 +685,13 @@ export class Stacks {
           ? list
               .map((r) => {
                 const out = this.table.includes(r.file);
+                const tray = !out && this.inTray(r.file);
                 const folder = this.byCat(o.ci).indexOf(r) + 1;
                 return out
                   ? `<li class="is-out"><button type="button" data-table-file="${esc(r.file)}"><i>${two(folder)}</i><b>${esc(r.file)}</b><span>${zh ? '借出 · 在阅档桌上' : 'Out · on the reading table'}</span></button></li>`
-                  : `<li${r === this.taken ? ' class="is-up"' : ''}><button type="button" data-file="${esc(r.file)}" aria-pressed="${r === this.taken}"><i>${two(folder)}</i><b>${esc(r.file)}</b><span>${esc(r.title)}</span><em class="clr-${clearanceKey(r.stamp)}">${esc(r.stamp)}</em></button></li>`;
+                  : tray
+                    ? `<li class="is-out"><button type="button" data-take-tray="${esc(r.file)}"><i>${two(folder)}</i><b>${esc(r.file)}</b><span>${zh ? '在入库台，还没归档' : 'At the intake desk, not filed yet'}</span></button></li>`
+                    : `<li${r === this.taken ? ' class="is-up"' : ''}><button type="button" data-file="${esc(r.file)}" aria-pressed="${r === this.taken}"><i>${two(folder)}</i><b>${esc(r.file)}</b><span>${esc(r.title)}</span><em class="clr-${clearanceKey(r.stamp)}">${esc(r.stamp)}</em></button></li>`;
               })
               .join('')
           : `<li class="is-empty">${zh ? '这个抽屉还空着。' : 'This drawer is still empty.'}</li>`
@@ -757,7 +718,8 @@ export class Stacks {
     el.innerHTML = `
       <p class="stackshud__choicehead"><b>${esc(rec.file)}</b><span>${esc(rec.title)}</span><em class="clr-${clearanceKey(rec.stamp)}">${esc(rec.stamp)}</em></p>
       <div class="stackshud__choicebtns">
-        <button type="button" data-act="table"${full ? ' disabled' : ''}>${zh ? '拿到桌上读' : 'Take it to the table'} <span class="kbd">Enter</span></button>
+        <button type="button" data-act="table"${full ? ' disabled' : ''}>${zh ? '拿到桌上' : 'Put it on the table'}</button>
+        <button type="button" data-act="read"${full ? ' disabled' : ''}>${zh ? '拿到桌上读' : 'Take it over and read'} <span class="kbd">Enter</span></button>
         <button type="button" data-act="back">${zh ? '放回' : 'Put it back'}</button>
       </div>
       ${full ? `<p class="stackshud__choicenote">${zh ? `桌上已经摊了 ${TABLE_MAX} 份，再放就看不过来了。先还一份。` : `There are ${TABLE_MAX} on the table already; no room to spread another. Put one back first.`}</p>` : ''}`;
@@ -792,7 +754,7 @@ export class Stacks {
   }
 
   /** Carry the file out of its drawer and lay it on the table. */
-  toTable(rec: ArchiveRecord, read = false) {
+  toTable(rec: ArchiveRecord, read = false, stay = false) {
     if (this.table.includes(rec.file)) return;
     if (this.table.length >= TABLE_MAX) {
       this.voice.say('stacks.full', {}, false);
@@ -801,7 +763,8 @@ export class Stacks {
     this.table.push(rec.file);
     this.saveTable();
     // where it is now, half out of its drawer, so it can be carried from there
-    const from = this.scene?.room.filePos(rec.file);
+    // staying at the drawer to take more: the file is just laid on the table, nobody walks over
+    const from = stay || this.inTray(rec.file) ? undefined : this.scene?.room.filePos(rec.file);
     if (this.taken === rec) {
       this.scene?.room.liftFile(rec.file, 0);
       this.taken = null;
@@ -828,21 +791,33 @@ export class Stacks {
   /** A file being carried to the table to be read: sat down to when it lands. */
   private readAfter: string | null = null;
 
-  /** Back to its drawer. */
+  /** Handed back at the intake desk: carried to the tray, stamped and logged; the clerk shelves it later. */
   returnFile(file: string) {
     const i = this.table.indexOf(file);
     if (i < 0) return;
     this.table.splice(i, 1);
     this.saveTable();
     intake.giveBack(this.today, file, this.stamp());
+    this.afterReturn([file]);
+  }
+
+  private afterReturn(files: string[]) {
+    const back = new Map<string, Vector3>();
+    const room = this.scene?.room;
+    if (room) for (const f of files) back.set(f, room.trayPoint());
     if (this.open) {
       this.fillDrawer();
       this.drawDrawer();
     }
     this.drawTable();
-    void this.layTable(false, undefined, this.homeOf([file]));
+    this.setTray();
+    void this.layTable(false, undefined, back);
     audio.paper();
-    window.setTimeout(() => audio.stamp(), 700);
+    window.setTimeout(() => {
+      audio.stamp();
+      this.setTray();
+    }, 1000);
+    this.voice.say('stacks.handback', {}, false);
   }
 
   /** Where each of these files goes back to: the front of its cabinet. */
@@ -861,17 +836,11 @@ export class Stacks {
 
   private returnAll() {
     if (!this.table.length) return;
-    const back = this.homeOf(this.table);
+    const files = this.table.slice();
+    for (const f of files) intake.giveBack(this.today, f, this.stamp());
     this.table = [];
     this.saveTable();
-    if (this.open) {
-      this.fillDrawer();
-      this.drawDrawer();
-    }
-    this.drawTable();
-    void this.layTable(false, undefined, back);
-    audio.drawer();
-    this.voice.say('stacks.cleared', {}, false);
+    this.afterReturn(files);
   }
 
   /** Walk over to the reading table. */
@@ -939,8 +908,8 @@ export class Stacks {
       ${
         recs.length
           ? `<ol class="stackshud__files">${recs
-              .map((r) => `<li><button type="button" data-read="${esc(r.file)}"><b>${esc(r.file)}</b><span>${esc(r.title)}</span><em class="clr-${clearanceKey(r.stamp)}">${esc(r.stamp)}</em></button><button type="button" class="stackshud__ret" data-return="${esc(r.file)}" aria-label="${zh ? '放回抽屉' : 'Put back in its drawer'}">${zh ? '还' : 'Return'}</button></li>`)
-              .join('')}</ol><button type="button" class="stackshud__retall" data-act="return-all">${zh ? '全部放回抽屉' : 'Put them all back'}</button>`
+              .map((r) => `<li><button type="button" data-read="${esc(r.file)}"><b>${esc(r.file)}</b><span>${esc(r.title)}</span><em class="clr-${clearanceKey(r.stamp)}">${esc(r.stamp)}</em></button><button type="button" class="stackshud__ret" data-return="${esc(r.file)}" aria-label="${zh ? '还到入库台' : 'Hand back at the intake desk'}">${zh ? '还' : 'Return'}</button></li>`)
+              .join('')}</ol><button type="button" class="stackshud__retall" data-act="return-all">${zh ? '全部还到入库台' : 'Hand them all back'}</button>`
           : `<p class="stackshud__tableempty">${zh ? '桌上还空着。去正式档案柜，拉开抽屉，把要对照的拿过来。' : 'Nothing on it yet. Pull a drawer at the formal cabinets and bring over what you want side by side.'}</p>`
       }`;
   }
@@ -986,11 +955,16 @@ export class Stacks {
     return `${this.today} ${String(t.hours).padStart(2, '0')}:${String(t.minutes).padStart(2, '0')}`;
   }
 
-  /** Today's arrivals still lying in the in-tray. */
+  /** What lies in the in-tray: today's arrivals not yet shelved, and files handed back that nobody has shelved. */
   private onTray() {
     const day = this.arrivedToday();
     const w = new Set(intake.waiting(this.today, day.map((r) => r.file)));
-    return day.filter((r) => w.has(r.file));
+    const back = new Set(intake.returned(this.today));
+    return this.records.filter((r) => (w.has(r.file) && day.includes(r)) || (back.has(r.file) && !this.table.includes(r.file)));
+  }
+
+  private inTray(file: string) {
+    return this.onTray().some((r) => r.file === file);
   }
 
   private setTray() {
@@ -1002,8 +976,15 @@ export class Stacks {
     const zh = isZh();
     const list = this.onTray();
     if (!list.length) return;
-    intake.fileAll(this.today, list.map((r) => r.file));
+    const files = list.map((r) => r.file);
+    intake.fileAll(this.today, files);
+    intake.shelve(this.today, files);
+    this.scene?.room.carryFromTray([...this.homeOf(files).values()]);
     this.setTray();
+    if (this.open) {
+      this.fillDrawer();
+      this.drawDrawer();
+    }
     audio.stamp();
     this.stats();
     this.showSlip(`<h3>${zh ? '已归档' : 'Filed'}</h3><p>${zh ? '盖了章，放进抽屉了：' : 'Stamped and put away in the drawers:'}</p>${this.list(list)}`);

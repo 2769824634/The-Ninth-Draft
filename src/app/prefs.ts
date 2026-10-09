@@ -12,6 +12,8 @@ export interface Prefs {
   openAtOnce?: boolean;
   /** The archive's window blinds were left shut. */
   blindsShut?: boolean;
+  /** Reading lamp brightness: 0 dim, 1 mid, 2 bright. */
+  lampLevel?: number;
 }
 
 const KEY = 'n9:prefs';

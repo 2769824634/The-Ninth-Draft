@@ -742,6 +742,7 @@ a.cite:hover, a.cite:focus-visible { color: var(--accent); text-decoration-style
     width: min(19rem, calc(100vw - 2 * var(--edge)));
     transform: none;
   }
+  @media (max-width: 720px) { .dsv { width: min(14.5rem, 60vw); bottom: 3.6rem; } .dsv__now { font-size: .8rem; } }
   .archive[data-view='detail'] .dsv { transform: none; }
   .dsv__was { display: none; }
   .dsv__tag { cursor: pointer; margin-left: auto; display: flex; width: max-content; margin-right: 0; }
@@ -773,7 +774,6 @@ a.cite:hover, a.cite:focus-visible { color: var(--accent); text-decoration-style
 .dsv__switches button i { width: .55rem; height: .55rem; border-radius: 50%; border: 1px solid currentColor; transition: background-color 300ms var(--ease), box-shadow 300ms var(--ease); }
 .dsv__switches button[aria-pressed='true'] { color: var(--ink); }
 .dsv__switches button[aria-pressed='true'] i { background: #ffd28a; border-color: #ffd28a; box-shadow: 0 0 .5rem #ffd28a; }
-.dsv__switches button[data-ls='exam'][aria-pressed='true'] i { background: #dfe9ff; border-color: #dfe9ff; box-shadow: 0 0 .5rem #bcd0ff; }
 @media (max-width: 1240px), (max-aspect-ratio: 1/1) {
   .dsv:not(.is-open) .dsv__switches { display: none; }
   .dsv__switches { background: var(--bg); padding: .6rem .8rem; margin-top: 0; }
@@ -1260,10 +1260,8 @@ a.cite:hover, a.cite:focus-visible { color: var(--accent); text-decoration-style
   transition: opacity 220ms var(--ease);
 }
 
-/* the reader's own brightness for the sheet on the table */
-.archive[data-pin] :is(.dossier__paper, .companion__paper) { filter: brightness(var(--paper-b, .88)); }
-.dsv__bright { display: grid; gap: .3rem; margin-top: .6rem; font: 600 .62rem/1 var(--mono, monospace); letter-spacing: .08em; text-transform: uppercase; opacity: .85; }
-.dsv__bright input { width: 100%; accent-color: var(--accent, currentColor); }
+/* the sheet on the table is one fixed, comfortable brightness; the lamp is what changes */
+.archive[data-pin] :is(.dossier__paper, .companion__paper) { filter: brightness(.88); }
 
 /* the sheet lies on the folder: a tight contact shadow and a wider soft one, a hair of thickness at the lower edge */
 .archive[data-pin] :is(.dossier__sheet, .companion__sheet) {
