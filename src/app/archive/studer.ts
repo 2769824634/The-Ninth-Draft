@@ -77,7 +77,7 @@ function brushed(round: boolean) {
 }
 
 /** Which way a turned part's grain runs, for anisotropic highlights: round the middle of its map. */
-function spun() {
+export function spun() {
   const N = 128;
   const [c, g] = cv(N, N);
   const im = g.createImageData(N, N);
