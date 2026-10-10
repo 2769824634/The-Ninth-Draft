@@ -14,6 +14,7 @@
  */
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { DIN, DINB, KU, cv, tex, woodTex } from './textures';
 
 /** Body size, metres. */
@@ -327,6 +328,13 @@ class Reel {
     this.setPack(0);
   }
 
+  /** The modelled reel in place of the drawn flanges and hub (the tape pack stays). */
+  useModel(o: THREE.Object3D) {
+    for (const p of this.g.children) if (p !== this.pack) p.visible = false;
+    o.position.set(0, 0, 0);
+    this.g.add(o);
+  }
+
   /** How much of a full reel's tape is on it, 0–1. */
   setPack(f: number) {
     this.r = Math.sqrt(HUB_R * HUB_R + Math.max(0, Math.min(1, f)) * (PACK_R * PACK_R - HUB_R * HUB_R));
@@ -346,6 +354,9 @@ export class Studer {
   /** Where the camera looks when it comes over to the machine. */
   readonly centre = new THREE.Vector3();
   private machine = new THREE.Group();
+  /** The machine's still parts as drawn in code; hidden once the modelled body is in. */
+  private body = new THREE.Group();
+  private mats: Record<string, THREE.Material> = {};
   private supply: Reel;
   private takeup: Reel;
   private tape: THREE.Mesh[] = [];
@@ -458,35 +469,38 @@ export class Studer {
     const mc = this.machine;
     mc.position.set(0, SB.h + 0.062, -0.02);
     g.add(mc);
+    // the still body in its own group: the modelled one (public/models/studer.glb) replaces it once it has loaded
+    const st = this.body;
+    mc.add(st);
     const { w: W, h: H, d: D } = A807;
     // the chassis behind the face
-    box(mc, W - 0.03, H - 0.01, D - 0.02, 0, H / 2, -0.005, charcoal);
+    box(st, W - 0.03, H - 0.01, D - 0.02, 0, H / 2, -0.005, charcoal);
     // brushed side cheeks, full height, and the rack ears at the foot
     for (const sx of [-1, 1]) {
-      rbox(mc, 0.016, H, D, 0.003, sx * (W / 2 - 0.008), H / 2, 0, alu);
-      box(mc, 0.012, BRIDGE + 0.004, 0.004, sx * (W / 2 + 0.004), BRIDGE / 2, FACE + 0.012, alu);
+      rbox(st, 0.016, H, D, 0.003, sx * (W / 2 - 0.008), H / 2, 0, alu);
+      box(st, 0.012, BRIDGE + 0.004, 0.004, sx * (W / 2 + 0.004), BRIDGE / 2, FACE + 0.012, alu);
     }
     // the transport plate: matt black
-    box(mc, W - 0.032, H - BRIDGE, 0.01, 0, BRIDGE + (H - BRIDGE) / 2, FACE - 0.005, black);
+    box(st, W - 0.032, H - BRIDGE, 0.01, 0, BRIDGE + (H - BRIDGE) / 2, FACE - 0.005, black);
     // top vents, the handle slot between them, and the vents in the middle
     const vent = (cx: number, cy: number, w: number, rows: number) => {
-      box(mc, w, rows * 0.0045 + 0.003, 0.004, cx, cy, FACE + 0.0005, std({ color: '#0b0b0b', roughness: 0.9 }), false);
-      for (let i = 0; i < rows; i++) box(mc, w - 0.002, 0.0018, 0.003, cx, cy - ((rows - 1) / 2) * 0.0045 + i * 0.0045, FACE + 0.002, black, false);
+      box(st, w, rows * 0.0045 + 0.003, 0.004, cx, cy, FACE + 0.0005, std({ color: '#0b0b0b', roughness: 0.9 }), false);
+      for (let i = 0; i < rows; i++) box(st, w - 0.002, 0.0018, 0.003, cx, cy - ((rows - 1) / 2) * 0.0045 + i * 0.0045, FACE + 0.002, black, false);
     };
     vent(X(610), Y(100), 0.035, 6);
     vent(X(700), Y(100), 0.035, 6);
-    box(mc, 0.022, 0.012, 0.006, X(655), Y(103), FACE + 0.001, std({ color: '#050505', roughness: 0.9 }), false);
+    box(st, 0.022, 0.012, 0.006, X(655), Y(103), FACE + 0.001, std({ color: '#050505', roughness: 0.9 }), false);
     vent(X(605), Y(415), 0.03, 5);
     vent(X(668), Y(415), 0.03, 5);
     // the spindle motors' hubs
-    for (const sx of [-1, 1]) cyl(mc, 0.016, TAPE_Z - FACE, sx * SPIN_X, SPIN_Y, FACE + (TAPE_Z - FACE) / 2, aluRound);
+    for (const sx of [-1, 1]) cyl(st, 0.016, TAPE_Z - FACE, sx * SPIN_X, SPIN_Y, FACE + (TAPE_Z - FACE) / 2, aluRound);
 
     // the head assembly: a brushed base plate, the long hood with the badge, the lower block, the screws
     const hx = (X(480) + X(840)) / 2;
-    box(mc, X(840) - X(480), Y(520) - Y(690), 0.006, hx, (Y(520) + Y(690)) / 2, FACE + 0.003, alu);
-    for (const [px, py] of [[555, 530], [610, 530], [495, 625], [825, 625]]) cyl(mc, 0.0028, 0.003, X(px), Y(py), FACE + 0.0068, aluRound, 12);
-    rbox(mc, X(827) - X(492), Y(550) - Y(600), 0.05, 0.012, (X(492) + X(827)) / 2, (Y(550) + Y(600)) / 2, FACE + 0.031, alu);
-    rbox(mc, X(710) - X(570), Y(600) - Y(650), 0.04, 0.004, (X(570) + X(710)) / 2, (Y(600) + Y(650)) / 2, FACE + 0.026, alu);
+    box(st, X(840) - X(480), Y(520) - Y(690), 0.006, hx, (Y(520) + Y(690)) / 2, FACE + 0.003, alu);
+    for (const [px, py] of [[555, 530], [610, 530], [495, 625], [825, 625]]) cyl(st, 0.0028, 0.003, X(px), Y(py), FACE + 0.0068, aluRound, 12);
+    rbox(st, X(827) - X(492), Y(550) - Y(600), 0.05, 0.012, (X(492) + X(827)) / 2, (Y(550) + Y(600)) / 2, FACE + 0.031, alu);
+    rbox(st, X(710) - X(570), Y(600) - Y(650), 0.04, 0.004, (X(570) + X(710)) / 2, (Y(600) + Y(650)) / 2, FACE + 0.026, alu);
     const [bc, bg] = cv(256, 72);
     bg.fillStyle = '#121212';
     bg.fillRect(0, 0, 256, 72);
@@ -502,23 +516,23 @@ export class Studer {
     badge.position.set((X(582) + X(690)) / 2, Y(577), FACE + 0.0565);
     mc.add(badge);
     // the black rubber head shield flap, and the little tape marker on the left
-    rbox(mc, 0.02, 0.03, 0.012, X(752), Y(578), FACE + 0.058, 0.005, rubber);
-    box(mc, 0.008, 0.012, 0.01, X(545), Y(537), FACE + 0.01, std({ color: '#d8cbb0', roughness: 0.6 }));
+    rbox(st, 0.02, 0.03, 0.012, X(752), Y(578), FACE + 0.058, 0.005, rubber);
+    box(st, 0.008, 0.012, 0.01, X(545), Y(537), FACE + 0.01, std({ color: '#d8cbb0', roughness: 0.6 }));
     // capstan pinch roller
-    cyl(mc, 0.011, 0.03, X(750), Y(625), FACE + 0.02, aluRound);
-    cyl(mc, 0.004, 0.036, X(750), Y(625), FACE + 0.022, std({ color: '#888', metalness: 0.9, roughness: 0.2 }), 12);
+    cyl(st, 0.011, 0.03, X(750), Y(625), FACE + 0.02, aluRound);
+    cyl(st, 0.004, 0.036, X(750), Y(625), FACE + 0.022, std({ color: '#888', metalness: 0.9, roughness: 0.2 }), 12);
     // the guide rollers either side, the tension arm knobs outboard of them, and the slot each arm swings in
     for (const [px, py, r] of [[405, 580, 0.021], [900, 577, 0.021], [300, 597, 0.012], [1012, 592, 0.012]] as const) {
       const depth = r > 0.02 ? TAPE_Z - FACE + 0.006 : 0.016;
-      cyl(mc, r, depth, X(px), Y(py), FACE + depth / 2, aluRound);
+      cyl(st, r, depth, X(px), Y(py), FACE + depth / 2, aluRound);
     }
     for (const px of [318, 995]) {
-      const s = box(mc, 0.006, 0.05, 0.002, X(px), Y(575), FACE + 0.001, std({ color: '#050505', roughness: 0.9 }), false);
+      const s = box(st, 0.006, 0.05, 0.002, X(px), Y(575), FACE + 0.001, std({ color: '#050505', roughness: 0.9 }), false);
       s.rotation.z = px < 600 ? 0.25 : -0.25;
     }
     // the splicing bar on the right
-    box(mc, X(1050) - X(845), Y(655) - Y(690), 0.01, (X(845) + X(1050)) / 2, (Y(655) + Y(690)) / 2, FACE + 0.005, alu);
-    box(mc, X(1040) - X(855), 0.003, 0.004, (X(845) + X(1050)) / 2, Y(672), FACE + 0.0105, std({ color: '#7d7f80', metalness: 0.7, roughness: 0.4 }), false);
+    box(st, X(1050) - X(845), Y(655) - Y(690), 0.01, (X(845) + X(1050)) / 2, (Y(655) + Y(690)) / 2, FACE + 0.005, alu);
+    box(st, X(1040) - X(855), 0.003, 0.004, (X(845) + X(1050)) / 2, Y(672), FACE + 0.0105, std({ color: '#7d7f80', metalness: 0.7, roughness: 0.4 }), false);
 
     // the reels: a full one goes on the left, the empty take-up reel lives on the right
     this.supply = new Reel(reelAlu, aluRound, brass, tapeM);
@@ -538,9 +552,9 @@ export class Studer {
     /* -------- the meter bridge -------- */
     const BZ = FACE + 0.01;
     // the bridge's body stands back from its face plate, so the meter dials can sit behind the windows cut in it
-    box(mc, W - 0.032, BRIDGE, 0.02, 0, BRIDGE / 2, FACE - 0.016, charcoal);
-    box(mc, W - 0.032, 0.003, 0.03, 0, BRIDGE - 0.0015, FACE - 0.004, charcoal);
-    box(mc, W - 0.032, 0.003, 0.03, 0, 0.0015, FACE - 0.004, charcoal);
+    box(st, W - 0.032, BRIDGE, 0.02, 0, BRIDGE / 2, FACE - 0.016, charcoal);
+    box(st, W - 0.032, 0.003, 0.03, 0, BRIDGE - 0.0015, FACE - 0.004, charcoal);
+    box(st, W - 0.032, 0.003, 0.03, 0, 0.0015, FACE - 0.004, charcoal);
     const face = new THREE.Mesh(new THREE.PlaneGeometry(X(1070) - X(240), BRIDGE), std({ map: bridgeFace('MK II'), roughness: 0.55, alphaTest: 0.5 }));
     face.position.set((X(240) + X(1070)) / 2, BRIDGE / 2, BZ + 0.0005);
     face.receiveShadow = true;
@@ -550,7 +564,7 @@ export class Studer {
     const lcdM = new THREE.Mesh(new THREE.PlaneGeometry(X(425) - X(310), Y(740) - Y(775)), this.lcdMat);
     lcdM.position.set((X(310) + X(425)) / 2, Y(757), BZ + 0.0008);
     mc.add(lcdM);
-    box(mc, X(428) - X(307), 0.002, 0.004, (X(310) + X(425)) / 2, Y(739), BZ + 0.001, black, false);
+    box(st, X(428) - X(307), 0.002, 0.004, (X(310) + X(425)) / 2, Y(739), BZ + 0.001, black, false);
     // keys
     const key = (id: string, label: string[], px: number, py: number, w: number, h: number, light: boolean, hit: boolean, hover?: string) => {
       const kg = new THREE.Group();
@@ -608,7 +622,7 @@ export class Studer {
       dial.position.set(cx, cy, BZ - 0.004);
       mc.add(dial);
       // the bezel round the window
-      for (const [w2, h2, dx, dy] of [[ww + 0.004, 0.002, 0, hh / 2 + 0.001], [ww + 0.004, 0.002, 0, -hh / 2 - 0.001], [0.002, hh, ww / 2 + 0.001, 0], [0.002, hh, -ww / 2 - 0.001, 0]]) box(mc, w2, h2, 0.006, cx + dx, cy + dy, BZ - 0.001, std({ color: '#0e0e0e', roughness: 0.4 }), false);
+      for (const [w2, h2, dx, dy] of [[ww + 0.004, 0.002, 0, hh / 2 + 0.001], [ww + 0.004, 0.002, 0, -hh / 2 - 0.001], [0.002, hh, ww / 2 + 0.001, 0], [0.002, hh, -ww / 2 - 0.001, 0]]) box(st, w2, h2, 0.006, cx + dx, cy + dy, BZ - 0.001, std({ color: '#0e0e0e', roughness: 0.4 }), false);
       // the needle pivots well below the window, so only its upper part shows; clip it to the window with a mask box below
       const pivot = new THREE.Group();
       pivot.position.set(cx, cy - hh * 0.5 - 0.06, BZ - 0.003);
@@ -627,21 +641,65 @@ export class Studer {
       for (const kx of [605, 705]) {
         const kn = new THREE.Group();
         kn.position.set(X(kx + ox), Y(880), BZ);
-        mc.add(kn);
+        st.add(kn);
         cyl(kn, 0.0135, 0.004, 0, 0, 0.002, aluRound, 40);
         cyl(kn, 0.0105, 0.014, 0, 0, 0.009, std({ color: '#141414', roughness: 0.45 }), 40);
         box(kn, 0.0009, 0.009, 0.001, 0, 0.005, 0.0163, std({ color: '#f2f2f2', roughness: 0.5 }), false);
         kn.rotation.z = -0.15;
         // the trimmer hole between the pair
-        if (kx === 605) cyl(mc, 0.0025, 0.002, X(655 + ox), Y(858), BZ + 0.0005, std({ color: '#050505' }), 12);
+        if (kx === 605) cyl(st, 0.0025, 0.002, X(655 + ox), Y(858), BZ + 0.0005, std({ color: '#050505' }), 12);
       }
     // the right-hand column: phones jack, selector, level knob, a small jack
-    cyl(mc, 0.0055, 0.004, X(1006), Y(745), BZ + 0.002, std({ color: '#060606', roughness: 0.5 }), 24);
-    cyl(mc, 0.0075, 0.009, X(1004), Y(785), BZ + 0.0045, std({ color: '#181818', roughness: 0.5 }), 24);
-    cyl(mc, 0.006, 0.01, X(1005), Y(905), BZ + 0.005, std({ color: '#181818', roughness: 0.5 }), 24);
-    cyl(mc, 0.004, 0.003, X(1035), Y(905), BZ + 0.0015, aluRound, 16);
+    cyl(st, 0.0055, 0.004, X(1006), Y(745), BZ + 0.002, std({ color: '#060606', roughness: 0.5 }), 24);
+    cyl(st, 0.0075, 0.009, X(1004), Y(785), BZ + 0.0045, std({ color: '#181818', roughness: 0.5 }), 24);
+    cyl(st, 0.006, 0.01, X(1005), Y(905), BZ + 0.005, std({ color: '#181818', roughness: 0.5 }), 24);
+    cyl(st, 0.004, 0.003, X(1035), Y(905), BZ + 0.0015, aluRound, 16);
     this.hit({ reel: 'machine', key: 'reel:machine', far: true }, 0.66, 0.6, 0.4, 0, SB.h + 0.06 + 0.3, 0);
     g.updateMatrixWorld(true);
+    this.mats = { alu, aluRound, black, charcoal, rubber, brass, reelAlu, white: std({ color: '#f2f2f2', roughness: 0.5 }), cream: std({ color: '#d8cbb0', roughness: 0.6 }) };
+    this.loadModel();
+  }
+
+  /**
+   * The modelled machine: its body and a reel, made in Blender (tools/blender/studer.py) with the
+   * crevices baked on a second UV map. Each part's material is ours, picked by its name, with the
+   * baked crevices added; if the file cannot be read the machine drawn above stays.
+   */
+  private loadModel() {
+    const url = `${import.meta.env.BASE_URL.replace(/\/?$/, '/')}models/studer.glb`;
+    new GLTFLoader().load(
+      url,
+      (gltf) => {
+        const made = new Map<string, THREE.Material>();
+        gltf.scene.traverse((n) => {
+          if (!(n instanceof THREE.Mesh)) return;
+          const src = n.material as THREE.MeshStandardMaterial;
+          let m = made.get(src.name);
+          const base = this.mats[src.name];
+          if (!m && base) {
+            const c = base.clone() as THREE.MeshStandardMaterial;
+            if (c.map) {
+              // the model's own texture coordinates run past 1 on the long plates
+              c.map = c.map.clone();
+              c.map.wrapS = c.map.wrapT = THREE.RepeatWrapping;
+              c.map.needsUpdate = true;
+            }
+            c.aoMap = src.aoMap;
+            c.aoMapIntensity = 1;
+            made.set(src.name, (m = c));
+          }
+          if (m) n.material = m;
+          n.castShadow = n.receiveShadow = true;
+        });
+        const reel = gltf.scene.getObjectByName('reel');
+        reel?.removeFromParent();
+        this.body.visible = false;
+        this.machine.add(gltf.scene);
+        if (reel) for (const r of [this.supply, this.takeup]) r.useModel(reel.clone());
+      },
+      undefined,
+      () => {},
+    );
   }
 
   /** An invisible box the pointer can hit; `p` is what it moves with (the group by default). */
