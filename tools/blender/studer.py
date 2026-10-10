@@ -1,8 +1,10 @@
 """
 The Studer A807 MK II by the archive's reading table, modelled for real:
-the machine's still body (chassis, side cheeks, transport plate, vents, head
-block, guides, splicing bar, meter bridge, knobs) and one 10½-inch NAB reel,
-written to public/models/studer.glb. Everything that moves, lights up or
+the machine's still body (chassis, side cheeks, transport plate, vents, the
+three heads under their cover, capstan and pinch roller, guides, splicing
+bar, meter bridge, knobs), one 10½-inch NAB reel, and the two tension arms
+(nodes armL and armR, each with its origin on its pivot so the site can swing
+it), written to public/models/studer.glb with its geometry quantized. Everything that moves, lights up or
 carries print (keys, lamps, the timer, the VU dials and needles, the printed
 bridge face, the badge, the tape) stays in src/app/archive/studer.ts, which
 also keeps the old all-code machine for when this file cannot be read.
@@ -23,6 +25,7 @@ import math
 import os
 import sys
 import tempfile
+from mathutils import Matrix
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.dirname(os.path.dirname(HERE))
@@ -47,6 +50,25 @@ def X(px):
 
 def Y(py):
     return (945 - py) * 0.000577
+
+
+# the tension arms (as in studer.ts): pivot under the knob, the roller ARM_LEN out at the resting angle
+ARM_LEN = 0.045
+ARM_ROLLER = 0.009
+ARMS = {'armL': (X(300), Y(597), math.radians(110)), 'armR': (X(1012), Y(592), math.radians(70))}
+
+# the tape between the two guide rollers runs along their lower common tangent; the heads and
+# the capstan sit just above it, touching the tape, the pinch roller just below
+GUIDE_R = 0.021
+TAPE_HALF = 0.0003
+_gl, _gr = (X(405), Y(580)), (X(900), Y(577))
+_phi = math.atan2(_gr[1] - _gl[1], _gr[0] - _gl[0])
+_p1 = (_gl[0] + (GUIDE_R + TAPE_HALF) * math.sin(_phi), _gl[1] - (GUIDE_R + TAPE_HALF) * math.cos(_phi))
+
+
+def tape_y(x):
+    """The tape's centre line between the guides, at x."""
+    return _p1[1] + (x - _p1[0]) * math.tan(_phi)
 
 
 # ---------------- scene ----------------
@@ -77,6 +99,7 @@ M = {
     'reelAlu': material('reelAlu', (0.78, 0.8, 0.81), 0.3, 0.36),
     'white': material('white', (0.88, 0.88, 0.88), 0, 0.5),
     'cream': material('cream', (0.69, 0.6, 0.43), 0, 0.6),
+    'chrome': material('chrome', (0.8, 0.81, 0.82), 1.0, 0.18),
 }
 
 parts = []   # (object, which: 'body' | 'reel', uv: ('box',) | ('round', cx, cy, r))
@@ -86,6 +109,7 @@ def obj_from(bm, name, mat=None):
     me = bpy.data.meshes.new(name)
     bm.to_mesh(me)
     bm.free()
+    me.shade_smooth()
     o = bpy.data.objects.new(name, me)
     COLL.objects.link(o)
     if mat:
@@ -156,6 +180,7 @@ def bevel(o, width, seg=2, angle=40):
     m.limit_method = 'ANGLE'
     m.angle_limit = math.radians(angle)
     m.use_clamp_overlap = True
+    m.harden_normals = True
     return o
 
 
@@ -177,10 +202,25 @@ for sx in (-1, 1):
 plate = box(W - 0.032, H - BRIDGE, 0.01, 0, BRIDGE + (H - BRIDGE) / 2, FACE - 0.005, 'black', name='plate')
 
 
+def arc_prism(bm, cx, cy, r, a0, a1, width, z, depth, n=16):
+    """A curved slot: the band r ± width/2 between angles a0 and a1, depth deep."""
+    ring = [(cx + math.cos(a0 + (a1 - a0) * k / n) * (r + width / 2), cy + math.sin(a0 + (a1 - a0) * k / n) * (r + width / 2)) for k in range(n + 1)]
+    ring += [(cx + math.cos(a1 + (a0 - a1) * k / n) * (r - width / 2), cy + math.sin(a1 + (a0 - a1) * k / n) * (r - width / 2)) for k in range(n + 1)]
+    lo = [bm.verts.new((px, py, z - depth / 2)) for px, py in ring]
+    hi = [bm.verts.new((px, py, z + depth / 2)) for px, py in ring]
+    bm.faces.new(lo[::-1])
+    bm.faces.new(hi)
+    m = len(ring)
+    for k in range(m):
+        bm.faces.new((lo[k], lo[(k + 1) % m], hi[(k + 1) % m], hi[k]))
+
+
 def plate_cuts(bm):
     add_box(bm, 0.022, 0.012, 0.012, X(655), Y(103), FACE)
-    for px in (318, 995):
-        add_box(bm, 0.006, 0.05, 0.006, X(px), Y(575), FACE, 0.25 if px < 600 else -0.25)
+    # the arc each tension arm's roller post swings through
+    for name, (px, py, rest) in ARMS.items():
+        side = 1 if name == 'armL' else -1
+        arc_prism(bm, px, py, ARM_LEN, rest - side * 0.3, rest + side * 0.35, 0.0065, FACE, 0.008)
 
 
 cut(plate, cutter(plate_cuts))
@@ -206,33 +246,70 @@ for (px, py) in ((555, 530), (610, 530), (495, 625), (825, 625)):
     s = cyl(0.0028, 0.003, X(px), Y(py), FACE + 0.0068, 'aluRound', 20, name='screw')
     cut(s, cutter(lambda bm, px=px, py=py: add_box(bm, 0.0045, 0.0006, 0.003, X(px), Y(py), FACE + 0.0083, 0.6)))
     bevel(s, 0.0009, 2)
-bevel(box(X(827) - X(492), Y(550) - Y(600), 0.05, (X(492) + X(827)) / 2, (Y(550) + Y(600)) / 2, FACE + 0.031, 'alu', name='hood'), 0.011, 5)
-bevel(box(X(710) - X(570), Y(600) - Y(650), 0.04, (X(570) + X(710)) / 2, (Y(600) + Y(650)) / 2, FACE + 0.026, 'alu', name='headBlock'), 0.003, 3)
+bevel(box(X(827) - X(492), Y(550) - Y(600), 0.04, (X(492) + X(827)) / 2, (Y(550) + Y(600)) / 2, FACE + 0.026, 'alu', name='hood'), 0.011, 5)
+# the lower block sits under the tape, clear of it
+bevel(box(X(710) - X(570), 0.015, 0.036, (X(570) + X(710)) / 2, 0.1755, FACE + 0.018, 'alu', name='headBlock'), 0.003, 3)
+
+# the heads under the hood: erase, record, playback, left to right, their round faces down on the
+# tape; record and playback in mu-metal shields; all three on a black carrier screwed to the plate
+HOOD_LOW = Y(600)
+bevel(box(0.105, 0.016, 0.016, -0.026, HOOD_LOW - 0.001, FACE + 0.014, 'charcoal', name='headCarrier'), 0.001)
+for hx_, wide, shield in ((-0.064, 0.011, False), (-0.03, 0.015, True), (0.004, 0.015, True)):
+    y0 = tape_y(hx_) + TAPE_HALF          # the head's face, on the tape's upper side
+    r = wide / 2
+    top = HOOD_LOW + 0.004
+    bevel(cyl(r, 0.012, hx_, y0 + r, TAPE_Z, 'chrome', 32, name='headFace', uv=('round', hx_, y0 + r, r)), 0.0006, 2)
+    bevel(box(wide, top - (y0 + r), 0.012, hx_, (y0 + r + top) / 2, TAPE_Z, 'chrome', name='headBody'), 0.0006, 2)
+    # the gap, a dark hairline across the face
+    box(0.0005, 0.0012, 0.0122, hx_, y0 + 0.0004, TAPE_Z, 'black', name='headGap')
+    if shield:
+        for sz in (-1, 1):
+            bevel(box(wide + 0.004, top - y0 - 0.0035, 0.0008, hx_, (y0 + 0.0035 + top) / 2, TAPE_Z + sz * 0.0072, 'alu', name='shield'), 0.0003, 1)
+    # the head's foot on the carrier
+    bevel(box(wide + 0.002, 0.006, 0.008, hx_, top - 0.002, FACE + 0.02, 'charcoal', name='headFoot'), 0.0006, 1)
 # the black rubber head shield flap, and the little tape marker on the left
-bevel(box(0.02, 0.03, 0.012, X(752), Y(578), FACE + 0.058, 'rubber', name='flap'), 0.004, 3)
+bevel(box(0.02, 0.03, 0.012, X(752), Y(578), FACE + 0.048, 'rubber', name='flap'), 0.004, 3)
 bevel(box(0.008, 0.012, 0.01, X(545), Y(537), FACE + 0.01, 'cream', name='marker'), 0.001)
 
 # capstan and pinch roller: alu boss, black rubber roller, a turned cap, the shaft
-cx, cy = X(750), Y(625)
-bevel(cyl(0.008, 0.012, cx, cy, FACE + 0.006, 'aluRound', 32, name='rollerBoss'), 0.0008)
-bevel(cyl(0.011, 0.02, cx, cy, FACE + 0.022, 'rubber', 40, name='roller'), 0.0015, 3)
-bevel(cyl(0.0062, 0.004, cx, cy, FACE + 0.034, 'aluRound', 32, name='rollerCap'), 0.0012)
-cyl(0.0035, 0.004, cx, cy, FACE + 0.037, 'alu', 16, name='shaft')
+# the capstan shaft just above the tape, the pinch roller pressing up from below, on its arm
+cx = X(750)
+cap_y = tape_y(cx) + TAPE_HALF + 0.004
+bevel(cyl(0.011, 0.004, cx, cap_y, FACE + 0.002, 'aluRound', 32, name='capstanBoss'), 0.0008)
+bevel(cyl(0.004, 0.036, cx, cap_y, FACE + 0.018, 'chrome', 24, name='capstan'), 0.0006)
+py_ = tape_y(cx) - TAPE_HALF - 0.011
+bevel(cyl(0.006, 0.02, cx, py_, FACE + 0.01, 'aluRound', 24, name='rollerBoss'), 0.0008)
+bevel(cyl(0.011, 0.016, cx, py_, TAPE_Z, 'rubber', 40, name='roller'), 0.0015, 3)
+bevel(cyl(0.0062, 0.004, cx, py_, TAPE_Z + 0.009, 'aluRound', 32, name='rollerCap'), 0.0012)
+pv = (cx + 0.03, py_ - 0.012)
+ang = math.atan2(py_ - pv[1], cx - pv[0])
+ln = math.hypot(cx - pv[0], py_ - pv[1])
+bevel(box(ln, 0.008, 0.004, (cx + pv[0]) / 2, (py_ + pv[1]) / 2, FACE + 0.008, 'alu', name='pinchArm', rot=ang), 0.0012, 2)
+bevel(cyl(0.006, 0.008, pv[0], pv[1], FACE + 0.006, 'aluRound', 24, name='pinchPivot'), 0.001)
 
 # guide rollers: a post, the roller between two flanges (the tape runs at TAPE_Z between them), a domed cap
 for (px, py) in ((405, 580), (900, 577)):
     gx, gy = X(px), Y(py)
     bevel(cyl(0.009, 0.024, gx, gy, FACE + 0.012, 'aluRound', 32, name='guidePost'), 0.0008)
-    bevel(cyl(0.021, 0.012, gx, gy, FACE + 0.03, 'aluRound', 40, name='guide'), 0.0006)
+    bevel(cyl(0.021, 0.012, gx, gy, FACE + 0.03, 'chrome', 40, name='guide'), 0.0006)
     for fz in (0.0255, 0.0345):
-        bevel(cyl(0.0235, 0.0012, gx, gy, FACE + fz, 'aluRound', 40, name='guideFlange'), 0.0004)
-    bevel(cyl(0.007, 0.003, gx, gy, FACE + 0.0375, 'aluRound', 32, name='guideCap'), 0.0012, 2)
+        bevel(cyl(0.0235, 0.0012, gx, gy, FACE + fz, 'chrome', 40, name='guideFlange'), 0.0004)
+    bevel(cyl(0.007, 0.003, gx, gy, FACE + 0.0375, 'chrome', 32, name='guideCap'), 0.0012, 2)
 
-# tension arm knobs, knurled, on a short stem
-for (px, py) in ((300, 597), (1012, 592)):
-    kx, ky = X(px), Y(py)
-    cyl(0.005, 0.004, kx, ky, FACE + 0.002, 'alu', 20, name='armStem')
-    bevel(cyl(0.012, 0.012, kx, ky, FACE + 0.01, 'aluRound', 40, knurl=0.06, name='armKnob'), 0.0012, 1, 60)
+# the tension arms: a short stem on the plate stays put; each arm is its own node, origin at the pivot,
+# drawn at its resting angle (the site turns it): a bar out to a flanged roller the tape goes round,
+# the knurled knob over the pivot
+for name, (px, py, rest) in ARMS.items():
+    bevel(cyl(0.005, 0.006, px, py, FACE + 0.003, 'alu', 20, name='armStem'), 0.0005, 1)
+    rx, ry = px + math.cos(rest) * ARM_LEN, py + math.sin(rest) * ARM_LEN
+    bevel(box(ARM_LEN, 0.008, 0.004, (px + rx) / 2, (py + ry) / 2, FACE + 0.008, 'chrome', which=name, name='armBar', rot=rest), 0.0015, 2)
+    bevel(cyl(0.0055, 0.004, rx, ry, FACE + 0.008, 'chrome', 24, which=name, name='armEnd'), 0.0012, 1)
+    bevel(cyl(0.003, TAPE_Z - FACE - 0.004, rx, ry, (FACE + 0.008 + TAPE_Z - 0.004) / 2 + 0.002, 'chrome', 16, which=name, name='armPost'), 0.0004, 1)
+    bevel(cyl(ARM_ROLLER, 0.008, rx, ry, TAPE_Z, 'chrome', 32, which=name, name='armRoller'), 0.0005, 1)
+    for fz in (-0.0042, 0.0042):
+        bevel(cyl(ARM_ROLLER + 0.0018, 0.0008, rx, ry, TAPE_Z + fz, 'chrome', 32, which=name, name='armFlange'), 0.0003, 1)
+    bevel(cyl(0.004, 0.003, rx, ry, TAPE_Z + 0.0058, 'chrome', 20, which=name, name='armCap'), 0.0012, 2)
+    bevel(cyl(0.012, 0.01, px, py, FACE + 0.015, 'aluRound', 40, knurl=0.06, which=name, name='armKnob'), 0.0012, 1, 60)
 
 # the splicing bar, its groove along it and the two cutting slots across it
 sb = box(X(1050) - X(845), Y(655) - Y(690), 0.01, (X(845) + X(1050)) / 2, (Y(655) + Y(690)) / 2, FACE + 0.005, 'alu', name='splice')
@@ -328,6 +405,9 @@ for i in range(3):
 # ======================================================================
 # apply, UV maps, join
 # ======================================================================
+for o, which, uv in parts:
+    if not any(m.type == 'BEVEL' for m in o.modifiers):
+        bevel(o, 0.0003, 1)
 dg = bpy.context.evaluated_depsgraph_get()
 dg.update()
 for o, which, uv in parts:
@@ -383,19 +463,20 @@ def join(name, objs):
 
 body = join('body', [o for o, w, _ in parts if w == 'body'])
 reel = join('reel', [o for o, w, _ in parts if w == 'reel'])
-
-for o in (body, reel):
-    bpy.ops.object.select_all(action='DESELECT')
-    o.select_set(True)
-    bpy.context.view_layer.objects.active = o
-    bpy.ops.object.shade_smooth_by_angle(angle=math.radians(50))
+arms = []
+for name, (px, py, rest) in ARMS.items():
+    a = join(name, [o for o, w, _ in parts if w == name])
+    a.data.transform(Matrix.Translation((-px, -py, 0)))
+    a.location = (px, py, 0)
+    arms.append(a)
+NODES = [body, reel] + arms
 
 # UV1: one shared, non-overlapping layout for the baked crevices
-for o in (body, reel):
+for o in NODES:
     o.data.uv_layers.new(name='UV1')
     o.data.uv_layers.active = o.data.uv_layers['UV1']
 bpy.ops.object.select_all(action='DESELECT')
-for o in (body, reel):
+for o in NODES:
     o.select_set(True)
 bpy.context.view_layer.objects.active = body
 bpy.ops.object.mode_set(mode='EDIT')
@@ -436,13 +517,17 @@ for m in M.values():
     n.name = 'AO'
     nt.nodes.active = n
 
-reel.location.x = 2.0   # bake the reel on its own, not shadowed by the machine
+# the moving parts are baked on their own, away from the machine (their crevices only)
+home = [o.location.copy() for o in NODES]
+for i, o in enumerate(NODES[1:]):
+    o.location.x += 2.0 * (i + 1)
 bpy.ops.object.select_all(action='DESELECT')
-for o in (body, reel):
+for o in NODES:
     o.select_set(True)
 bpy.context.view_layer.objects.active = body
 bpy.ops.object.bake(type='AO', margin=6, use_clear=True)
-reel.location.x = 0.0
+for o, l in zip(NODES, home):
+    o.location = l
 
 jpg = os.path.join(TMP, 'studer_ao.jpg')
 scene.render.image_settings.file_format = 'JPEG'
@@ -470,7 +555,7 @@ for m in M.values():
     g.node_tree = grp
     nt.links.new(sep.outputs['Red'], g.inputs['Occlusion'])
 
-for o in (body, reel):
+for o in NODES:
     o.data.uv_layers.active = o.data.uv_layers['UV0']
     o.data.uv_layers['UV0'].active_render = True
 
@@ -479,7 +564,7 @@ for o in (body, reel):
 # ======================================================================
 os.makedirs(os.path.dirname(OUT), exist_ok=True)
 bpy.ops.object.select_all(action='DESELECT')
-for o in (body, reel):
+for o in NODES:
     o.select_set(True)
 bpy.ops.export_scene.gltf(
     filepath=OUT,
@@ -495,6 +580,104 @@ bpy.ops.export_scene.gltf(
     export_lights=False,
     export_animations=False,
 )
-for o in (body, reel):
+for o in NODES:
     print(o.name, len(o.data.vertices), 'verts', len(o.data.polygons), 'faces')
+
+
+def quantize(path):
+    """
+    Store positions as 16-bit and normals as 8-bit integers (KHR_mesh_quantization, which
+    three's GLTFLoader reads without any decoder): about a third off the file. Each mesh's
+    positions are scaled into ±1 and its node takes the scale back.
+    """
+    import json
+    import struct
+    raw = open(path, 'rb').read()
+    jlen = struct.unpack_from('<I', raw, 12)[0]
+    gj = json.loads(raw[20:20 + jlen])
+    blen = struct.unpack_from('<I', raw, 20 + jlen)[0]
+    bin_ = raw[28 + jlen:28 + jlen + blen]
+    acc, views = gj['accessors'], gj['bufferViews']
+    SIZE = {5126: 4, 5123: 2, 5125: 4, 5121: 1}
+    COUNT = {'SCALAR': 1, 'VEC2': 2, 'VEC3': 3, 'VEC4': 4}
+
+    def floats(a):
+        v = views[a['bufferView']]
+        n = COUNT[a['type']]
+        off = v.get('byteOffset', 0) + a.get('byteOffset', 0)
+        stride = v.get('byteStride', 4 * n)
+        return [struct.unpack_from('<%df' % n, bin_, off + i * stride) for i in range(a['count'])]
+
+    new = {}   # accessor index -> (bytes, stride)
+    for ni, node in enumerate(gj['nodes']):
+        if 'mesh' not in node:
+            continue
+        prims = gj['meshes'][node['mesh']]['primitives']
+        S = max(max(abs(c) for c in acc[p['attributes']['POSITION']]['max'] + acc[p['attributes']['POSITION']]['min']) for p in prims)
+        for p in prims:
+            ai = p['attributes']['POSITION']
+            if ai in new:
+                continue
+            q = [tuple(int(round(c / S * 32767)) for c in v) for v in floats(acc[ai])]
+            new[ai] = (b''.join(struct.pack('<3hxx', *v) for v in q), 8)
+            acc[ai].update(componentType=5122, normalized=True, min=[min(v[i] for v in q) for i in range(3)], max=[max(v[i] for v in q) for i in range(3)])
+            ni_ = p['attributes'].get('NORMAL')
+            if ni_ is not None and ni_ not in new:
+                qn = [tuple(max(-127, min(127, int(round(c * 127)))) for c in v) for v in floats(acc[ni_])]
+                new[ni_] = (b''.join(struct.pack('<3bx', *v) for v in qn), 4)
+                acc[ni_].update(componentType=5120, normalized=True)
+                acc[ni_].pop('min', None)
+                acc[ni_].pop('max', None)
+            # the baked map's coordinates all lie in 0..1: 16 bits each
+            ti = p['attributes'].get('TEXCOORD_1')
+            if ti is not None and ti not in new:
+                qt = [tuple(max(0, min(65535, int(round(c * 65535)))) for c in v) for v in floats(acc[ti])]
+                new[ti] = (b''.join(struct.pack('<2H', *v) for v in qt), 4)
+                acc[ti].update(componentType=5123, normalized=True)
+                acc[ti].pop('min', None)
+                acc[ti].pop('max', None)
+        node['scale'] = [S, S, S]
+    # write the buffer again: replaced accessors get views of their own, the rest are copied
+    out = bytearray()
+    nviews = []
+    remap = {}
+    for vi, v in enumerate(views):
+        users = [i for i, a in enumerate(acc) if a.get('bufferView') == vi]
+        if users and all(u in new for u in users):
+            continue
+        while len(out) % 4:
+            out.append(0)
+        off = v.get('byteOffset', 0)
+        nv = dict(v, byteOffset=len(out))
+        out += bin_[off:off + v['byteLength']]
+        remap[vi] = len(nviews)
+        nviews.append(nv)
+    for ai, (data, stride) in new.items():
+        while len(out) % 4:
+            out.append(0)
+        nviews.append({'buffer': 0, 'byteOffset': len(out), 'byteLength': len(data), 'byteStride': stride, 'target': 34962})
+        out += data
+        acc[ai]['bufferView'] = len(nviews) - 1
+        acc[ai].pop('byteOffset', None)
+    for i, a in enumerate(acc):
+        if i not in new and 'bufferView' in a:
+            a['bufferView'] = remap[a['bufferView']]
+    for im in gj.get('images', []):
+        im['bufferView'] = remap[im['bufferView']]
+    gj['bufferViews'] = nviews
+    gj['buffers'] = [{'byteLength': len(out)}]
+    for k in ('extensionsUsed', 'extensionsRequired'):
+        gj[k] = sorted(set(gj.get(k, [])) | {'KHR_mesh_quantization'})
+    js = json.dumps(gj, separators=(',', ':')).encode()
+    js += b' ' * (-len(js) % 4)
+    while len(out) % 4:
+        out.append(0)
+    total = 12 + 8 + len(js) + 8 + len(out)
+    with open(path, 'wb') as f:
+        f.write(struct.pack('<III', 0x46546C67, 2, total))
+        f.write(struct.pack('<II', len(js), 0x4E4F534A) + js)
+        f.write(struct.pack('<II', len(out), 0x004E4942) + bytes(out))
+
+
+quantize(OUT)
 print('wrote', OUT, os.path.getsize(OUT) // 1024, 'KB')

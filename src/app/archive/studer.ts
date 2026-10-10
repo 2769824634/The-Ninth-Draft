@@ -35,29 +35,114 @@ const TAPE_Z = FACE + 0.03;
 const X = (px: number) => (px - 652) * 0.000564;
 const Y = (py: number) => (945 - py) * 0.000577;
 
-const std = (o: THREE.MeshStandardMaterialParameters) => new THREE.MeshStandardMaterial({ roughness: 0.6, ...o });
+/** The guide rollers either side of the head block, and their radius. */
+const GUIDE_L = new THREE.Vector2(X(405), Y(580)), GUIDE_R = new THREE.Vector2(X(900), Y(577));
+const GUIDE_RAD = 0.021;
+/** The tension arms: pivot under each knob, a roller ARM_LEN out, resting at these angles (radians). */
+const ARM_LEN = 0.045, ARM_ROLLER = 0.009;
+const PIVOT_L = new THREE.Vector2(X(300), Y(597)), PIVOT_R = new THREE.Vector2(X(1012), Y(592));
+const REST_L = (110 * Math.PI) / 180, REST_R = (70 * Math.PI) / 180;
+/** Half the tape's thickness: it runs this far off what it wraps. */
+const TAPE_HALF = 0.0003;
+/** The tape's centre line between the two guides (along under them), at x: the heads and capstan sit just above it. */
+const PHI = Math.atan2(GUIDE_R.y - GUIDE_L.y, GUIDE_R.x - GUIDE_L.x);
+const tapeY = (x: number) => GUIDE_L.y - (GUIDE_RAD + TAPE_HALF) * Math.cos(PHI) + (x - GUIDE_L.x - (GUIDE_RAD + TAPE_HALF) * Math.sin(PHI)) * Math.tan(PHI);
+/** Points along the tape: where it leaves the supply pack, an arc round each roller and guide, where it meets the take-up pack. */
+const ARC = 10, TAPE_PTS = 2 + 4 * ARC;
 
-/** Brushed aluminium: fine concentric rings for the turned parts, straight grain for the plates. */
+const std = (o: THREE.MeshStandardMaterialParameters) => new THREE.MeshStandardMaterial({ roughness: 0.6, ...o });
+const phys = (o: THREE.MeshPhysicalMaterialParameters) => new THREE.MeshPhysicalMaterial({ roughness: 0.6, ...o });
+
+/** Brushed aluminium, satin: very fine, low-contrast grain; concentric for the turned parts, straight for the plates. */
 function brushed(round: boolean) {
-  const [c, g] = cv(256, 256);
-  g.fillStyle = '#c9cbcc';
-  g.fillRect(0, 0, 256, 256);
-  for (let i = 0; i < 900; i++) {
-    const v = 180 + Math.floor(Math.random() * 60);
-    g.strokeStyle = `rgba(${v},${v},${v + 3},.35)`;
-    g.lineWidth = 0.6;
+  const [c, g] = cv(512, 512);
+  g.fillStyle = '#cfd1d2';
+  g.fillRect(0, 0, 512, 512);
+  for (let i = 0; i < 2600; i++) {
+    const v = 196 + Math.floor(Math.random() * 30);
+    g.strokeStyle = `rgba(${v},${v},${v + 2},.16)`;
+    g.lineWidth = 0.5;
     g.beginPath();
     if (round) {
-      const r = Math.random() * 128;
-      g.arc(128, 128, r, 0, Math.PI * 2);
+      const r = Math.random() * 256;
+      g.arc(256, 256, r, 0, Math.PI * 2);
     } else {
-      const y = Math.random() * 256;
+      const y = Math.random() * 512;
       g.moveTo(0, y);
-      g.lineTo(256, y + (Math.random() - 0.5) * 2);
+      g.lineTo(512, y + (Math.random() - 0.5) * 1.5);
     }
     g.stroke();
   }
   return tex(c);
+}
+
+/** Which way a turned part's grain runs, for anisotropic highlights: round the middle of its map. */
+function spun() {
+  const N = 128;
+  const [c, g] = cv(N, N);
+  const im = g.createImageData(N, N);
+  for (let y = 0; y < N; y++)
+    for (let x = 0; x < N; x++) {
+      // canvas rows run down, the texture's v runs up
+      const dx = (x + 0.5) / N - 0.5, dy = 0.5 - (y + 0.5) / N;
+      const l = Math.hypot(dx, dy) || 1;
+      const i = (y * N + x) * 4;
+      im.data[i] = (-dy / l) * 127.5 + 127.5;
+      im.data[i + 1] = (dx / l) * 127.5 + 127.5;
+      im.data[i + 2] = 255;
+      im.data[i + 3] = 255;
+    }
+  g.putImageData(im, 0, 0);
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.NoColorSpace;
+  return t;
+}
+
+/**
+ * Powder-coated black: a fine orange-peel stipple, as a normal map, and a roughness that
+ * varies a little with it. One tile, repeated.
+ */
+function powder() {
+  const N = 256;
+  const h = new Float32Array(N * N);
+  // a few octaves of soft blobs
+  for (const [n, r, a] of [[2400, 2.2, 1], [700, 4.5, 0.6]] as const)
+    for (let k = 0; k < n; k++) {
+      const cx = Math.random() * N, cy = Math.random() * N, s = (Math.random() - 0.5) * a;
+      for (let y = -6; y <= 6; y++)
+        for (let x = -6; x <= 6; x++) {
+          const d = (x * x + y * y) / (r * r);
+          if (d > 4) continue;
+          const px = (Math.floor(cx) + x + N) % N, py = (Math.floor(cy) + y + N) % N;
+          h[py * N + px] += s * Math.exp(-d);
+        }
+    }
+  const [nc, ng] = cv(N, N), [rc, rg] = cv(N, N);
+  const ni = ng.createImageData(N, N), ri = rg.createImageData(N, N);
+  for (let y = 0; y < N; y++)
+    for (let x = 0; x < N; x++) {
+      const at = (xx: number, yy: number) => h[((yy + N) % N) * N + ((xx + N) % N)];
+      const sx = at(x + 1, y) - at(x - 1, y), sy = at(x, y - 1) - at(x, y + 1);
+      const l = Math.hypot(sx, sy, 1);
+      const i = (y * N + x) * 4;
+      ni.data[i] = (-sx / l) * 127.5 + 127.5;
+      ni.data[i + 1] = (-sy / l) * 127.5 + 127.5;
+      ni.data[i + 2] = (1 / l) * 127.5 + 127.5;
+      ni.data[i + 3] = 255;
+      const v = 200 + Math.max(-40, Math.min(40, at(x, y) * 60));
+      ri.data[i] = ri.data[i + 1] = ri.data[i + 2] = v;
+      ri.data[i + 3] = 255;
+    }
+  ng.putImageData(ni, 0, 0);
+  rg.putImageData(ri, 0, 0);
+  const mk = (c: HTMLCanvasElement) => {
+    const t = new THREE.CanvasTexture(c);
+    t.colorSpace = THREE.NoColorSpace;
+    t.wrapS = t.wrapT = THREE.RepeatWrapping;
+    t.repeat.set(4, 4);
+    return t;
+  };
+  return { normal: mk(nc), rough: mk(rc) };
 }
 
 /** The face of the meter bridge: everything printed on it. Canvas pixels are the photograph's, ×2.5. */
@@ -359,7 +444,11 @@ export class Studer {
   private mats: Record<string, THREE.Material> = {};
   private supply: Reel;
   private takeup: Reel;
-  private tape: THREE.Mesh[] = [];
+  private tape: THREE.Mesh;
+  /** The tension arms, left and right, each turning on its pivot; how far each is pulled in from rest (radians). */
+  private arms: THREE.Group[] = [];
+  private pull = [0, 0];
+  private clock = 0;
   private lamps = new Map<string, Lamp>();
   private needles: THREE.Object3D[] = [];
   private vu = [0, 0];
@@ -378,14 +467,19 @@ export class Studer {
 
   constructor(private tapes: ReelTape[]) {
     const g = this.group;
-    const black = std({ color: '#1b1b1c', roughness: 0.55 });
-    const charcoal = std({ color: '#262627', roughness: 0.5 });
-    const alu = std({ map: brushed(false), color: '#eceded', metalness: 0.35, roughness: 0.34 });
-    const aluRound = std({ map: brushed(true), color: '#f0f1f2', metalness: 0.4, roughness: 0.28 });
-    const reelAlu = std({ map: brushed(true), color: '#e9ebec', metalness: 0.3, roughness: 0.36, side: THREE.DoubleSide });
-    const brass = std({ color: '#b8923e', metalness: 0.85, roughness: 0.3 });
+    // the finishes, after the real machine: powder-coated black plates, satin anodised aluminium
+    // brushed one way, turned parts and reels spun round, satin chrome on the tape path
+    const coat = powder();
+    const black = phys({ color: '#1c1c1d', roughness: 0.72, normalMap: coat.normal, normalScale: new THREE.Vector2(0.35, 0.35), roughnessMap: coat.rough });
+    const charcoal = phys({ color: '#252526', roughness: 0.66, normalMap: coat.normal, normalScale: new THREE.Vector2(0.3, 0.3), roughnessMap: coat.rough });
+    const turn = spun();
+    const alu = phys({ map: brushed(false), color: '#e6e8e9', metalness: 0.55, roughness: 0.38, anisotropy: 0.55 });
+    const aluRound = phys({ map: brushed(true), color: '#e8eaeb', metalness: 0.65, roughness: 0.3, anisotropy: 0.7, anisotropyMap: turn });
+    const reelAlu = phys({ map: brushed(true), color: '#e6e8e9', metalness: 0.72, roughness: 0.32, anisotropy: 0.8, anisotropyMap: turn, side: THREE.DoubleSide });
+    const chrome = phys({ color: '#f2f4f6', metalness: 0.9, roughness: 0.28 });
+    const brass = phys({ color: '#b8923e', metalness: 0.9, roughness: 0.3, anisotropy: 0.4, anisotropyMap: turn });
     const tapeM = std({ color: '#3a2a1e', roughness: 0.45, metalness: 0.1 });
-    const rubber = std({ color: '#151515', roughness: 0.85 });
+    const rubber = phys({ color: '#141414', roughness: 0.88, sheen: 0.25, sheenRoughness: 0.8, sheenColor: '#3a3a3a' });
     const wood = std({ map: woodTex('#5b3f28', 33), roughness: 0.5 });
     const ebony = std({ color: '#141210', roughness: 0.45 });
 
@@ -499,8 +593,9 @@ export class Studer {
     const hx = (X(480) + X(840)) / 2;
     box(st, X(840) - X(480), Y(520) - Y(690), 0.006, hx, (Y(520) + Y(690)) / 2, FACE + 0.003, alu);
     for (const [px, py] of [[555, 530], [610, 530], [495, 625], [825, 625]]) cyl(st, 0.0028, 0.003, X(px), Y(py), FACE + 0.0068, aluRound, 12);
-    rbox(st, X(827) - X(492), Y(550) - Y(600), 0.05, 0.012, (X(492) + X(827)) / 2, (Y(550) + Y(600)) / 2, FACE + 0.031, alu);
-    rbox(st, X(710) - X(570), Y(600) - Y(650), 0.04, 0.004, (X(570) + X(710)) / 2, (Y(600) + Y(650)) / 2, FACE + 0.026, alu);
+    rbox(st, X(827) - X(492), Y(550) - Y(600), 0.04, 0.012, (X(492) + X(827)) / 2, (Y(550) + Y(600)) / 2, FACE + 0.026, alu);
+    // the lower block, under the tape and clear of it
+    rbox(st, X(710) - X(570), 0.015, 0.036, 0.003, (X(570) + X(710)) / 2, 0.1755, FACE + 0.018, alu);
     const [bc, bg] = cv(256, 72);
     bg.fillStyle = '#121212';
     bg.fillRect(0, 0, 256, 72);
@@ -513,22 +608,28 @@ export class Studer {
     bg.textBaseline = 'middle';
     bg.fillText('STUDER', 128, 38);
     const badge = new THREE.Mesh(new THREE.PlaneGeometry(X(690) - X(582), Y(560) - Y(595)), std({ map: tex(bc), roughness: 0.4 }));
-    badge.position.set((X(582) + X(690)) / 2, Y(577), FACE + 0.0565);
+    badge.position.set((X(582) + X(690)) / 2, Y(577), FACE + 0.0465);
     mc.add(badge);
     // the black rubber head shield flap, and the little tape marker on the left
-    rbox(st, 0.02, 0.03, 0.012, X(752), Y(578), FACE + 0.058, 0.005, rubber);
+    rbox(st, 0.02, 0.03, 0.012, X(752), Y(578), FACE + 0.048, 0.005, rubber);
     box(st, 0.008, 0.012, 0.01, X(545), Y(537), FACE + 0.01, std({ color: '#d8cbb0', roughness: 0.6 }));
-    // capstan pinch roller
-    cyl(st, 0.011, 0.03, X(750), Y(625), FACE + 0.02, aluRound);
-    cyl(st, 0.004, 0.036, X(750), Y(625), FACE + 0.022, std({ color: '#888', metalness: 0.9, roughness: 0.2 }), 12);
-    // the guide rollers either side, the tension arm knobs outboard of them, and the slot each arm swings in
-    for (const [px, py, r] of [[405, 580, 0.021], [900, 577, 0.021], [300, 597, 0.012], [1012, 592, 0.012]] as const) {
-      const depth = r > 0.02 ? TAPE_Z - FACE + 0.006 : 0.016;
-      cyl(st, r, depth, X(px), Y(py), FACE + depth / 2, aluRound);
-    }
-    for (const px of [318, 995]) {
-      const s = box(st, 0.006, 0.05, 0.002, X(px), Y(575), FACE + 0.001, std({ color: '#050505', roughness: 0.9 }), false);
-      s.rotation.z = px < 600 ? 0.25 : -0.25;
+    // the capstan just above the tape, the rubber pinch roller just below
+    cyl(st, 0.004, 0.036, X(750), tapeY(X(750)) + TAPE_HALF + 0.004, FACE + 0.018, chrome, 16);
+    cyl(st, 0.011, 0.016, X(750), tapeY(X(750)) - TAPE_HALF - 0.011, TAPE_Z, rubber);
+    // the guide rollers either side
+    for (const gd of [GUIDE_L, GUIDE_R]) cyl(st, GUIDE_RAD, TAPE_Z - FACE + 0.006, gd.x, gd.y, FACE + (TAPE_Z - FACE + 0.006) / 2, chrome);
+    // the tension arms: each turns on its pivot under the knob (drawn here at rest; the model's replace them)
+    for (const [pv, rest] of [[PIVOT_L, REST_L], [PIVOT_R, REST_R]] as const) {
+      const a = new THREE.Group();
+      a.position.set(pv.x, pv.y, 0);
+      mc.add(a);
+      const ex = Math.cos(rest) * ARM_LEN, ey = Math.sin(rest) * ARM_LEN;
+      const bar = box(a, ARM_LEN, 0.008, 0.004, ex / 2, ey / 2, FACE + 0.008, chrome);
+      bar.rotation.z = rest;
+      cyl(a, ARM_ROLLER, 0.008, ex, ey, TAPE_Z, chrome, 24);
+      cyl(a, 0.003, 0.024, ex, ey, FACE + 0.02, chrome, 12);
+      cyl(a, 0.012, 0.012, 0, 0, FACE + 0.012, aluRound);
+      this.arms.push(a);
     }
     // the splicing bar on the right
     box(st, X(1050) - X(845), Y(655) - Y(690), 0.01, (X(845) + X(1050)) / 2, (Y(655) + Y(690)) / 2, FACE + 0.005, alu);
@@ -541,13 +642,17 @@ export class Studer {
     this.takeup.g.position.set(SPIN_X, SPIN_Y, TAPE_Z);
     mc.add(this.supply.g, this.takeup.g);
     this.supply.g.visible = false;
-    // the tape's path, in straight runs: off the supply pack to the left guide, under it into the head block, out to the right guide, up to the take-up pack
-    for (let i = 0; i < 4; i++) {
-      const t = new THREE.Mesh(new THREE.BoxGeometry(1, 0.0006, 0.0064), tapeM);
-      t.rotation.order = 'ZYX';
-      mc.add(t);
-      this.tape.push(t);
-    }
+    // the tape off the supply pack, round the left arm and guide, under the heads, round the right guide and arm, onto the take-up pack: a ribbon laid each frame
+    const tg = new THREE.BufferGeometry();
+    tg.setAttribute('position', new THREE.BufferAttribute(new Float32Array(TAPE_PTS * 2 * 3), 3).setUsage(THREE.DynamicDrawUsage));
+    tg.setAttribute('normal', new THREE.BufferAttribute(new Float32Array(TAPE_PTS * 2 * 3), 3).setUsage(THREE.DynamicDrawUsage));
+    const idx: number[] = [];
+    for (let i = 0; i < TAPE_PTS - 1; i++) idx.push(2 * i, 2 * i + 1, 2 * i + 2, 2 * i + 1, 2 * i + 3, 2 * i + 2);
+    tg.setIndex(idx);
+    this.tape = new THREE.Mesh(tg, std({ color: '#3a2a1e', roughness: 0.45, metalness: 0.1, side: THREE.DoubleSide }));
+    this.tape.frustumCulled = false;
+    this.tape.castShadow = true;
+    mc.add(this.tape);
 
     /* -------- the meter bridge -------- */
     const BZ = FACE + 0.01;
@@ -570,8 +675,9 @@ export class Studer {
       const kg = new THREE.Group();
       kg.position.set(X(px), Y(py), BZ);
       mc.add(kg);
-      const side = std({ color: light ? '#c9c8c1' : '#151516', roughness: 0.5 });
-      const top = std({ map: keyFace(label, light), roughness: light ? 0.45 : 0.5 });
+      // moulded keys, a little glossy
+      const side = phys({ color: light ? '#c9c8c1' : '#151516', roughness: 0.38, clearcoat: 0.35, clearcoatRoughness: 0.35 });
+      const top = phys({ map: keyFace(label, light), roughness: light ? 0.34 : 0.4, clearcoat: 0.4, clearcoatRoughness: 0.3 });
       const k = new THREE.Mesh(new THREE.BoxGeometry(w, h, 0.007), [side, side, side, side, top, side]);
       k.position.z = 0.0035;
       k.castShadow = true;
@@ -656,7 +762,7 @@ export class Studer {
     cyl(st, 0.004, 0.003, X(1035), Y(905), BZ + 0.0015, aluRound, 16);
     this.hit({ reel: 'machine', key: 'reel:machine', far: true }, 0.66, 0.6, 0.4, 0, SB.h + 0.06 + 0.3, 0);
     g.updateMatrixWorld(true);
-    this.mats = { alu, aluRound, black, charcoal, rubber, brass, reelAlu, white: std({ color: '#f2f2f2', roughness: 0.5 }), cream: std({ color: '#d8cbb0', roughness: 0.6 }) };
+    this.mats = { alu, aluRound, black, charcoal, rubber, brass, reelAlu, chrome, white: std({ color: '#f2f2f2', roughness: 0.5 }), cream: std({ color: '#d8cbb0', roughness: 0.6 }) };
     this.loadModel();
   }
 
@@ -696,6 +802,15 @@ export class Studer {
         this.body.visible = false;
         this.machine.add(gltf.scene);
         if (reel) for (const r of [this.supply, this.takeup]) r.useModel(reel.clone());
+        // each arm's node turns on its own origin, the pivot: it goes into the arm's group in place of the drawn one
+        ['armL', 'armR'].forEach((name, i) => {
+          const arm = gltf.scene.getObjectByName(name);
+          if (!arm) return;
+          arm.removeFromParent();
+          arm.position.set(0, 0, 0);
+          for (const c of this.arms[i].children) c.visible = false;
+          this.arms[i].add(arm);
+        });
       },
       undefined,
       () => {},
@@ -900,6 +1015,15 @@ export class Studer {
     this.lay();
     // a tape on its way up or down
     this.carryStep(dt);
+    // the tension arms: parked out on their springs with no tape on; with tape, pulled in by its tension,
+    // a little further while it runs and further still while it spools, never quite still while it moves
+    this.clock += dt;
+    const moving = Math.abs(this.rate) * p.motion;
+    const want = !this.loaded ? -0.22 : 0.08 + Math.min(0.12, moving * 0.004) + (moving > 0.2 ? Math.sin(this.clock * 9) * 0.012 + (moving > 3 ? Math.sin(this.clock * 23) * 0.03 : 0) : 0);
+    for (let i = 0; i < 2; i++) {
+      this.pull[i] += (want * (i ? 0.94 : 1) - this.pull[i]) * Math.min(1, dt * 6);
+      this.arms[i].rotation.z = i ? this.pull[i] : -this.pull[i];
+    }
     // needles: VU ballistics, about 300 ms to settle, the two channels not quite together
     for (let i = 0; i < 2; i++) {
       const want = Math.min(1.05, p.level * (i ? 0.94 : 1) * (0.92 + Math.random() * 0.12));
@@ -929,25 +1053,55 @@ export class Studer {
     }
   }
 
-  /** The tape's straight runs, from where the packs are now. */
+  /** Where an arm's roller is now. */
+  private roller(i: number) {
+    const pv = i ? PIVOT_R : PIVOT_L;
+    const a = this.arms[i].rotation.z + (i ? REST_R : REST_L);
+    return new THREE.Vector2(pv.x + Math.cos(a) * ARM_LEN, pv.y + Math.sin(a) * ARM_LEN);
+  }
+
+  /** Lay the tape along its path, from where the packs and the arms are now. */
   private lay() {
     const on = this.loaded;
-    for (const t of this.tape) t.visible = on;
+    this.tape.visible = on;
     if (!on) return;
-    const z = TAPE_Z;
-    const L = this.supply.r, R = this.takeup.r;
-    const pts: [THREE.Vector2, THREE.Vector2][] = [
-      [new THREE.Vector2(-SPIN_X - L, SPIN_Y), new THREE.Vector2(X(405) - 0.021, Y(580))],
-      [new THREE.Vector2(X(405), Y(580) - 0.021), new THREE.Vector2(X(492), Y(590))],
-      [new THREE.Vector2(X(827), Y(590)), new THREE.Vector2(X(900), Y(577) - 0.021)],
-      [new THREE.Vector2(X(900) + 0.021, Y(577)), new THREE.Vector2(SPIN_X + R, SPIN_Y)],
+    const C = [
+      { c: new THREE.Vector2(-SPIN_X, SPIN_Y), r: this.supply.r },
+      { c: this.roller(0), r: ARM_ROLLER + TAPE_HALF },
+      { c: GUIDE_L, r: GUIDE_RAD + TAPE_HALF },
+      { c: GUIDE_R, r: GUIDE_RAD + TAPE_HALF },
+      { c: this.roller(1), r: ARM_ROLLER + TAPE_HALF },
+      { c: new THREE.Vector2(SPIN_X, SPIN_Y), r: this.takeup.r },
     ];
-    pts.forEach(([a, b], i) => {
-      const m = this.tape[i];
-      const d = b.clone().sub(a);
-      m.scale.set(d.length(), 1, 1);
-      m.position.set((a.x + b.x) / 2, (a.y + b.y) / 2, z);
-      m.rotation.set(0, 0, Math.atan2(d.y, d.x));
-    });
+    // the tape goes anticlockwise round everything, so each straight run is the tangent with both centres on its left
+    const dir: number[] = [];
+    for (let i = 0; i < 5; i++) {
+      const d = C[i + 1].c.clone().sub(C[i].c);
+      dir.push(Math.atan2(d.y, d.x) - Math.asin(Math.max(-1, Math.min(1, (C[i + 1].r - C[i].r) / d.length()))));
+    }
+    const pts: [number, number][] = [];
+    const at = (k: number, th: number) => pts.push([C[k].c.x + Math.cos(th) * C[k].r, C[k].c.y + Math.sin(th) * C[k].r]);
+    at(0, dir[0] - Math.PI / 2);
+    for (let k = 1; k <= 4; k++) {
+      // round the roller or guide from where the tape arrives to where it leaves
+      const a0 = dir[k - 1] - Math.PI / 2;
+      let a1 = dir[k] - Math.PI / 2;
+      while (a1 < a0) a1 += Math.PI * 2;
+      if (a1 - a0 > Math.PI * 1.5) a1 = a0;
+      for (let j = 0; j < ARC; j++) at(k, a0 + ((a1 - a0) * j) / (ARC - 1));
+    }
+    at(5, dir[4] - Math.PI / 2);
+    const pos = this.tape.geometry.attributes.position as THREE.BufferAttribute;
+    const nor = this.tape.geometry.attributes.normal as THREE.BufferAttribute;
+    for (let i = 0; i < TAPE_PTS; i++) {
+      const [x, y] = pts[i];
+      const [x0, y0] = pts[Math.max(0, i - 1)], [x1, y1] = pts[Math.min(TAPE_PTS - 1, i + 1)];
+      const l = Math.hypot(x1 - x0, y1 - y0) || 1;
+      pos.setXYZ(2 * i, x, y, TAPE_Z - 0.0032);
+      pos.setXYZ(2 * i + 1, x, y, TAPE_Z + 0.0032);
+      nor.setXYZ(2 * i, -(y1 - y0) / l, (x1 - x0) / l, 0);
+      nor.setXYZ(2 * i + 1, -(y1 - y0) / l, (x1 - x0) / l, 0);
+    }
+    pos.needsUpdate = nor.needsUpdate = true;
   }
 }
