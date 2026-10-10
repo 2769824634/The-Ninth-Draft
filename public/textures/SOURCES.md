@@ -6,3 +6,4 @@
 | --- | --- | --- | --- |
 | `teak/color.jpg`、`normal.jpg`、`rough.jpg` | Poly Haven | `dark_wood`（1K） | 档案室柚木家具、护墙板压顶、入库台 |
 | `teak/grain.jpg` | Poly Haven | `dark_wood`（1K），灰度、均值调到中灰 | 档案室地板：每块画出来的板条里铺一段真木纹 |
+| `brass/` | ambientCG | `Metal048B`（1K） | 档案室黄铜：吊灯、台灯、挂镜线、门把手等（颜色仍是原来的黄铜色，手印和擦痕来自扫描） |

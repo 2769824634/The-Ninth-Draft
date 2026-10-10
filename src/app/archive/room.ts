@@ -89,6 +89,12 @@ function teak(m: THREE.MeshStandardMaterial, colour: string) {
   return m;
 }
 
+/** Brass that has been handled: smudges and fingerprints in the shine (scanned, CC0). */
+function brass(m: THREE.MeshStandardMaterial) {
+  void dress(m, 'brass', { colour: '#b08a45', bump: 0.3, rough: 0.6 });
+  return m;
+}
+
 let roundMap: THREE.Texture | null = null;
 /** A round soft glow, white in the middle, gone at the edge: the halo round a lit bulb. */
 function roundGlow() {
@@ -360,7 +366,7 @@ export class StacksRoom {
     steel: std({ color: '#8f948a', metalness: 0.4, roughness: 0.4 }),
     steelDark: std({ color: '#5f625f', metalness: 0.5, roughness: 0.45 }),
     chrome: std({ color: '#d9dad6', metalness: 0.9, roughness: 0.22 }),
-    brass: std({ color: '#b08a45', metalness: 0.85, roughness: 0.3 }),
+    brass: brass(std({ color: '#b08a45', metalness: 0.85, roughness: 0.3 })),
     poche: std({ color: '#2b2723', roughness: 0.85 }),
     wall: std({ color: '#d3c9b3', roughness: 0.95 }),
     skirting: std({ color: '#2e1d12', roughness: 0.6 }),
