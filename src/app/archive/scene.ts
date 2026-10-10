@@ -23,6 +23,7 @@ import { StacksRoom, AR, WINDOWS, type StacksCategory } from './room';
 import { setStacksAniso } from './textures';
 import { laidOver } from './homography';
 import { checking, drawing, pixelRatio, shadows } from '../check';
+import { setPbrAniso } from '../scene/pbr';
 
 export type StacksZone = 'overview' | 'formal' | 'routine' | 'reading' | 'counter' | 'door' | 'reel';
 export const STACKS_ZONES: StacksZone[] = ['overview', 'formal', 'routine', 'reading', 'counter', 'door', 'reel'];
@@ -181,6 +182,7 @@ export class StacksScene {
     this.renderer.shadowMap.enabled = shadows;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     setStacksAniso(Math.min(8, this.renderer.capabilities.getMaxAnisotropy()));
+    setPbrAniso(Math.min(8, this.renderer.capabilities.getMaxAnisotropy()));
     const pmrem = new THREE.PMREMGenerator(this.renderer);
     this.scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
     pmrem.dispose();

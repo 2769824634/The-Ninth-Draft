@@ -20,6 +20,7 @@ import {
 } from './textures';
 import { Studer } from './studer';
 import { REEL_BOXES } from './reels';
+import { dress, scan } from '../scene/pbr';
 
 export const AR = { x0: -5.6, x1: 5.6, z0: -3.6, z1: 3.6, h: 3.4, wall: 0.22, slab: 0.24 };
 const CAB = { w: 0.47, d: 0.62, h: 1.32, n: 4 };
@@ -81,6 +82,12 @@ export interface DeskLamp {
 }
 
 const std = (o: THREE.MeshStandardMaterialParameters) => new THREE.MeshStandardMaterial({ roughness: 0.8, ...o });
+
+/** A drawn wood material, dressed in scanned teak grain once it loads, in the material's own colour. */
+function teak(m: THREE.MeshStandardMaterial, colour: string) {
+  void dress(m, 'teak', { colour, bump: 0.6 });
+  return m;
+}
 
 let roundMap: THREE.Texture | null = null;
 /** A round soft glow, white in the middle, gone at the edge: the halo round a lit bulb. */
@@ -369,10 +376,10 @@ export class StacksRoom {
     pot: std({ color: '#a8583a', roughness: 0.8 }),
     rubber: std({ color: '#2a2a28', roughness: 0.9 }),
     winBack: std({ color: '#ffffff', emissive: '#ffffff', emissiveIntensity: 0.7 }),
-    wood: std({ map: woodTex('#6e4b2f', 4), roughness: 0.55 }),
-    woodL: std({ map: woodTex('#9a7148', 9), roughness: 0.55 }),
-    counterTop: std({ map: woodTex('#4b3424', 2), roughness: 0.4 }),
-    oak: std({ map: woodTex('#8a6340', 21), roughness: 0.5 }),
+    wood: teak(std({ map: woodTex('#6e4b2f', 4), roughness: 0.55 }), '#6e4b2f'),
+    woodL: teak(std({ map: woodTex('#9a7148', 9), roughness: 0.55 }), '#9a7148'),
+    counterTop: teak(std({ map: woodTex('#4b3424', 2), roughness: 0.4 }), '#4b3424'),
+    oak: teak(std({ map: woodTex('#8a6340', 21), roughness: 0.5 }), '#8a6340'),
     envTops: std({ map: envelopeTops(), roughness: 0.9 }),
   };
   private rb = new Map<string, RoundedBoxGeometry>();
@@ -482,7 +489,15 @@ export class StacksRoom {
     const { x0, x1, z0, z1, h, wall, slab } = AR;
     const M = this.M;
     this.box(this.group, x1 - x0 + wall, slab, z1 - z0 + wall, -wall / 2, -slab / 2, -wall / 2, M.poche);
-    const floor = new THREE.Mesh(new THREE.PlaneGeometry(x1 - x0, z1 - z0), std({ map: teakFloor([3.2, 2.1]), roughness: 0.42 }));
+    const floorM = std({ map: teakFloor([3.2, 2.1]), roughness: 0.42 });
+    // the same planks, each with a piece of real teak grain in it once the scan loads
+    void scan('teak/grain.jpg').then((grain) => {
+      if (!grain) return;
+      floorM.map?.dispose();
+      floorM.map = teakFloor([3.2, 2.1], grain);
+      floorM.needsUpdate = true;
+    });
+    const floor = new THREE.Mesh(new THREE.PlaneGeometry(x1 - x0, z1 - z0), floorM);
     floor.rotation.x = -Math.PI / 2;
     floor.position.y = 0.002;
     floor.receiveShadow = true;
