@@ -18,7 +18,8 @@ import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeom
 import {
   INK, KU, DIN, DINB, RED, clockFace, contactShadow, drawerCard, envelopeTops, fileTab, hygroFace, ledgerSpread, beamLight, filedStamp, louvreLight, mapSheet, panelling, plate, rng, runner, sheet, teakFloor, windowView, woodTex,
 } from './textures';
-import { Studer } from './studer';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { Studer, spun } from './studer';
 import { REEL_BOXES } from './reels';
 import { dress, scan } from '../scene/pbr';
 
@@ -87,6 +88,15 @@ const std = (o: THREE.MeshStandardMaterialParameters) => new THREE.MeshStandardM
 function teak(m: THREE.MeshStandardMaterial, colour: string) {
   void dress(m, 'teak', { colour, bump: 0.6 });
   return m;
+}
+
+/** The modelled reading lamp (tools/blender/desklamp.py), read once for both lamps; null if it cannot be. */
+let lampModel: Promise<THREE.Object3D | null> | null = null;
+function loadLamp() {
+  lampModel ??= new Promise((ok) =>
+    new GLTFLoader().load(`${import.meta.env.BASE_URL.replace(/\/?$/, '/')}models/desklamp.glb`, (g) => ok(g.scene), undefined, () => ok(null)),
+  );
+  return lampModel;
 }
 
 /** Brass that has been handled: smudges and fingerprints in the shine (scanned, CC0). */
@@ -738,6 +748,9 @@ export class StacksRoom {
   /** The two reading lamps, each turned to the file on its own blotter. */
   private readLamps: { g: THREE.Group; sp: THREE.SpotLight; side: 'l' | 'r' }[] = [];
 
+  /** The finishes of the modelled reading lamp, made once its file is in. */
+  private lampKit: Record<string, THREE.Material> | null = null;
+
   /** A brass desk lamp with an opal inside to its shade. */
   private deskLamp(p: THREE.Object3D, x: number, y: number, z: number, ry: number, index: number) {
     const M = this.M;
@@ -745,18 +758,49 @@ export class StacksRoom {
     l.position.set(x, y, z);
     l.rotation.y = ry;
     p.add(l);
-    this.cyl(l, 0.075, 0.085, 0.022, 0, 0.011, 0, M.brass);
-    this.cyl(l, 0.008, 0.008, 0.42, 0, 0.23, 0, M.brass);
-    this.box(l, 0.008, 0.008, 0.2, 0, 0.44, 0.09, M.brass);
+    // the lamp itself, drawn here until the modelled one (public/models/desklamp.glb) has loaded
+    const still = new THREE.Group();
+    l.add(still);
+    this.cyl(still, 0.075, 0.085, 0.022, 0, 0.011, 0, M.brass);
+    this.cyl(still, 0.008, 0.008, 0.42, 0, 0.23, 0, M.brass);
+    this.box(still, 0.008, 0.008, 0.2, 0, 0.44, 0.09, M.brass);
     const pr = [[0.015, 0.09], [0.035, 0.085], [0.06, 0.05], [0.09, 0.0], [0.095, -0.004]].map(([r, yy]) => new THREE.Vector2(r, yy));
     const sh = new THREE.Mesh(new THREE.LatheGeometry(pr, 32), std({ color: '#a8843f', metalness: 0.85, roughness: 0.3, side: THREE.DoubleSide }));
     sh.position.set(0, 0.36, 0.19);
     sh.castShadow = true;
-    l.add(sh);
+    still.add(sh);
     const inner = std({ color: '#fff8e8', emissive: '#ffe9c0', emissiveIntensity: 0.5, side: THREE.BackSide });
     const im = new THREE.Mesh(new THREE.LatheGeometry(pr.map((v) => new THREE.Vector2(v.x * 0.95, v.y - 0.003)), 32), inner);
     im.position.copy(sh.position);
-    l.add(im);
+    still.add(im);
+    void loadLamp().then((src) => {
+      if (!src) return;
+      if (!this.lampKit) {
+        // aged brass, spun on the lathe; green baize under the base; bakelite for the socket
+        let aoMap = null as THREE.Texture | null;
+        src.traverse((n) => {
+          if (!aoMap && n instanceof THREE.Mesh) aoMap = (n.material as THREE.MeshStandardMaterial).aoMap;
+        });
+        this.lampKit = {
+          brass: brass(new THREE.MeshPhysicalMaterial({ color: '#b08a45', metalness: 0.9, roughness: 0.32, anisotropy: 0.5, anisotropyMap: spun(), aoMap })),
+          felt: std({ color: '#2c4a33', roughness: 0.95, aoMap }),
+          socket: new THREE.MeshPhysicalMaterial({ color: '#1d1712', roughness: 0.35, clearcoat: 0.3, aoMap }),
+        };
+      }
+      const kit = this.lampKit;
+      // the enamel inside the shade and the bulb glow with the lamp, as the drawn opal did
+      inner.side = THREE.DoubleSide;
+      const mdl = src.clone();
+      mdl.traverse((n) => {
+        if (!(n instanceof THREE.Mesh)) return;
+        const name = (n.material as THREE.Material).name;
+        n.material = name === 'enamel' || name === 'bulb' ? inner : kit[name] ?? n.material;
+        n.castShadow = name === 'brass' || name === 'felt';
+        n.receiveShadow = true;
+      });
+      still.visible = false;
+      l.add(mdl);
+    });
     // the pull chain, with a brass bead
     this.box(l, 0.002, 0.12, 0.002, 0.05, 0.3, 0.2, M.brass, false);
     const bead = new THREE.Mesh(new THREE.SphereGeometry(0.008, 8, 6), M.brass);
