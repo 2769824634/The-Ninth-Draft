@@ -12,6 +12,7 @@ import { hideFuture, isFiled, islandDate, islandIso } from '../island';
 import { audio } from '../audio';
 import { isZh } from '../i18n';
 import { prefs, reducedMotion } from '../prefs';
+import { ask, published } from '../check';
 import { Archivist } from '../ui/archivist';
 import { whoami } from '../visitor/store';
 import { hash } from '../scene/textures';
@@ -502,6 +503,9 @@ export function library() {
       picked: (b) => take(b.id),
     });
     scene.setTheme(prefs.get('theme'));
+    const at = ask('at');
+    if (at && (ZONES as string[]).includes(at)) goZone(at as Zone);
+    published('library', { scene });
     // ?perf: frame rate, quality step and graphics card, to check on a real device
     if (new URLSearchParams(location.search).has('perf')) {
       const meter = document.createElement('p');

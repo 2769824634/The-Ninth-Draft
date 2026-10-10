@@ -30,6 +30,7 @@ import { Stacks, TABLE_MAX, type ReadAt } from './archive/stacks';
 import type { PaperLit } from './archive/scene';
 import { Sheet } from './archive/sheet';
 import { Companion } from './archive/companion';
+import { published } from './check';
 
 export function start() {
   const data: ArchiveData = JSON.parse(document.getElementById('archive-data')!.textContent!);
@@ -503,6 +504,7 @@ export function start() {
         },
       });
       wall.setTheme(prefs.get('theme'));
+      published('wall', { wall });
     } catch (err) {
       console.error('[archive] link wall unavailable', err);
       root.classList.add('no-webgl');

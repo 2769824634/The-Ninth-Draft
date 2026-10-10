@@ -31,6 +31,7 @@ import { Deck } from '../office/deck';
 import { REELS, BLANK_TITLE } from './reels';
 import { HOME_SLOTS, homeCode, listHome, saveHome, clearHome, nameFrom } from './homeReels';
 import type { TapeData } from '../../lib/tapes';
+import { ask, published } from '../check';
 
 const ZH_CAT: Record<string, string> = { personnel: '人员', events: '事件', programs: '计划' };
 const REGIONS = [
@@ -213,6 +214,14 @@ export class Stacks {
     });
     this.deck.onChange = () => this.reelChanged();
     void this.loadHomes();
+    // check mode: straight to a corner, or a drawer pulled out (?check&at=reel, ?check&drawer=0.1)
+    const at = ask('at'), drawer = ask('drawer');
+    if (at && (STACKS_ZONES as string[]).includes(at)) s.goZone(at as StacksZone);
+    if (drawer) {
+      const [ci, d] = drawer.split('.').map(Number);
+      this.openCabinet(ci || 0, d || 0);
+    }
+    published('archive', { scene: s, stacks: this });
   }
 
   /* ---------------- a visitor's own reels ---------------- */

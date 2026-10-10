@@ -22,6 +22,8 @@ import { islandNow } from '../island';
 import { StacksRoom, AR, WINDOWS, type StacksCategory } from './room';
 import { setStacksAniso } from './textures';
 import { laidOver } from './homography';
+import { checking, drawing, pixelRatio, shadows } from '../check';
+import { setPbrAniso } from '../scene/pbr';
 
 export type StacksZone = 'overview' | 'formal' | 'routine' | 'reading' | 'counter' | 'door' | 'reel';
 export const STACKS_ZONES: StacksZone[] = ['overview', 'formal', 'routine', 'reading', 'counter', 'door', 'reel'];
@@ -172,14 +174,15 @@ export class StacksScene {
   private raf = 0;
 
   constructor(private host: HTMLElement, private canvas: HTMLCanvasElement, cats: StacksCategory[], opts: { today: string }, private on: StacksEvents) {
-    this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true, powerPreference: 'high-performance' });
+    this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true, powerPreference: 'high-performance', preserveDrawingBuffer: checking });
     this.renderer.setClearColor(0x000000, 0);
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.renderer.toneMappingExposure = 1;
-    this.renderer.shadowMap.enabled = true;
+    this.renderer.shadowMap.enabled = shadows;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     setStacksAniso(Math.min(8, this.renderer.capabilities.getMaxAnisotropy()));
+    setPbrAniso(Math.min(8, this.renderer.capabilities.getMaxAnisotropy()));
     const pmrem = new THREE.PMREMGenerator(this.renderer);
     this.scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
     pmrem.dispose();
@@ -502,7 +505,7 @@ export class StacksScene {
     this.camera.lookAt(look);
     this.camera.updateMatrixWorld();
 
-    this.renderer.render(this.scene, this.camera);
+    if (drawing()) this.renderer.render(this.scene, this.camera);
   }
 
   /* ---------------- the light on a page ---------------- */
@@ -696,7 +699,7 @@ export class StacksScene {
   private resize() {
     const w = this.canvas.clientWidth, h = this.canvas.clientHeight;
     if (!w || !h) return;
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.75));
+    this.renderer.setPixelRatio(pixelRatio(1.75));
     this.renderer.setSize(w, h, false);
     this.camera.fov = w / h < 0.85 ? 30 : 19;
     this.camera.aspect = w / h;

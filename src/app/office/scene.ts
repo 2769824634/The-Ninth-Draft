@@ -18,6 +18,7 @@ import { reducedMotion } from '../prefs';
 import { Room, R, SCREEN, WIN, DECK_DIR, SOFA_DIR, TRAY_HOLD } from './room';
 import type { ShelfTape, Well } from './cassettes';
 import type { TrayInfo } from './trays';
+import { checking, drawing, pixelRatio, shadows } from '../check';
 
 export type Zone = 'overview' | 'desk' | 'sofa' | 'wall' | 'deck';
 export const ZONES: Zone[] = ['overview', 'desk', 'sofa', 'wall', 'deck'];
@@ -115,11 +116,11 @@ export class OfficeScene {
   private dim = new Spring(0, 1.6);
 
   constructor(private host: HTMLElement, private canvas: HTMLCanvasElement, screenEl: HTMLElement, records: ConstructorParameters<typeof Room>[0], private on: OfficeEvents, tapes: ShelfTape[] = [], trays: TrayInfo[] = [], zh = false) {
-    this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true, powerPreference: 'high-performance' });
+    this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true, powerPreference: 'high-performance', preserveDrawingBuffer: checking });
     this.renderer.setClearColor(0x000000, 0);
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.toneMapping = THREE.NoToneMapping;
-    this.renderer.shadowMap.enabled = true;
+    this.renderer.shadowMap.enabled = shadows;
     this.renderer.shadowMap.type = THREE.PCFShadowMap;
     const pmrem = new THREE.PMREMGenerator(this.renderer);
     this.scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
@@ -312,7 +313,7 @@ export class OfficeScene {
     this.screenObj.element.style.opacity = String(show ? smooth(0.2, 0.5, facing) * on : 0);
     this.screenObj.element.style.pointerEvents = this.zoneNow === 'desk' && on > 0.5 ? 'auto' : 'none';
 
-    this.renderer.render(this.scene, this.camera);
+    if (drawing()) this.renderer.render(this.scene, this.camera);
     this.css.render(this.cssScene, this.camera);
   }
 
@@ -380,7 +381,7 @@ export class OfficeScene {
   private resize() {
     const w = this.canvas.clientWidth, h = this.canvas.clientHeight;
     if (!w || !h) return;
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    this.renderer.setPixelRatio(pixelRatio(2));
     this.renderer.setSize(w, h, false);
     this.css.setSize(w, h);
     this.camera.fov = w / h < 0.85 ? 30 : 19;

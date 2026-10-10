@@ -69,10 +69,14 @@ export function woodTex(base = '#6b4a30', seed = 4) {
   return tex(c);
 }
 
-/** Teak strip flooring: staggered planks, a little colour in each, and grain. */
-export function teakFloor(rep: [number, number]) {
+/**
+ * Teak strip flooring: staggered planks, a little colour in each, and grain.
+ * Given a scanned grain (grey around mid-grey, grain running across), each
+ * plank gets its own piece of it, overlaid, in place of the drawn streaks.
+ */
+export function teakFloor(rep: [number, number], grain?: CanvasImageSource & { width: number; height: number }) {
   const [c, g] = cv(1024, 1024);
-  const r = rng(31);
+  const r = rng(31), gr = rng(77);
   const PW = 32;
   for (let row = 0; row < 1024 / PW; row++) {
     let x = -Math.floor(r() * 300);
@@ -81,9 +85,20 @@ export function teakFloor(rep: [number, number]) {
       const v = r();
       g.fillStyle = v < 0.25 ? '#6a4429' : v < 0.5 ? '#734a2c' : v < 0.75 ? '#5f3d25' : '#7b5131';
       g.fillRect(x, row * PW, len, PW);
+      if (grain) {
+        // a strip of real grain from somewhere on the scan, laid into the plank (its own dice, so the planks lie as drawn)
+        const sh = PW * 2, sw = Math.min(grain.width, len * 2);
+        g.globalCompositeOperation = 'overlay';
+        g.globalAlpha = 0.9;
+        g.drawImage(grain, gr() * (grain.width - sw), gr() * (grain.height - sh), sw, sh, x, row * PW, len, PW);
+        g.globalCompositeOperation = 'source-over';
+        g.globalAlpha = 1;
+      }
       for (let k = 0; k < 7; k++) {
-        g.fillStyle = `rgba(${r() < 0.5 ? '0,0,0' : '255,220,170'},${0.04 + r() * 0.06})`;
-        g.fillRect(x, row * PW + r() * PW, len, 1);
+        const dark = r() < 0.5, a = 0.04 + r() * 0.06, y = row * PW + r() * PW;
+        if (grain) continue;
+        g.fillStyle = `rgba(${dark ? '0,0,0' : '255,220,170'},${a})`;
+        g.fillRect(x, y, len, 1);
       }
       g.fillStyle = 'rgba(20,10,4,0.55)';
       g.fillRect(x, row * PW, 1.5, PW);
