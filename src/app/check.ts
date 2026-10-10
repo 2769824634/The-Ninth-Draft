@@ -2,7 +2,8 @@
  * Check mode, for screenshots in a headless browser with no graphics card.
  *
  * Only on with `?check` in the address; a visitor never gets it. It draws at
- * pixel ratio 1 with shadows off (add `&shadows` to keep them), skips the boot
+ * pixel ratio 1 with shadows off (add `&shadows` to keep them, `&hd` for the
+ * screen's own pixel ratio on a real graphics card), skips the boot
  * cover, and lets the address put a room straight into a state:
  *
  *   ?check&at=reel            a corner of the room (each room's zone names)
@@ -24,7 +25,10 @@ export const ask = (k: string): string | null => (checking ? q.get(k) : null);
 /** Shadows are drawn unless check mode turned them off. */
 export const shadows = !checking || q.has('shadows');
 
-export const pixelRatio = (max: number) => (checking ? 1 : Math.min(window.devicePixelRatio || 1, max));
+/** `&hd`: on a real graphics card, draw at the screen's pixel ratio as a visitor would see it. */
+const hd = q.has('hd');
+
+export const pixelRatio = (max: number) => (checking && !hd ? 1 : Math.min(window.devicePixelRatio || 1, max));
 
 type N9 = { draw?: boolean; ready?: string; [k: string]: unknown };
 const w = window as unknown as { __n9?: N9 };
