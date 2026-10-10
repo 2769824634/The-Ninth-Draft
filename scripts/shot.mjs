@@ -15,6 +15,9 @@
  *   --do=JS      run in the page once settled; `__n9` holds the scene and controller
  *   --after=S,…  seconds after --do to shoot; several values give several shots
  *   --shadows    keep shadows (slower; for judging the light)
+ *   --gpu        on a computer with a graphics card: the real card, shadows on, the
+ *                screen's own pixel ratio (use --dpr=2 for a sharp phone); finds
+ *                Edge or Chrome itself on Windows and macOS
  *   --full       the whole page, scrolled length (flat pages)
  *   --dpr=N      page pixel ratio (default 1)
  *   --build      build first even if dist/ exists
@@ -28,9 +31,10 @@ import { createServer } from 'node:http';
 import { existsSync, mkdirSync, readFileSync, statSync } from 'node:fs';
 import { execSync } from 'node:child_process';
 import { extname, join, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright-core';
 
-const ROOT = resolve(new URL('..', import.meta.url).pathname);
+const ROOT = fileURLToPath(new URL('..', import.meta.url));
 const BASE = '/The-Ninth-Draft/';
 const ROOMS = { archive: '', office: 'office/', library: 'library/', wall: 'wall/', map: 'map/' };
 const ROOMS_3D = new Set(['archive', 'office', 'library', 'wall']);
@@ -100,9 +104,21 @@ async function snap(page, file) {
   await page.evaluate(() => window.__n9swap.forEach(([img, c]) => img.replaceWith(c)));
 }
 
+const BROWSERS = [
+  process.env.CHROMIUM_PATH,
+  '/opt/pw-browsers/chromium',
+  'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe',
+  'C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe',
+  'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
+  '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+  '/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge',
+];
 const browser = await chromium.launch({
-  executablePath: process.env.CHROMIUM_PATH || (existsSync('/opt/pw-browsers/chromium') ? '/opt/pw-browsers/chromium' : undefined),
-  args: ['--disable-gpu-compositing', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist', '--autoplay-policy=no-user-gesture-required'],
+  executablePath: BROWSERS.find((p) => p && existsSync(p)),
+  headless: true,
+  args: flags.gpu
+    ? ['--ignore-gpu-blocklist', '--enable-gpu-rasterization', '--force_high_performance_gpu', '--autoplay-policy=no-user-gesture-required']
+    : ['--disable-gpu-compositing', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist', '--autoplay-policy=no-user-gesture-required'],
 });
 mkdirSync(outDir, { recursive: true });
 const saved = [];
@@ -113,7 +129,7 @@ try {
     page.on('pageerror', (e) => console.error('[page]', e.message));
     page.on('console', (m) => m.type() === 'error' && console.error('[console]', m.text()));
     await page.clock.install();
-    const q = ['check', ...params, ...(flags.shadows ? ['shadows'] : [])].join('&');
+    const q = ['check', ...params, ...(flags.shadows || flags.gpu ? ['shadows'] : []), ...(flags.gpu ? ['hd'] : [])].join('&');
     const url = `${origin}${BASE}${path}?${q}`;
     const t0 = Date.now();
     const lap = [];

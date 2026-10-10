@@ -925,7 +925,7 @@ export class LibraryScene {
   private resize() {
     const w = this.canvas.clientWidth, h = this.canvas.clientHeight;
     if (!w || !h) return;
-    const dpr = checking ? 1 : window.devicePixelRatio || 1;
+    const dpr = checking && !new URLSearchParams(location.search).has('hd') ? 1 : window.devicePixelRatio || 1;
     this.renderer.setPixelRatio(Math.min(dpr, this.tier === 0 ? 2 : this.tier === 1 ? 1.25 : 1));
     this.renderer.setSize(w, h, false);
     // the drawer room's long lens; a phone needs a wider one
