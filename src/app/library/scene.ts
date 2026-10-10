@@ -17,6 +17,7 @@ import { canvasFontsReady, hash } from '../scene/textures';
 import { Book, Leaves, PageCache } from './books';
 import { Room, ROOM, TABLE_H, shelfPose, type ShelfRun } from './room';
 import { dustTexture, plateTexture } from './textures';
+import { checking, drawing, shadows } from '../check';
 
 export type Zone = 'overview' | 'stacks' | 'rack' | 'catalogue' | 'desk';
 export const ZONES: Zone[] = ['overview', 'rack', 'stacks', 'catalogue', 'desk'];
@@ -138,7 +139,7 @@ export class LibraryScene {
    */
   tier = 0;
   /** ?full keeps everything on, however slow. */
-  private locked = new URLSearchParams(location.search).has('full');
+  private locked = new URLSearchParams(location.search).has('full') || checking;
   private samples: number[] = [];
   private settleAt = performance.now() + 2500;
   readonly gpu: string = '';
@@ -146,11 +147,11 @@ export class LibraryScene {
   frameMs = 16.7;
 
   constructor(private canvas: HTMLCanvasElement, private bays: LibBay[], catalogue: CatDrawer[], private on: LibEvents) {
-    this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true, powerPreference: 'high-performance' });
+    this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true, powerPreference: 'high-performance', preserveDrawingBuffer: checking });
     this.renderer.setClearColor(0x000000, 0);
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.toneMapping = THREE.NoToneMapping;
-    this.renderer.shadowMap.enabled = true;
+    this.renderer.shadowMap.enabled = shadows;
     this.renderer.shadowMap.type = THREE.PCFShadowMap;
     try {
       const gl = this.renderer.getContext();
@@ -687,7 +688,7 @@ export class LibraryScene {
     if (this.active) this.pose(this.active, dt);
     this.leaves.update(dt);
 
-    this.renderer.render(this.scene, this.camera);
+    if (drawing()) this.renderer.render(this.scene, this.camera);
     this.measure(now - (this.frameStart || now));
     this.frameStart = now;
   }
@@ -924,7 +925,7 @@ export class LibraryScene {
   private resize() {
     const w = this.canvas.clientWidth, h = this.canvas.clientHeight;
     if (!w || !h) return;
-    const dpr = window.devicePixelRatio || 1;
+    const dpr = checking ? 1 : window.devicePixelRatio || 1;
     this.renderer.setPixelRatio(Math.min(dpr, this.tier === 0 ? 2 : this.tier === 1 ? 1.25 : 1));
     this.renderer.setSize(w, h, false);
     // the drawer room's long lens; a phone needs a wider one

@@ -11,6 +11,7 @@ import { Spring, SpringV3, damp } from '../spring';
 import { reducedMotion } from '../prefs';
 import { t } from '../i18n';
 import { boardTexture, CARD, cardTexture, gridTexture, hash, loadPhoto, setMaxAnisotropy, sweepTexture } from './textures';
+import { checking, drawing, pixelRatio, shadows } from '../check';
 
 const KEY = 'n9:wall';
 const CARD_Z = 0.03;
@@ -132,10 +133,10 @@ export class Wall {
   private reduce = reducedMotion();
 
   constructor(private canvas: HTMLCanvasElement, private data: ArchiveData, private on: WallEvents) {
-    this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true, powerPreference: 'high-performance' });
+    this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true, powerPreference: 'high-performance', preserveDrawingBuffer: checking });
     this.renderer.setClearColor(0x000000, 0);
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
-    this.renderer.shadowMap.enabled = true;
+    this.renderer.shadowMap.enabled = shadows;
     this.renderer.shadowMap.type = THREE.PCFShadowMap;
     setMaxAnisotropy(Math.min(8, this.renderer.capabilities.getMaxAnisotropy()));
 
@@ -641,7 +642,7 @@ export class Wall {
       l.mat.emissive.setRGB(0.25 * hot, 0.02 * hot, 0);
     }
 
-    this.renderer.render(this.scene, this.camera);
+    if (drawing()) this.renderer.render(this.scene, this.camera);
   }
 
   /** Sweep band across the board, pings, and the coordinate readout. */
@@ -834,7 +835,7 @@ export class Wall {
   private resize() {
     const w = this.canvas.clientWidth, h = this.canvas.clientHeight;
     if (!w || !h) return;
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.75));
+    this.renderer.setPixelRatio(pixelRatio(1.75));
     this.renderer.setSize(w, h, false);
     this.camera.aspect = w / h;
     this.camera.updateProjectionMatrix();

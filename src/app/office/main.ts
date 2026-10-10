@@ -13,6 +13,7 @@ import { isZh, onLang } from '../i18n';
 import { canvasFontsReady } from '../scene/textures';
 import { isFiled, islandNow } from '../island';
 import { prefs, reducedMotion } from '../prefs';
+import { ask, published } from '../check';
 import { esc } from '../ui/text';
 import { Archivist } from '../ui/archivist';
 import { CLOCKS } from '../visitor/districts';
@@ -794,6 +795,9 @@ export function office() {
     scene.room.calendar.marks = marksOf;
     redrawCalendar();
     scene.setTheme(prefs.get('theme'));
+    const at = ask('at');
+    if (at && (ZONES as string[]).includes(at)) scene.goZone(at as Zone);
+    published('office', { scene });
     requestAnimationFrame(() => root.classList.add('is-lit'));
   } catch (err) {
     console.error('[office] room unavailable', err);
