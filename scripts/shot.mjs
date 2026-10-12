@@ -4,7 +4,7 @@
  *
  *   node scripts/shot.mjs archive at=reel
  *   node scripts/shot.mjs archive drawer=0.1 theme=night --phone
- *   node scripts/shot.mjs records/p-0001 --both lang=zh
+ *   node scripts/shot.mjs records/p-0002 --both lang=zh
  *   node scripts/shot.mjs archive at=reel --do="__n9.stacks.reelAct('MX-01')" --after=0.4,1.2,4
  *
  * Room names: archive (/), office, library, wall, map, or any path under the site.

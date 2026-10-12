@@ -16,6 +16,7 @@ import type { ArchiveRecord } from '../types';
 import { esc } from '../ui/text';
 import { isFiled } from '../island';
 import { draftInfo } from '../ui/dossier';
+import { plainAt, standing, statusNow } from '../ui/asof';
 
 const MON = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
 
@@ -39,11 +40,7 @@ const row = (en: string, zh: string, value: string, cls = '', html = false) =>
   `<div class="cv-row${cls ? ` ${cls}` : ''}"><span class="cv-lab">${en}<em>${zh}</em></span><b class="cv-val">${(html ? value : esc(value)) || '&nbsp;'}</b></div>`;
 
 /** Text that comes marked up (summaries, field values), typed onto the form as plain words. */
-const plain = (html: string) => {
-  const d = document.createElement('div');
-  d.innerHTML = html;
-  return esc(d.textContent ?? '');
-};
+const plain = (html: string, rec: ArchiveRecord) => esc(plainAt(html, standing(rec.drafts)));
 
 /** The washers and the wound string that keep a TOP SECRET envelope shut. */
 const STRING = `<div class="cv-string" aria-hidden="true">
@@ -86,11 +83,11 @@ export function coverHtml(rec: ArchiveRecord) {
         ${row('FILE NO.', '档案号', rec.file)}
         ${row('OPENED', '立档', date || (rec.date ?? ''))}
         ${row('DISTRICT', '区', rec.place ?? '', 'cv-row--wide')}
-        ${extra.map((f) => row(f.label.toUpperCase(), '', plain(f.value), '', true)).join('')}
+        ${extra.map((f) => row(f.label.toUpperCase(), '', plain(f.value, rec), '', true)).join('')}
       </div>
       <div class="cv-more">
         <p class="cv-sub">REMARKS <em>备注</em></p>
-        <p class="cv-remarks">${plain(rec.summary)}</p>
+        <p class="cv-remarks">${plain(rec.summary, rec)}</p>
         <p class="cv-sub">AMENDMENTS <em>修订记录</em></p>
         <ol class="cv-list">${amendments(rec)}</ol>
       </div>
@@ -105,11 +102,11 @@ export function coverHtml(rec: ArchiveRecord) {
         ${row('SUBJECT', '案由', rec.title, 'cv-row--wide')}
         ${row('PLACE', '地点', rec.place ?? '')}
         ${row('DATE', '日期', date || (rec.date ?? ''))}
-        ${row('STATUS', '状态', rec.status)}
+        ${row('STATUS', '状态', statusNow(rec.status, rec.drafts))}
         <p class="cv-sub">CONTENTS <em>卷内目录</em></p>
         <ol class="cv-list">${items.map(([en, zh], i) => `<li><span>${String(i + 1).padStart(2, '0')}</span><b>${esc(en)} · ${zh}</b><i>${i ? 1 : '—'}</i></li>`).join('')}</ol>
         <p class="cv-sub">REMARKS <em>备注</em></p>
-        <p class="cv-remarks">${plain(rec.summary)}</p>
+        <p class="cv-remarks">${plain(rec.summary, rec)}</p>
       </div>
       ${top ? '' : '<i class="cv-button"></i><i class="cv-button cv-button--b"></i><i class="cv-tie"></i>'}
       ${recv}${stamp}

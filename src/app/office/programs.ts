@@ -4,6 +4,7 @@
  * SYSTEM voice: system actions only, no jokes.
  */
 import { openFile } from '../ui/fileslip';
+import { standing } from '../ui/asof';
 import { islandDate, isFiled } from '../island';
 import { PROPOSALS, proposalDay } from './proposals';
 import type { LogLine, MachineData, MachineFile } from '../../lib/machine';
@@ -256,17 +257,25 @@ export class BackupScreen {
     }
     this.reels(false);
     const n0 = this.draft;
+    // the tape holds the file as far as its last draft on file; a later draft is not written yet
+    const k = standing(this.file.drafts);
+    if (k < 9 && n0 > k) {
+      out.innerHTML = `<p class="crt__dim">${this.file.file} · ${zh ? `第 ${String(n0).padStart(2, '0')} 稿尚未归档。磁带上最新的是第 ${String(k).padStart(2, '0')} 稿。` : `DRAFT ${String(n0).padStart(2, '0')} NOT ON FILE YET. LATEST ON TAPE: DRAFT ${String(k).padStart(2, '0')}.`}</p>`;
+      audio.chirp();
+      this.busy = false;
+      return true;
+    }
     const doc = document.createElement('div');
     doc.className = 'crt__doc';
     doc.innerHTML = T(this.file.body);
-    // marks: what draft n had, and what became of it by draft 09
+    // marks: what draft n had, and what became of it by the file as it stands today (draft k)
     doc.querySelectorAll<HTMLElement>('.rv').forEach((s) => {
       const add = Number(s.dataset.add ?? 0), del = Number(s.dataset.del ?? 0);
+      if (add > k || (del && del <= n0)) return s.remove();
       if (add > n0) s.classList.add('is-later');
-      if (del && del > n0) s.classList.add('is-cut');
-      if (del && del <= n0) s.remove();
+      if (del && del <= k) s.classList.add('is-cut');
       if (s.dataset.redact) {
-        const then = inRange(s.dataset.redact, n0), now = inRange(s.dataset.redact, 9);
+        const then = inRange(s.dataset.redact, n0), now = inRange(s.dataset.redact, k);
         s.classList.toggle('is-black', then);
         s.classList.toggle('is-blacked', !then && now);
       }
@@ -275,7 +284,7 @@ export class BackupScreen {
       if (!inRange(s.dataset.note, n0)) s.remove();
     });
     const counts = { cut: doc.querySelectorAll('.is-cut').length, later: doc.querySelectorAll('.is-later').length, black: doc.querySelectorAll('.is-blacked').length };
-    out.innerHTML = `<p class="crt__dim">${this.file.file} · ${zh ? `第 ${String(n0).padStart(2, '0')} 稿 对照 第 09 稿` : `DRAFT ${String(n0).padStart(2, '0')} AGAINST DRAFT 09`} · <span class="crt__key is-cut">−${counts.cut}</span> <span class="crt__key is-later">+${counts.later}</span> <span class="crt__key is-blacked">■${counts.black}</span></p>`;
+    out.innerHTML = `<p class="crt__dim">${this.file.file} · ${zh ? `第 ${String(n0).padStart(2, '0')} 稿 对照 第 ${String(k).padStart(2, '0')} 稿` : `DRAFT ${String(n0).padStart(2, '0')} AGAINST DRAFT ${String(k).padStart(2, '0')}`} · <span class="crt__key is-cut">−${counts.cut}</span> <span class="crt__key is-later">+${counts.later}</span> <span class="crt__key is-blacked">■${counts.black}</span></p>`;
     out.append(doc);
     audio.chirp();
     this.busy = false;

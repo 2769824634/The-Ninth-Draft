@@ -197,7 +197,11 @@ export class OfficeScene {
         return { at: new THREE.Vector3(-1.84, 0.93, -2.12), dir: DECK_DIR.clone(), w: 1.25, h: 0.5 };
       case 'wall':
         // close in on the calendar, with room under it for the slip
-        if (this.calView) return { at: new THREE.Vector3(R.x0, 1.5, -0.34), dir: new THREE.Vector3(1, 0.08, 0.04).normalize(), w: 0.75, h: 0.8 };
+        if (this.calView) {
+          // on a phone the sheet itself fills the width, so the days are big enough to tap
+          if (this.camera.aspect < 0.85) return { at: new THREE.Vector3(R.x0, 1.53, -0.34), dir: new THREE.Vector3(1, 0.08, 0.04).normalize(), w: 0.42, h: 0.5 };
+          return { at: new THREE.Vector3(R.x0, 1.5, -0.34), dir: new THREE.Vector3(1, 0.08, 0.04).normalize(), w: 0.75, h: 0.8 };
+        }
         return { at: new THREE.Vector3(R.x0, 1.55, -1.05), dir: new THREE.Vector3(1, 0.16, 0.1).normalize(), w: 2.4, h: 1.35 };
       default:
         return { at: new THREE.Vector3(0, 0.9, 0.1), dir: new THREE.Vector3(7.2, 8.6, 12).normalize(), w: 9.6, h: 6.2 };

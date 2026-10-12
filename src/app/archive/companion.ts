@@ -6,6 +6,7 @@
 import type { ArchiveRecord } from '../types';
 import { attachmentsHtml, paintNegatives } from '../ui/attachments';
 import { asFiled } from '../ui/dossier';
+import { standing, statusNow } from '../ui/asof';
 import { clearanceKey } from '../clearance';
 import { isZh, t } from '../i18n';
 import { reducedMotion } from '../prefs';
@@ -40,7 +41,7 @@ export class Companion {
     const meta: [string, string][] = [];
     if (rec.date) meta.push([t('Date'), esc(longDate(rec.date))]);
     if (rec.place) meta.push([t('Place'), esc(rec.place)]);
-    meta.push([t('Status'), esc(t(rec.status))]);
+    meta.push([t('Status'), esc(t(statusNow(rec.status, rec.drafts)))]);
     meta.push([t('Classification'), esc(rec.stamp)]);
     for (const f of rec.fields) meta.push([f.label, f.value]);
     this.el.dataset.clr = clearanceKey(rec.stamp);
@@ -62,7 +63,7 @@ export class Companion {
         <section class="pane pane--attach">${attachmentsHtml(rec)}</section>
       </div><i class="companion__shade"></i></div>`;
     const paper = this.el.querySelector<HTMLElement>('.companion__paper')!;
-    asFiled(paper);
+    asFiled(paper, standing(rec.drafts));
     void paintNegatives(paper.querySelector('.pane--attach')!, rec, () => this.rec === rec);
     this.el.hidden = false;
     this.el.setAttribute('aria-hidden', 'false');

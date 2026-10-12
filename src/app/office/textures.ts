@@ -474,42 +474,79 @@ export function clockFaceTexture(label: string) {
 }
 
 /** A card pinned on the notice board. */
-export function noticeTexture(file: string, title: string, date: string, stamp: string) {
-  const W = 320, H = 220;
-  const [c, g] = canvas(W, H);
-  g.fillStyle = '#f1ead6';
-  g.fillRect(0, 0, W, H);
-  grain(g, W, H, file.charCodeAt(2) * 7, 0.05);
-  g.fillStyle = '#1d1b17';
-  g.font = `700 30px ${MONO}`;
-  g.fillText(file, 20, 52);
-  g.font = `500 17px ${SERIF}`;
-  // wrap the title onto two lines
-  const words = title.split(/\s+/);
-  let line = '', y = 92;
-  for (const w of words) {
-    if (g.measureText(line + w).width > W - 40 && line) {
-      g.fillText(line.trim(), 20, y);
-      y += 24;
-      line = '';
-      if (y > 130) break;
-    }
-    line += w + ' ';
+export interface NoticeInfo {
+  file: string;
+  slug: string;
+  title: { en: string; zh: string };
+  body: { en: string; zh: string };
+  posted?: string;
+}
+
+/** Lines of `text` no wider than `max`: by word in English, by character in Chinese. */
+function wrap(g: CanvasRenderingContext2D, text: string, max: number, zh: boolean) {
+  const parts = zh ? [...text] : text.split(/\s+/);
+  const lines: string[] = [];
+  let line = '';
+  for (const w of parts) {
+    const next = zh ? line + w : line ? `${line} ${w}` : w;
+    // a Chinese full stop or comma never starts a line
+    if (g.measureText(next).width > max && line && !(zh && /[，。、：；」）]/.test(w))) {
+      lines.push(line);
+      line = w;
+    } else line = next;
   }
-  if (y <= 130) g.fillText(line.trim(), 20, y);
-  g.font = `500 14px ${MONO}`;
-  g.fillStyle = 'rgba(29,27,23,.6)';
-  g.fillText(date, 20, 186);
+  if (line) lines.push(line);
+  return lines;
+}
+
+/**
+ * A notice for the board: half a foolscap sheet from the Data Section about one
+ * file, what state it is in and where it is kept. The number and stamp stay English.
+ */
+export function noticeTexture(n: NoticeInfo, zh: boolean) {
+  const W = 330, H = 435, L = 24, R = W - 24;
+  const [c, g] = canvas(W, H);
+  g.fillStyle = '#f2ecd9';
+  g.fillRect(0, 0, W, H);
+  grain(g, W, H, n.file.charCodeAt(2) * 7 + n.file.charCodeAt(5), 0.05);
+  g.fillStyle = '#1d1b17';
+  g.strokeStyle = '#1d1b17';
+  // letterhead
+  g.font = `600 12px ${MONO}`;
+  g.fillText(zh ? '霏微记录署 · 数据组' : 'RECORDS OFFICE · DATA SECTION', L, 40);
+  g.lineWidth = 1.5;
+  g.beginPath(); g.moveTo(L, 52); g.lineTo(R, 52); g.stroke();
+  g.font = `800 ${zh ? 34 : 38}px ${COND}`;
+  g.fillText(zh ? '通知' : 'NOTICE', L, 98);
+  g.font = `500 12px ${MONO}`;
+  const no = `No. 99/${n.file.slice(-3)}`;
+  g.fillText(no, R - g.measureText(no).width, 96);
+  // what it is about
+  g.font = `600 ${zh ? 17 : 16}px ${SERIF}`;
+  let y = 136;
+  const re = zh ? `事由：${n.file}《${n.title.zh}》` : `Re: ${n.file}, ${n.title.en}`;
+  for (const line of wrap(g, re, R - L, zh).slice(0, 3)) { g.fillText(line, L, y); y += 24; }
+  // what to do about it
+  y += 10;
+  g.font = `400 ${zh ? 16 : 15}px ${SERIF}`;
+  for (const line of wrap(g, zh ? n.body.zh : n.body.en, R - L, zh).slice(0, 7)) { g.fillText(line, L, y); y += zh ? 26 : 23; }
+  // posted, and by whom
+  g.fillStyle = 'rgba(29,27,23,.62)';
+  g.font = `500 12px ${MONO}`;
+  const d = n.posted ? `${Number(n.posted.slice(8))}.${Number(n.posted.slice(5, 7))}.99` : '';
+  if (d) g.fillText(zh ? `张贴 ${d}` : `Posted ${d}`, L, H - 28);
+  // the section's own stamp, a little crooked
   g.strokeStyle = '#b8281d';
   g.fillStyle = '#b8281d';
   g.lineWidth = 2.5;
   g.font = `700 13px ${MONO}`;
-  const sw = g.measureText(stamp).width + 14;
+  const st = 'INTERNAL';
+  const sw = g.measureText(st).width + 14;
   g.save();
-  g.translate(W - sw - 16, 178);
+  g.translate(R - sw, H - 30);
   g.rotate(-0.08);
   g.strokeRect(0, -18, sw, 26);
-  g.fillText(stamp, 7, 0);
+  g.fillText(st, 7, 0);
   g.restore();
   return tex(c);
 }

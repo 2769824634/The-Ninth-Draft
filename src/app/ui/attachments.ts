@@ -22,7 +22,9 @@ const KIND: Record<string, string> = { note: 'Memo', telegram: 'Telegram', ticke
 const jitter = (seed: number, k: number) => ((Math.imul(seed ^ (k * 2654435761), 1597334677) >>> 0) % 1000) / 1000 - 0.5;
 
 const initials = (name?: string) =>
-  name
+  name && /[\u3400-\u9fff]/.test(name)
+    ? name.replace(/\s+/g, '').slice(0, 4) // a Chinese name or section reads whole; its first character alone is nothing
+    : name
     ? name
         .split(/[\s-]+/)
         .filter(Boolean)

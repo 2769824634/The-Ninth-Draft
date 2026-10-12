@@ -4,6 +4,7 @@
  * All drawn on canvas; nothing is loaded.
  */
 import * as THREE from 'three';
+import { plainAt, standing, statusNow } from '../ui/asof';
 
 export const RED = '#b8352b';
 export const INK = '#1d1b17';
@@ -569,12 +570,12 @@ function wrapLines(g: CanvasRenderingContext2D, text: string, w: number, max: nu
  * of contents (events), the base card of a personnel file, the inside cover of
  * a programme board.
  */
-export function fileInside(rec: { file: string; title: string; category: string; place?: string; date?: string; status: string; summary: string; attachments: { kind: string }[]; stamp: string }) {
+export function fileInside(rec: { file: string; title: string; category: string; place?: string; date?: string; status: string; summary: string; attachments: { kind: string }[]; stamp: string; drafts?: { n: number; date?: string; status?: string }[] }) {
   const W = 300, H = 410;
   const [c, g] = cv(W, H);
   const ev = rec.category === 'events', pr = rec.category === 'programs';
   grain(g, W, H, ev ? '#cba879' : pr ? '#aeb4a8' : '#dfd0a8', rec.file.charCodeAt(3) * 7 + rec.title.length, 0.7);
-  const plain = (s: string) => s.replace(/<[^>]+>/g, '').replace(/&[a-z#0-9]+;/g, ' ');
+  const plain = (s: string) => plainAt(s, standing(rec.drafts));
   const line = (x: number, y: number, w: number, col = 'rgba(29,27,23,.4)') => {
     g.fillStyle = col;
     g.fillRect(x, y, w, 1);
@@ -585,7 +586,7 @@ export function fileInside(rec: { file: string; title: string; category: string;
     g.font = `700 15px ${DINB}`;
     g.fillText('CASE FILE · FORM RO-31', 18, 34);
     g.fillRect(18, 42, W - 36, 2);
-    const rows: [string, string][] = [['FILE NO.', rec.file], ['SUBJECT', rec.title], ['PLACE', rec.place ?? ''], ['DATE', rec.date ?? ''], ['STATUS', rec.status]];
+    const rows: [string, string][] = [['FILE NO.', rec.file], ['SUBJECT', rec.title], ['PLACE', rec.place ?? ''], ['DATE', rec.date ?? ''], ['STATUS', statusNow(rec.status, rec.drafts)]];
     rows.forEach(([k, v], i) => {
       const y = 62 + i * 30;
       g.fillStyle = RED;

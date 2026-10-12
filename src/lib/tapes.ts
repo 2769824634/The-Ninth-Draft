@@ -26,17 +26,21 @@ export interface TapeData {
   lines?: { en: string[]; zh: string[] };
   /** Record tapes: the record's page. */
   slug?: string;
+  /** Record tapes: the named drafts, and what the tape says while the file stands at each (until its final is on file). */
+  drafts?: { n: number; date?: string }[];
+  at?: Record<number, { en: string[]; zh: string[] }>;
 }
 
 const ENTITIES: Record<string, string> = { amp: '&', lt: '<', gt: '>', quot: '"', '#39': "'", nbsp: ' ' };
 
-/** Summary HTML → speakable text as it stands in draft 9. */
-export function speakable(html: string) {
+/** Summary HTML → speakable text as it stands in draft `k` (9: the final). */
+export function speakable(html: string, k = 9) {
   return html
     .replace(/<span class="rv-note"[^>]*><span class="rv-note__t">[\s\S]*?<\/span><span class="rv-note__by">[\s\S]*?<\/span><\/span>/g, '')
-    .replace(/<span class="rv" data-del="\d">[\s\S]*?<\/span>/g, '')
-    .replace(/<span class="rv" data-redact="(\d)-(\d)"><span>([\s\S]*?)<\/span><\/span>/g, (_m, a: string, b: string, t: string) => (Number(a) <= 9 && Number(b) >= 9 ? ' █ ' : t))
+    .replace(/<span class="rv" data-redact="(\d)-(\d)"><span>([\s\S]*?)<\/span><\/span>/g, (_m, a: string, b: string, t: string) => (Number(a) <= k && Number(b) >= k ? ' █ ' : t))
     .replace(/<span class="redact"[^>]*><span>[\s\S]*?<\/span><\/span>/g, ' █ ')
+    .replace(/<span class="rv" data-del="(\d)">([\s\S]*?)<\/span>/g, (_m, n: string, t: string) => (k >= Number(n) ? '' : t))
+    .replace(/<span class="rv" data-add="(\d)">([\s\S]*?)<\/span>/g, (_m, n: string, t: string) => (k >= Number(n) ? t : ''))
     .replace(/<[^>]+>/g, '')
     .replace(/&(amp|lt|gt|quot|#39|nbsp);/g, (_m, k: string) => ENTITIES[k])
     .replace(/\s+/g, ' ')
@@ -69,20 +73,24 @@ export function buildTapes(records: ClientRecord[], base: string): TapeData[] {
       const d = DISTRICTS.find((x) => x.id === r.district);
       const zh = r.zh ?? r;
       const where = (z: boolean) => [d ? (z ? d.zh : d.en) : (z ? zh.place : r.place), z ? zh.date : r.date].filter(Boolean).join(z ? '，' : ', ');
-      const en = [
-        `Records Office, Data Section. File ${spell(r.file, false)}.`,
-        `${r.title}.`,
-        where(false) ? `${where(false)}.` : '',
-        ...sentences(speakable(r.summary)),
-        'End of file.',
-      ].filter(Boolean);
-      const zhLines = [
-        `记录署数据组，档案 ${spell(r.file, true)}。`,
-        `${zh.title}。`,
-        where(true) ? `${where(true)}。` : '',
-        ...sentences(speakable(zh.summary)),
-        '本档完。',
-      ].filter(Boolean);
+      const read = (k: number) => ({
+        en: [
+          `Records Office, Data Section. File ${spell(r.file, false)}.`,
+          `${r.title}.`,
+          where(false) ? `${where(false)}.` : '',
+          ...sentences(speakable(r.summary, k)),
+          'End of file.',
+        ].filter(Boolean),
+        zh: [
+          `记录署数据组，档案 ${spell(r.file, true)}。`,
+          `${zh.title}。`,
+          where(true) ? `${where(true)}。` : '',
+          ...sentences(speakable(zh.summary, k)),
+          '本档完。',
+        ].filter(Boolean),
+      });
+      const { en, zh: zhLines } = read(9);
+      const named = r.drafts.filter((x) => x.n < 9);
       return {
         id: `file-${r.slug}`,
         kind: 'record' as const,
@@ -92,6 +100,8 @@ export function buildTapes(records: ClientRecord[], base: string): TapeData[] {
         src: r.audio,
         lines: { en, zh: zhLines },
         slug: r.slug,
+        drafts: named.map((x) => ({ n: x.n, date: x.date })),
+        at: Object.fromEntries(named.map((x) => [x.n, read(x.n)])),
       };
     });
   return [...own, ...files];
