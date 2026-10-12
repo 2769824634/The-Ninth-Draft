@@ -1,0 +1,44 @@
+name: Check
+
+# Every pull request: the site must build, and the house rules a machine can
+# check must hold (scripts/check-rules.mjs, rules in scripts/rules.json).
+# What each check means: docs/协作.md, 「自动检查查什么」.
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  rules:
+    name: 规矩检查
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: 检查这次新加的东西
+        env:
+          CHECK_BASE: origin/${{ github.base_ref || 'main' }}
+        run: node scripts/check-rules.mjs
+
+  build:
+    name: 构建
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build

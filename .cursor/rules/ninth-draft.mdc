@@ -1,0 +1,6 @@
+---
+description: The Ninth Draft 的工作规矩
+alwaysApply: true
+---
+
+动手前先完整读仓库根目录的 `AGENTS.md`，再读 `CLAUDE.md`。两边有出入时以 `CLAUDE.md` 为准。只做 `docs/给Codex的任务.md` 里状态是「可以开工」的任务。
