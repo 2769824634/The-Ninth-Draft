@@ -4,7 +4,6 @@
  * the right: the reader, a catalogue drawer, the circulation desk. Without
  * WebGL the lists and panels still work; nothing moves.
  */
-import { stampOf } from '../ui/asof';
 import type { CatDrawer, LibBay, LibBook, LibPage } from '../../lib/library';
 import { contents } from '../../lib/toc';
 import type { ArchivistLines } from '../types';
@@ -52,12 +51,13 @@ export function library() {
       book.pages = kept;
     }
   }
-  for (const d of catalogue) d.cards = d.cards.filter((c) => isFiled(c.date)).map((c) => ({ ...c, stamp: stampOf(c.file, c.stamp) }));
   // the rack only carries the months that have come round on the island
   const thisMonth = islandIso().slice(0, 7);
-  const stickMonth = (id: string) => (id === 'daily-early' ? 'early' : `1999-${id.slice(6)}`);
+  const stickMonth = (id: string) => (id === 'daily-early' ? '1998-12' : `1999-${id.slice(6)}`);
   for (const b of bays) b.books = b.books.filter((book) => book.kind !== 'news' || stickMonth(book.id) <= thisMonth);
   const all = bays.flatMap((b) => b.books.map((book) => ({ book, bay: b })));
+  // a card is in the drawer once its publication is on the shelf
+  for (const d of catalogue) d.cards = d.cards.filter((c) => isFiled(c.date) && all.some((x) => x.book.id === c.slug));
   // the counts under the room's name, as they stand today
   const stat = (k: string, n: number) => document.querySelectorAll<HTMLElement>(`[data-stat="${k}"]`).forEach((el) => (el.textContent = String(n)));
   stat('volumes', all.length);
@@ -391,7 +391,7 @@ export function library() {
     const ul = $('cat-cards');
     ul.innerHTML = d.cards.length
       ? d.cards
-          .map((c, k) => `<li data-k="${k}"><a href="${base}records/${c.slug}/"><b>${c.file}</b><span>${esc(T(c.title))}</span><i>${esc(T(c.line))}</i><em class="lib-stamp">${c.stamp}</em></a></li>`)
+          .map((c, k) => `<li data-k="${k}"><a href="#${c.slug}" data-book="${c.slug}"><b>${c.file}</b><span>${esc(T(c.title))}</span><i>${esc(T(c.line))}</i><em class="lib-stamp">${c.stamp}</em></a></li>`)
           .join('')
       : `<li class="is-empty">${isZh() ? '这个抽屉还空着。' : 'This drawer is still empty.'}</li>`;
     panel(catPanel);
@@ -400,6 +400,12 @@ export function library() {
   $('cat-cards').addEventListener('pointerover', (e) => {
     const li = (e.target as HTMLElement).closest<HTMLElement>('li[data-k]');
     scene?.liftCard(li ? Number(li.dataset.k) : null);
+  });
+  $('cat-cards').addEventListener('click', (e) => {
+    const a = (e.target as HTMLElement).closest<HTMLAnchorElement>('a[data-book]');
+    if (!a) return;
+    e.preventDefault();
+    take(a.dataset.book!);
   });
   $('cat-close').addEventListener('click', closePanels);
 

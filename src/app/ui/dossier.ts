@@ -316,7 +316,7 @@ export class Dossier {
     for (const r of this.records) if (r.related.includes(rec.file) && !rel.includes(r)) rel.push(r);
     $('ds-see').innerHTML =
       (rel.length ? `<span class="micro">${t('See also')}</span> ${rel.map((r) => esc(r.file)).join(' · ')}` : '') +
-      `<a class="rel-wall" href="${this.base}wall/" data-wall>${t('Show on the link wall')} <span class="kbd">W</span></a>`;
+      (rec.category === ('routine' as string) ? '' : `<a class="rel-wall" href="${this.base}wall/" data-wall>${t('Show on the link wall')} <span class="kbd">W</span></a>`);
 
     this.cite(rec);
 

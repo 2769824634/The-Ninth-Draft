@@ -156,17 +156,24 @@ export function buildIssues(records: ClientRecord[]): Issue[] {
       });
     }
 
+    // A later account of a file is a correction notice. The island does not number drafts:
+    // the paper says the file was brought up to date and by whom, nothing more. The first
+    // account is the story itself, and a classified update is not announced.
+    const first = Math.min(...r.drafts.map((x) => x.n));
     r.drafts.forEach((dr, i) => {
       const dd = isoDate(dr.date);
-      if (!dd) return;
-      const n = String(dr.n).padStart(2, '0');
-      const lz = zh?.drafts?.[i]?.label ?? dr.label;
+      if (!dd || dr.n === first || dr.stamp === 'TOP SECRET' || dr.stamp === 'SECRET') return;
+      // a body outside the Office that reported; the Office's own sections and staff are not named
+      const body = (x?: string) =>
+        x && !/heuss|records office|section|time office|review board|记录署|数据组|测绘科|时间科|审查委员会/i.test(x) ? x : '';
+      const byEn = body(dr.by), byZh = body(zh?.drafts?.[i]?.by ?? dr.by);
+      const by = byEn && (/^driver, /i.test(byEn) ? byEn.replace(/^driver, (.+)$/i, 'a driver on $1') : `the ${byEn}`);
       day(dd).corrections.push({
         kind: 'correction',
-        head: { en: `Records Office issues new draft of “${t.en}”`, zh: `记录署发布《${t.zh}》新一稿` },
+        head: { en: `Records Office updates its file on “${t.en}”`, zh: `记录署更新《${t.zh}》档案` },
         body: {
-          en: `The Records Office has issued draft ${n} of ${r.file}${dr.label ? `, “${dr.label.toLowerCase()}”` : ''}. Earlier versions should be disregarded.`,
-          zh: `记录署已发布 ${r.file} 第 ${n} 稿${lz ? `（${lz}）` : ''}。此前版本作废。`,
+          en: `The Records Office says its file on this matter has been brought up to date${by ? ` following a report from ${by}` : ''}. Earlier accounts should be disregarded. The file may be read at the public archive.`,
+          zh: `记录署表示，有关档案已${byZh ? `根据${byZh}的报告` : ''}更新，此前的说法作废。档案可在公共档案馆查阅。`,
         },
         ...link,
       });

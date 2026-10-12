@@ -32,16 +32,15 @@ import { REELS, BLANK_TITLE } from './reels';
 import { HOME_SLOTS, homeCode, listHome, saveHome, clearHome, nameFrom } from './homeReels';
 import type { TapeData } from '../../lib/tapes';
 import { ask, published } from '../check';
+import { BANK_DRAWERS, ROUTINE_BANKS, ROUTINE_DRAWERS, routineFolders, routineOf } from './routine';
 
 const ZH_CAT: Record<string, string> = { personnel: '人员', events: '事件', programs: '计划' };
-const REGIONS = [
-  { en: 'North · North-East', zh: '北部 · 东北部' },
-  { en: 'East · West', zh: '东部 · 西部' },
-];
 /** Every glyph the room's plates and cards are lettered with. */
 const GLYPHS = '人员事件计划北部东南西兀兰义顺三巴旺实里达宏茂桥后港龙岗盛勿洛淡滨尼白沙樟宜裕廊武吉督蔡厝金文泰署内例行霏微记录档案库本不得携出今日入待归卷目报告司机车票索引卡区年编号全岛图口借出阅档桌';
 /** Files to a drawer before the next one down takes over. */
 const PER = 14;
+/** The routine side's place after the formal categories: its 64 drawers, one a district. */
+export const RT = 3;
 /** Files the reading table holds. */
 export const TABLE_MAX = 6;
 
@@ -121,6 +120,8 @@ export class Stacks {
   // ?weather=rain or ?weather=dry overrides the island's sky, to see the other one
   private rain = ((w) => (w === 'rain' ? true : w === 'dry' ? false : islandRaining()))(new URLSearchParams(location.search).get('weather'));
   private ready: Promise<void>;
+  /** The category of the drawer last pushed home. */
+  private lastCi = 0;
   /** The drawer pulled out: category and which of its drawers. */
   private open: { ci: number; d: number } | null = null;
   /** The file half out of its drawer, waiting to be read or carried. */
@@ -154,15 +155,25 @@ export class Stacks {
   }
 
   private byCat(ci: number) {
+    if (ci === RT) return this.routine;
     return this.records.filter((r) => r.category === this.categories[ci]?.id);
   }
 
-  private find(file: string) {
-    return this.records.find((r) => r.file === file) ?? null;
+  /** The routine folders on file today, a district's drawer at a time, January first. */
+  readonly routine: ArchiveRecord[] = routineFolders(islandIso());
+
+  /** A routine folder's drawer: its district's. */
+  rtDrawer(rec: ArchiveRecord) {
+    const id = routineOf(rec)?.district;
+    return ROUTINE_DRAWERS.findIndex((d) => d.district?.id === id);
+  }
+
+  find(file: string) {
+    return this.records.find((r) => r.file === file) ?? this.routine.find((r) => r.file === file) ?? null;
   }
 
   private async build() {
-    await canvasFontsReady(GLYPHS + REELS.map((t) => t.title.zh).join(''));
+    await canvasFontsReady(GLYPHS + REELS.map((t) => t.title.zh).join('') + ROUTINE_DRAWERS.map((d) => d.district?.zh ?? '').join('') + ROUTINE_BANKS.map((b) => b.label.zh).join('') + '备用月报文件夹收件登记归档第抽屉夹一二三四五六七八九十');
     const cats: StacksCategory[] = this.categories.map((c, i) => {
       const list = this.byCat(i);
       return { id: c.id, zh: ZH_CAT[c.id] ?? c.label, en: c.label, code: c.code, range: list.length ? `${list[0].file} — ${list[list.length - 1].file}` : '' };
@@ -174,7 +185,7 @@ export class Stacks {
         cabinet: (ci) => this.openCabinet(ci),
         file: (f) => this.take(f),
         tableFile: (f) => this.readTable(f),
-        bank: (bi) => this.routine(bi),
+        routineDrawer: (i) => this.routineDrawer(i),
         rocker: (i) => this.toggleRow(i),
         desk: (i) => this.toggleDesk(i),
         index: () => this.cards.show(),
@@ -454,7 +465,7 @@ export class Stacks {
     const n = this.records.length;
     const arrived = this.arrivedToday().length;
     const el = document.getElementById('stacks-stats');
-    if (el) el.textContent = zh ? `正式档案 ${n} 份 · 例行文件柜 16 个 · 今日入库 ${arrived} 份 · ${this.rain ? '今天下雨' : '今天无雨'}` : `${n} formal records · 16 routine cabinets · ${arrived} received today · ${this.rain ? 'raining today' : 'dry today'}`;
+    if (el) el.textContent = zh ? `正式档案 ${n} 份 · 例行文件 ${this.routine.length} 夹 · 今日入库 ${arrived} 份 · ${this.rain ? '今天下雨' : '今天无雨'}` : `${n} formal records · ${this.routine.length} routine folders · ${arrived} received today · ${this.rain ? 'raining today' : 'dry today'}`;
     this.categories.forEach((c, i) => {
       const b = document.querySelector<HTMLElement>(`#stacks-cats [data-count="${c.id}"]`);
       if (b) b.textContent = two(this.byCat(i).length);
@@ -532,7 +543,16 @@ export class Stacks {
         this.scene?.room.liftFile(arg, 0.12);
       }
       text = `${r.file} · ${r.title} · ${r.stamp}${kind === 'table' ? (zh ? ' · 在桌上，点开来看' : ' · on the table, open it') : ''}`;
-    } else if (kind === 'bank') text = zh ? `例行文件 · ${REGIONS[Number(arg)].zh}` : `Routine paperwork · ${REGIONS[Number(arg)].en}`;
+    } else if (kind === 'rtd') {
+      const dr = ROUTINE_DRAWERS[Number(arg)];
+      const d = dr?.district;
+      const n = this.inDrawer(RT, Number(arg)).length;
+      text = !d
+        ? zh ? '例行文件柜 · 备用抽屉' : 'Routine cabinets · spare drawer'
+        : d.kind === 'unsurveyed'
+          ? zh ? `例行文件 · ${d.zh} · 未测绘` : `Routine papers · ${d.en} · not surveyed`
+          : zh ? `例行文件 · ${d.zh} · ${n} 个月 · 拉开` : `Routine papers · ${d.en} · ${n} ${n === 1 ? 'month' : 'months'} · pull it out`;
+    }
     else if (kind === 'rocker') {
       const i = Number(arg);
       const on = this.lights.rows[i];
@@ -672,6 +692,10 @@ export class Stacks {
   /* ---------------- the formal cabinets ---------------- */
   /** Which drawer of its category a file hangs in, and its folder number. */
   where(rec: ArchiveRecord) {
+    if (rec.category === 'routine') {
+      const d = this.rtDrawer(rec);
+      return { ci: RT, d, drawer: d + 1, folder: routineOf(rec)?.month ?? 1, onTable: this.table.includes(rec.file) };
+    }
     const ci = this.categories.findIndex((c) => c.id === rec.category);
     const i = this.byCat(ci).indexOf(rec);
     return { ci, d: Math.floor(Math.max(0, i) / PER), drawer: ci + 1, folder: i + 1, onTable: this.table.includes(rec.file) };
@@ -681,14 +705,20 @@ export class Stacks {
   shelfMark(rec: ArchiveRecord) {
     const w = this.where(rec);
     if (w.onTable) return isZh() ? '在阅档桌上' : 'On the reading table';
+    if (w.ci === RT) return isZh() ? `档案库 · 例行文件柜 · 第 ${two(w.drawer)} 抽屉 · 第 ${two(w.folder)} 夹` : `Stacks · Routine cabinets · Drawer ${two(w.drawer)} · Folder ${two(w.folder)}`;
     return isZh() ? `档案库 · 第 ${two(w.drawer)} 抽屉 · 第 ${two(w.folder)} 夹` : `Stacks · Drawer ${two(w.drawer)} · Folder ${two(w.folder)}`;
   }
 
   private inDrawer(ci: number, d: number) {
+    if (ci === RT) {
+      const id = ROUTINE_DRAWERS[d]?.district?.id;
+      return this.routine.filter((r) => routineOf(r)?.district === id);
+    }
     return this.byCat(ci).slice(d * PER, d * PER + PER);
   }
 
   private drawersIn(ci: number) {
+    if (ci === RT) return ROUTINE_DRAWERS.length;
     return Math.max(1, Math.ceil(this.byCat(ci).length / PER));
   }
 
@@ -705,8 +735,11 @@ export class Stacks {
     this.root.dataset.drawer = String(ci);
     this.drawDrawer();
     audio.drawer();
-    if (first) this.voice.say('stacks.push', {}, false);
-    this.hooks.drawer(ci);
+    if (ci === RT) this.voice.say('stacks.routine', {}, false);
+    else {
+      if (first) this.voice.say('stacks.push', {}, false);
+      this.hooks.drawer(ci);
+    }
   }
 
   private fillDrawer() {
@@ -721,6 +754,8 @@ export class Stacks {
     const n = this.drawersIn(this.open.ci);
     const d = this.open.d + step;
     if (d >= 0 && d < n) this.openCabinet(this.open.ci, d);
+    // the routine side goes round its own 64 drawers
+    else if (this.open.ci === RT) this.openCabinet(RT, (d + n) % n);
     else {
       // past the last drawer: the next category's cabinets
       const ci = (this.open.ci + step + this.categories.length) % this.categories.length;
@@ -732,12 +767,13 @@ export class Stacks {
   closeCabinet(walk = true) {
     if (!this.open) return;
     this.putBack(false);
+    this.lastCi = this.open.ci;
     this.open = null;
     delete this.root.dataset.drawer;
     this.$('stacks-drawer').hidden = true;
     this.scene?.closeDrawer();
     audio.drawer();
-    if (walk) this.scene?.goZone('formal');
+    if (walk) this.scene?.goZone(this.open === null && this.lastCi === RT ? 'routine' : 'formal');
   }
 
   /** The file in its drawer, found and walked to: opened at its drawer and lifted half out. */
@@ -785,8 +821,8 @@ export class Stacks {
 
   /** The file being read at the drawer: the one taken out, and the one before or after it. */
   neighbour(rec: ArchiveRecord, step: number) {
-    const ci = this.categories.findIndex((c) => c.id === rec.category);
-    const list = this.byCat(ci).filter((r) => r === rec || !this.table.includes(r.file));
+    const ci = rec.category === 'routine' ? RT : this.categories.findIndex((c) => c.id === rec.category);
+    const list = (ci === RT ? this.inDrawer(RT, this.rtDrawer(rec)) : this.byCat(ci)).filter((r) => r === rec || !this.table.includes(r.file));
     return list[(list.indexOf(rec) + step + list.length) % list.length] ?? rec;
   }
 
@@ -806,12 +842,21 @@ export class Stacks {
       return;
     }
     const zh = isZh();
+    const rt = o.ci === RT;
     const cat = this.categories[o.ci];
     const n = this.drawersIn(o.ci);
     const list = this.inDrawer(o.ci, o.d);
-    const name = zh ? ZH_CAT[cat.id] ?? cat.label : cat.label;
+    const dist = rt ? ROUTINE_DRAWERS[o.d]?.district ?? null : null;
+    const name = rt ? (dist ? (zh ? dist.zh : dist.en) : zh ? '备用' : 'Spare') : zh ? ZH_CAT[cat.id] ?? cat.label : cat.label;
+    const empty = rt
+      ? !dist
+        ? zh ? '备用抽屉，还没有区用它。' : 'A spare drawer. No district uses it yet.'
+        : dist.kind === 'unsurveyed'
+          ? zh ? '本区未测绘，按规定不设例行文件。' : 'This district is not surveyed. By the rules it keeps no routine papers.'
+          : zh ? '这个抽屉还空着。' : 'This drawer is still empty.'
+      : zh ? '这个抽屉还空着。' : 'This drawer is still empty.';
     el.innerHTML = `
-      <p class="micro">${zh ? `档案库 · 第 ${two(o.ci + 1)} 抽屉${n > 1 ? `（${o.d + 1} / ${n}）` : ''}` : `Stacks · Drawer ${two(o.ci + 1)}${n > 1 ? ` (${o.d + 1} of ${n})` : ''}`}</p>
+      <p class="micro">${rt ? (zh ? `例行文件柜 · 第 ${two(o.d + 1)} 抽屉 / ${n}` : `Routine cabinets · Drawer ${two(o.d + 1)} of ${n}`) : zh ? `档案库 · 第 ${two(o.ci + 1)} 抽屉${n > 1 ? `（${o.d + 1} / ${n}）` : ''}` : `Stacks · Drawer ${two(o.ci + 1)}${n > 1 ? ` (${o.d + 1} of ${n})` : ''}`}</p>
       <h2 class="stackshud__dname">${esc(name)}</h2>
       <ol class="stackshud__files">${
         list.length
@@ -819,7 +864,7 @@ export class Stacks {
               .map((r) => {
                 const out = this.table.includes(r.file);
                 const tray = !out && this.inTray(r.file);
-                const folder = this.byCat(o.ci).indexOf(r) + 1;
+                const folder = rt ? routineOf(r)?.month ?? 1 : this.byCat(o.ci).indexOf(r) + 1;
                 return out
                   ? `<li class="is-out"><button type="button" data-table-file="${esc(r.file)}"><i>${two(folder)}</i><b>${esc(r.file)}</b><span>${zh ? '借出 · 在阅档桌上' : 'Out · on the reading table'}</span></button></li>`
                   : tray
@@ -827,7 +872,7 @@ export class Stacks {
                     : `<li${r === this.taken ? ' class="is-up"' : ''}><button type="button" data-file="${esc(r.file)}" aria-pressed="${r === this.taken}"><i>${two(folder)}</i><b>${esc(r.file)}</b><span>${esc(r.title)}</span><em class="clr-${clearanceKey(r.stamp)}">${esc(r.stamp)}</em></button></li>`;
               })
               .join('')
-          : `<li class="is-empty">${zh ? '这个抽屉还空着。' : 'This drawer is still empty.'}</li>`
+          : `<li class="is-empty">${empty}</li>`
       }</ol>
       <div class="stackshud__dnav">
         <button type="button" data-act="prev" aria-label="${zh ? '上一个抽屉' : 'Previous drawer'}">←</button>
@@ -958,7 +1003,11 @@ export class Stacks {
     const room = this.scene?.room;
     if (!room) return m;
     for (const f of files) {
-      const rec = this.records.find((r) => r.file === f);
+      const rec = this.find(f);
+      if (rec?.category === 'routine') {
+        m.set(f, room.drawerFront(RT, this.rtDrawer(rec)));
+        continue;
+      }
       const ci = rec ? this.categories.findIndex((c) => c.id === rec.category) : -1;
       const at = room.catCentre[ci];
       if (at) m.set(f, at.clone().setY(at.y + 0.2));
@@ -1094,7 +1143,7 @@ export class Stacks {
     const day = this.arrivedToday();
     const w = new Set(intake.waiting(this.today, day.map((r) => r.file)));
     const back = new Set(intake.returned(this.today));
-    return this.records.filter((r) => (w.has(r.file) && day.includes(r)) || (back.has(r.file) && !this.table.includes(r.file)));
+    return [...this.records, ...this.routine].filter((r) => (w.has(r.file) && day.includes(r)) || (back.has(r.file) && !this.table.includes(r.file)));
   }
 
   private inTray(file: string) {
@@ -1178,10 +1227,9 @@ export class Stacks {
     );
   }
 
-  private routine(bi: number) {
-    const zh = isZh();
-    this.voice.say('stacks.routine');
-    this.showSlip(`<h3>${zh ? `例行文件 · ${REGIONS[bi].zh}` : `Routine paperwork · ${REGIONS[bi].en}`}</h3><p>${zh ? '巴士班次、水表读数、失物招领……按区、按季度归在这两排柜子里。署里正一个区一个区地上架，上好了这些抽屉就能拉开。' : 'Bus timetables, meter readings, lost property… filed here by district and by quarter. The Office is shelving them one district at a time; the drawers open once they are in.'}</p>`);
+  /** A routine drawer clicked: pull it out, its district's months hanging in it. */
+  private routineDrawer(i: number) {
+    this.openCabinet(RT, i);
   }
 
   /* ---------------- the reel machine ---------------- */

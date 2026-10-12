@@ -278,7 +278,7 @@
       "Mind the ladder. It rolls further than you'd think."
     ],
     "catalogue": [
-      "The card catalogue. One card a file, with the drawer it's kept in. The files themselves don't leave the archive.",
+      "The card catalogue. One card for everything on these shelves, newspapers included. The Office's own files have their cards next door, in the archive.",
       "Pull the drawers gently. They come right out if you're not careful, and then that's the afternoon gone."
     ],
     "desk": [
@@ -291,7 +291,7 @@
     ],
     "emptyDrawer": [
       "Nothing in that one yet. It's labelled, so something's expected.",
-      "Empty. The cards come in when the files do."
+      "Empty. The cards come in when the books do."
     ],
     "stamp": [
       "There. Due back on the date shown. Nobody checks.",
@@ -398,8 +398,8 @@
       "Tank's empty again. It'll be full by tomorrow if this rain keeps up."
     ],
     "routine": [
-      "Routine paperwork. Bus timetables, water readings, lost umbrellas. Being shelved district by district.",
-      "That's the routine side. Nobody's pulled those drawers in years, and they're still not finished filing them."
+      "One drawer a district, one folder a month. Water readings, lost umbrellas, bus diversions. The district offices send them in, we file them, nobody reads them.",
+      "The routine side. Ang Mo Kio's drawer sticks, pull it straight. The ones marked spare are empty, in case they ever split a district again."
     ],
     "safe": [
       "The strong cabinet. The combination's on a card in Heuss's drawer, which is worse than no lock at all.",

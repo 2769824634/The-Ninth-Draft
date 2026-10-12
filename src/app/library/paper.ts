@@ -452,7 +452,7 @@ function classified(x: Issue) {
           <h4 class="np-boxh">${zh ? '今晚电视' : 'Tonight on television'}</h4>
           ${x.tv.map((t) => `<p class="np-tv">${W(t)}</p>`).join('')}
         </section>
-        <p class="np-imprint">${zh ? '霏微日报社出版发行。中枢巴刹巷 3 号。本报所载以记录署定稿为准。' : 'Printed and published by the Gerimis Daily Press, 3 Market Lane, Axis. This paper prints the final version.'}</p>
+        <p class="np-imprint">${zh ? '霏微日报社出版发行。中枢巴刹巷 3 号。本报有关记录署事务的报道，以记录署公布的档案为准。' : 'Printed and published by the Gerimis Daily Press, 3 Market Lane, Axis. Reports on Records Office matters follow the files the Office has published.'}</p>
       </aside>
     </div>`;
 }

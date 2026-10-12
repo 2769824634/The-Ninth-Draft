@@ -87,7 +87,8 @@ export interface StacksEvents {
   file(file: string): void;
   /** A file lying on the reading table clicked. */
   tableFile(file: string): void;
-  bank(bi: number): void;
+  /** A routine drawer clicked: its place in the routine cabinets, 0–63. */
+  routineDrawer(i: number): void;
   rocker(i: number): void;
   desk(i: number): void;
   index(): void;
@@ -223,7 +224,9 @@ export class StacksScene {
     if (this.drawer) {
       // over the open drawer, looking down into it from the front
       const f = this.room.drawerFront(this.drawer.ci, this.drawer.d);
-      return { at: f, dir: new THREE.Vector3(1, 1.15, 0.2).normalize(), w: 0.95, h: 0.8 };
+      // from in front of the drawer, whichever way its cabinet faces
+      const n = this.room.drawerFacing(this.drawer.ci, this.drawer.d);
+      return { at: f, dir: new THREE.Vector3(n.x - n.z * 0.2, 1.15, n.z + n.x * 0.2).normalize(), w: 0.95, h: 0.8 };
     }
     if (this.push !== null) {
       const c = this.room.catCentre[this.push] ?? new THREE.Vector3();
@@ -273,9 +276,11 @@ export class StacksScene {
     this.push = ci;
     this.drawer = { ci, d };
     this.room.setDrawer(ci, d, true);
-    if (this.zoneNow !== 'formal') {
-      this.zoneNow = 'formal';
-      this.on.zone('formal');
+    // the routine cabinets (after the three formal categories) stand in their own corner
+    const z: StacksZone = ci >= 3 ? 'routine' : 'formal';
+    if (this.zoneNow !== z) {
+      this.zoneNow = z;
+      this.on.zone(z);
     }
   }
 
@@ -681,7 +686,7 @@ export class StacksScene {
       if (typeof p.file === 'string') this.on.file(p.file);
       else if (typeof p.table === 'string') this.on.tableFile(p.table);
       else if (typeof p.cat === 'number') this.on.cabinet(p.cat);
-      else if (typeof p.bank === 'number') this.on.bank(p.bank);
+      else if (typeof p.rtd === 'number') this.on.routineDrawer(p.rtd);
       else if (typeof p.rocker === 'number') this.on.rocker(p.rocker);
       else if (typeof p.desk === 'number') this.on.desk(p.desk);
       else if (p.index) this.on.index();
