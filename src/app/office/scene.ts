@@ -18,7 +18,8 @@ import { reducedMotion } from '../prefs';
 import { Room, R, SCREEN, WIN, DECK_DIR, SOFA_DIR, TRAY_HOLD } from './room';
 import type { ShelfTape, Well } from './cassettes';
 import type { TrayInfo } from './trays';
-import { checking, drawing, pixelRatio, shadows } from '../check';
+import { checking, drawing, shadows } from '../check';
+import { ShadowCache, Resolution, keepWarm, off } from '../scene/budget';
 
 export type Zone = 'overview' | 'desk' | 'sofa' | 'wall' | 'deck';
 export const ZONES: Zone[] = ['overview', 'desk', 'sofa', 'wall', 'deck'];
@@ -78,6 +79,8 @@ const smooth = (a: number, b: number, x: number) => {
 
 export class OfficeScene {
   private renderer: THREE.WebGLRenderer;
+  private shadowCache!: ShadowCache;
+  private res = new Resolution(2, () => this.resize());
   private css: CSS3DRenderer;
   private scene = new THREE.Scene();
   private cssScene = new THREE.Scene();
@@ -122,6 +125,7 @@ export class OfficeScene {
     this.renderer.toneMapping = THREE.NoToneMapping;
     this.renderer.shadowMap.enabled = shadows;
     this.renderer.shadowMap.type = THREE.PCFShadowMap;
+    this.shadowCache = new ShadowCache(this.renderer, this.scene);
     const pmrem = new THREE.PMREMGenerator(this.renderer);
     this.scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
     pmrem.dispose();
@@ -174,6 +178,7 @@ export class OfficeScene {
     this.bind();
     this.resize();
     this.view.dist.set(this.fit(v));
+    keepWarm(this.renderer, this.scene, this.camera);
     this.loop();
   }
 
@@ -250,6 +255,7 @@ export class OfficeScene {
 
   private frame() {
     const now = performance.now();
+    this.res.frame(now);
     const dt = Math.min((now - this.last) / 1000, 0.1);
     this.last = now;
     const t = (now - this.t0) / 1000;
@@ -263,17 +269,14 @@ export class OfficeScene {
     const dim = this.dim.update(dt);
     this.lamp += ((this.lampOn ? 1 : 0) - this.lamp) * Math.min(1, dt * (this.lampOn ? 3.2 : 5));
     this.hemi.intensity = L.hemi * (1 - dim * 0.82);
-    this.sun.intensity = L.sun * (1 - dim * 0.8);
-    this.sun.visible = this.sun.intensity > 0.05;
+    this.sun.intensity = off(L.sun * (1 - dim * 0.8), 0.05);
     this.scene.environmentIntensity = L.env * (1 - dim * 0.8);
     this.shadowMat.opacity = 0.3 + L.night * 0.35;
     const r = this.room;
     r.deskLamp.intensity = L.desk * (1 - dim * 0.75);
-    r.floorLamp.intensity = L.floor * (1 - dim);
-    r.floorLamp.visible = r.floorLamp.intensity > 0.05;
+    r.floorLamp.intensity = off(L.floor * (1 - dim), 0.05);
     r.crtGlow.intensity = L.crt * on;
-    r.street.intensity = L.street;
-    r.street.visible = L.street > 0.1;
+    r.street.intensity = off(L.street, 0.1);
     r.nightView.opacity = L.night;
     r.lampShades[0].emissiveIntensity = 0.2 + L.night * 1.2;
     r.lampShades[1].emissiveIntensity = L.night * 1.1 * (1 - dim);
@@ -317,7 +320,10 @@ export class OfficeScene {
     this.screenObj.element.style.opacity = String(show ? smooth(0.2, 0.5, facing) * on : 0);
     this.screenObj.element.style.pointerEvents = this.zoneNow === 'desk' && on > 0.5 ? 'auto' : 'none';
 
-    if (drawing()) this.renderer.render(this.scene, this.camera);
+    if (drawing()) {
+      this.shadowCache.update();
+      this.renderer.render(this.scene, this.camera);
+    }
     this.css.render(this.cssScene, this.camera);
   }
 
@@ -385,7 +391,7 @@ export class OfficeScene {
   private resize() {
     const w = this.canvas.clientWidth, h = this.canvas.clientHeight;
     if (!w || !h) return;
-    this.renderer.setPixelRatio(pixelRatio(2));
+    this.renderer.setPixelRatio(this.res.ratio);
     this.renderer.setSize(w, h, false);
     this.css.setSize(w, h);
     this.camera.fov = w / h < 0.85 ? 30 : 19;
