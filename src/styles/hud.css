@@ -125,6 +125,8 @@
   text-transform: uppercase;
 }
 .tool {
+  /* a button would drop the rail's capitals; Index reads INDEX in every room, as on the flat pages */
+  text-transform: inherit;
   display: inline-flex;
   align-items: center;
   gap: .55rem;
