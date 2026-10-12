@@ -61,7 +61,7 @@ const full = (slides: Slide[]): Slide[] => [...slides.slice(0, TRAY - 1), { kind
 
 /**
  * The trays on the floor by the sofa: one that goes round the island (the
- * title, then the map of every large town and of every district with files),
+ * title, then the map of every one of the island's districts),
  * then one per district that has files (its map, then each file's cover and
  * photograph), and one for files that belong to no district.
  */
@@ -78,8 +78,8 @@ export function buildTrays(files: SlideFile[]): Tray[] {
     title: { en: 'Gerimis, by district', zh: '霏微，按区' },
     ink: '#c08a1e',
     slides: full([
-      { kind: 'title', files: files.length, districts: groups.length },
-      ...DISTRICTS.filter((d) => d.major || groups.some((g) => g.district === d.id)).map((d) => ({ kind: 'district' as const, district: d.id, files: files.filter((f) => f.district === d.id).length })),
+      { kind: 'title', files: files.length, districts: DISTRICTS.length },
+      ...DISTRICTS.map((d) => ({ kind: 'district' as const, district: d.id, files: files.filter((f) => f.district === d.id).length })),
     ]),
   });
   const loose = files.filter((f) => !f.district || !DISTRICTS.some((d) => d.id === f.district));

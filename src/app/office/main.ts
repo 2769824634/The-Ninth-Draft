@@ -797,7 +797,7 @@ export function office() {
     scene.setTheme(prefs.get('theme'));
     const at = ask('at');
     if (at && (ZONES as string[]).includes(at)) scene.goZone(at as Zone);
-    published('office', { scene });
+    published('office', { scene, calendar: { open: openCalendar, pin: pinDay, turn: turnTo } });
     requestAnimationFrame(() => root.classList.add('is-lit'));
   } catch (err) {
     console.error('[office] room unavailable', err);
