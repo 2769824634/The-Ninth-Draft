@@ -24,6 +24,8 @@ const ROOMS = { archive: '', office: 'office/', library: 'library/', wall: 'wall
 const args = process.argv.slice(2);
 const room = args.find((a) => !a.startsWith('--')) ?? 'archive';
 const phone = args.includes('--phone');
+// --gpu: on a computer with a graphics card (Edge or Chrome), the real card at the screen's pixel ratio
+const gpu = args.includes('--gpu');
 const dist = join(ROOT, 'dist');
 while (existsSync('/tmp/n9-build.lock')) await new Promise((ok) => setTimeout(ok, 1000));
 
@@ -40,12 +42,20 @@ await new Promise((ok) => server.listen(0, '127.0.0.1', ok));
 const origin = `http://127.0.0.1:${server.address().port}`;
 
 const browser = await chromium.launch({
-  executablePath: [process.env.CHROMIUM_PATH, '/opt/pw-browsers/chromium'].find((p) => p && existsSync(p)),
-  headless: true,
-  args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist', '--autoplay-policy=no-user-gesture-required'],
+  executablePath: [
+    process.env.CHROMIUM_PATH,
+    '/opt/pw-browsers/chromium',
+    'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe',
+    'C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe',
+    'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
+  ].find((p) => p && existsSync(p)),
+  headless: !gpu,
+  args: gpu
+    ? ['--ignore-gpu-blocklist', '--force_high_performance_gpu', '--autoplay-policy=no-user-gesture-required']
+    : ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist', '--autoplay-policy=no-user-gesture-required'],
 });
 try {
-  const ctx = await browser.newContext(phone ? { viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true } : { viewport: { width: 1440, height: 900 } });
+  const ctx = await browser.newContext(phone ? { viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, deviceScaleFactor: gpu ? 3 : 1 } : { viewport: { width: 1440, height: 900 }, deviceScaleFactor: gpu ? 1.5 : 1 });
   const page = await ctx.newPage();
   page.on('pageerror', (e) => console.error('[page]', e.stack));
   // count every shader program linked, from the first frame on
@@ -64,7 +74,7 @@ try {
       };
     }
   });
-  await page.goto(`${origin}${BASE}${ROOMS[room] ?? room}?check&shadows`, { waitUntil: 'load', timeout: 180_000 });
+  await page.goto(`${origin}${BASE}${ROOMS[room] ?? room}?check&shadows${gpu ? '&hd' : ''}`, { waitUntil: 'load', timeout: 180_000 });
   await page.waitForFunction(() => window.__n9?.ready, null, { timeout: 180_000, polling: 250 });
   await page.waitForTimeout(1500);
 
@@ -106,6 +116,13 @@ try {
     const moving = [];
     for (const [o, e] of snapM()) if (m0.get(o) !== e) moving.push(o.name || o.parent?.name || o.geometry?.type);
     const idle = median(5);
+    // frames a second with the room's own loop running, as a visitor gets them
+    const fps = await new Promise((ok) => {
+      let n = 0;
+      const t0 = performance.now();
+      const tick = () => (performance.now() - t0 < 3000 ? (n++, requestAnimationFrame(tick)) : ok(Math.round((n * 1000) / (performance.now() - t0))));
+      requestAnimationFrame(tick);
+    });
     // the same frame with the shadow maps left as they are: what the shadows cost
     const au = r.shadowMap.autoUpdate;
     r.shadowMap.autoUpdate = false;
@@ -123,6 +140,7 @@ try {
       calls: idle.calls,
       tris: idle.tris,
       frameMs: Math.round(idle.ms),
+      fps,
       mainCalls: flat.calls,
       mainMs: Math.round(flat.ms),
       meshes,
