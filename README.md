@@ -80,7 +80,7 @@
   - 切走标签页时标题变成「Gerimis · Backflow in progress…」，离开超过 8 秒再回来，ARCHIVIST 会说一句
   - 从档案里复制文字，会自动带上一行「— Records Office, Gerimis · Revised · Draft 09」
   - 不存在的网址会打开 404「该页已被修订出去」；打开开发者工具的控制台还有一句留言
-- **每份档案都有独立网址**（`/records/p-0001/`），可以直接分享
+- **每份档案都有独立网址**（`/records/p-0002/`），可以直接分享
 - 适配手机竖屏；系统开启「减少动态效果」时自动降级
 
 ## 添加 / 修改档案
@@ -104,7 +104,7 @@ fields:
   - label: "Role"
     value: "Ferry pilot"
 summary: "Overview 栏的摘要，可以用 ||涂黑||。"
-related: ["P-0001", "E-0002"]  # 关联档案的编号
+related: ["P-0002", "E-0002"]  # 关联档案的编号
 tags: ["ferry"]
 order: 5                       # 在同一类别里的排序
 ---
