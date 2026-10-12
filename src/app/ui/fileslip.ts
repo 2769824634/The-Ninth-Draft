@@ -10,9 +10,10 @@ import { isZh, onLang, t } from '../i18n';
 import { reducedMotion } from '../prefs';
 import { fromHere } from './recordlink';
 import { esc } from './text';
+import { plainAt, standing, stampNow } from './asof';
 
 interface Texts { title: string; subtitle?: string; place?: string; summary: string }
-interface FileEntry { file: string; slug: string; category: string; stamp: string; date?: string; en: Texts; zh?: Texts }
+interface FileEntry { file: string; slug: string; category: string; stamp: string; date?: string; drafts?: { n: number; date?: string; stamp?: string }[]; en: Texts; zh?: Texts }
 
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 const CAT_LABEL: Record<string, string> = { personnel: 'Personnel', events: 'Events', programs: 'Programs' };
@@ -36,17 +37,6 @@ const longDate = (s?: string) => {
   return isZh() ? `${m[1]} 年 ${Number(m[2])} 月 ${Number(m[3])} 日` : `${Number(m[3])} ${MONTHS[Number(m[2]) - 1]} ${m[1]}`;
 };
 
-/** The final text, flattened: struck words and margin notes gone, black bars stay black. */
-const plain = (html: string) => {
-  const d = document.createElement('div');
-  d.innerHTML = html;
-  d.querySelectorAll('.rv-note, .rv[data-del]').forEach((x) => x.remove());
-  d.querySelectorAll<HTMLElement>('.redact, .rv[data-redact]').forEach((x) => {
-    const n = x.dataset.redact?.split('-').map(Number);
-    if (!n || (n[0] <= 9 && 9 <= (n[1] ?? 9))) x.textContent = '█'.repeat(Math.max(3, Math.min(12, (x.textContent ?? '').length)));
-  });
-  return (d.textContent ?? '').replace(/\s+/g, ' ').trim();
-};
 
 /** Drawer and folder, counted the way the archive counts them: only what is on file today. */
 const shelfMark = (f: FileEntry) => {
@@ -70,7 +60,11 @@ export function closeFile() {
 }
 
 /** Open the slip for a file. `at` is what was clicked; without it the slip lies at the side. */
-export function openFile(slugOrFile: string, at?: Element | null) {
+/**
+ * `note`: what the thing that named the file said about it (a notice on the office
+ * board), printed at the top of the slip so it can be read without walking closer.
+ */
+export function openFile(slugOrFile: string, at?: Element | null, note?: { head: string; text: string }) {
   const key = slugOrFile.toLowerCase();
   const f = load().files.find((x) => x.slug === key);
   if (!slip) build();
@@ -83,12 +77,13 @@ export function openFile(slugOrFile: string, at?: Element | null) {
       <p class="fslip__none">${esc(t('Not on file yet'))}</p>`;
   } else {
     const tx = (zh && f.zh) || f.en;
-    const sum = plain(tx.summary);
+    const sum = plainAt(tx.summary, standing(f.drafts));
     const when = [longDate(f.date), tx.place].filter(Boolean).join(' · ');
     s.innerHTML = `
       <div class="fslip__head micro"><span class="fslip__kick">${esc(t('Call slip'))}</span>
         <button type="button" class="fslip__x" data-fslip-close aria-label="${esc(t('Close'))}">×</button></div>
-      <div class="fslip__no micro"><b>${esc(f.file)}</b><span>${esc(t(CAT_LABEL[f.category] ?? f.category))}</span><span class="fslip__stamp">${esc(f.stamp)}</span></div>
+      ${note ? `<div class="fslip__note"><span class="micro">${esc(note.head)}</span><p>${esc(note.text)}</p></div>` : ''}
+      <div class="fslip__no micro"><b>${esc(f.file)}</b><span>${esc(t(CAT_LABEL[f.category] ?? f.category))}</span><span class="fslip__stamp">${esc(stampNow(f.stamp, f.drafts))}</span></div>
       <p class="fslip__title">${esc(tx.title)}</p>
       ${tx.subtitle ? `<p class="fslip__sub">${esc(tx.subtitle)}</p>` : ''}
       ${when ? `<p class="fslip__when micro">${esc(when)}</p>` : ''}
@@ -100,7 +95,7 @@ export function openFile(slugOrFile: string, at?: Element | null) {
       </div>
       <a class="fslip__go" href="${esc(fromHere(`${base}records/${f.slug}/`))}" data-fslip-go>${esc(t('Request it from the archive'))} →</a>`;
   }
-  s.dataset.clr = CLR[f?.stamp ?? ''] ?? '';
+  s.dataset.clr = CLR[f ? stampNow(f.stamp, f.drafts) : ''] ?? '';
   s.hidden = false;
   place(s, at);
   audio.paper();

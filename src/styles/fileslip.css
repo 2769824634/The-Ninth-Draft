@@ -32,6 +32,9 @@
 .fslip__stamp { margin-left: auto; color: var(--clr); letter-spacing: .1em; border: 1.5px solid currentColor; padding: .05rem .35rem; transform: rotate(-2deg); }
 .fslip__title { margin: .5rem 0 0; font-family: var(--f-display); font-weight: 800; font-size: 1.12rem; line-height: 1.15; text-transform: uppercase; }
 .fslip__sub { margin: .3rem 0 0; font-family: var(--f-serif); font-style: italic; font-size: .86rem; color: rgb(29 27 23 / .72); }
+.fslip__note { margin: .6rem 0 .8rem; padding: .55rem .7rem .6rem; background: rgb(255 252 240 / .7); border-left: 3px solid #b8281d; }
+.fslip__note span { color: #b8281d; letter-spacing: .08em; }
+.fslip__note p { margin: .3rem 0 0; font-family: var(--f-serif); font-size: .9rem; line-height: 1.45; }
 .fslip__when { margin: .45rem 0 0; color: rgb(29 27 23 / .6); }
 .fslip__label { margin: .8rem 0 0; color: rgb(29 27 23 / .55); letter-spacing: .14em; text-transform: uppercase; }
 .fslip__sum { margin: .25rem 0 0; font-family: var(--f-serif); font-size: .88rem; line-height: 1.62; }

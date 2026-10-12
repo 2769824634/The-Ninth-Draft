@@ -43,7 +43,7 @@ export interface ClientRecord {
   tags: string[];
   /** True when the record carries revision marks or a draft history. */
   revised: boolean;
-  drafts: { n: number; label?: string; date?: string; by?: string; stamp?: string }[];
+  drafts: { n: number; label?: string; date?: string; by?: string; stamp?: string; status?: string }[];
   attachments: ClientAttachment[];
   /** Chinese version, already merged with the English original (present only when a .zh.md exists). */
   zh?: RecordTexts;
@@ -146,7 +146,7 @@ export async function loadRecords(base: string): Promise<ClientRecord[]> {
       tags: data.tags ?? r.tags,
       drafts: r.drafts.map((d) => {
         const t = data.drafts?.find((x) => x.n === d.n);
-        return t ? { ...d, label: t.label ?? d.label, by: t.by ?? d.by } : d;
+        return t ? { ...d, label: t.label ?? d.label, by: t.by ?? d.by, status: t.status ?? d.status } : d;
       }),
       attachments: r.attachments.map((a, i) => {
         const t = data.attachments?.[i];

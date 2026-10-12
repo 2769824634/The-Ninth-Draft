@@ -17,7 +17,7 @@ import { Projector } from './projector';
 import { TrayCrate, type TrayInfo } from './trays';
 import { WallCalendar } from './calendar';
 import {
-  caseTexture, counterTexture, corkTexture, clockFaceTexture, corduroyTexture, deckTexture, screenTexture, slideBoxTexture, keyboardTexture, linoTexture, mapTexture, noticeTexture, passerbyTexture, plasticTexture, rugTexture, streetTexture, wallTexture,
+  caseTexture, counterTexture, corkTexture, clockFaceTexture, corduroyTexture, deckTexture, screenTexture, slideBoxTexture, keyboardTexture, linoTexture, mapTexture, noticeTexture, type NoticeInfo, passerbyTexture, plasticTexture, rugTexture, streetTexture, wallTexture,
 } from './textures';
 
 export const R = { x0: -3.5, x1: 3.5, z0: -2.5, z1: 2.5, h: 3.0, wall: 0.2, slab: 0.22 };
@@ -55,6 +55,17 @@ export class Room {
   screenMat!: THREE.MeshStandardMaterial;
   readonly clock = { hour: new THREE.Mesh(), minute: new THREE.Mesh(), second: new THREE.Mesh(), face: null as unknown as THREE.MeshStandardMaterial, group: new THREE.Group() };
   readonly notices: Notice[] = [];
+  private noticeSheets: { mat: THREE.MeshStandardMaterial; info: NoticeInfo }[] = [];
+
+  /** Print the notices again in the page's language. */
+  redrawNotices(zh: boolean) {
+    for (const s of this.noticeSheets) {
+      const old = s.mat.map;
+      s.mat.map = noticeTexture(s.info, zh);
+      s.mat.needsUpdate = true;
+      old?.dispose();
+    }
+  }
   readonly calendar: WallCalendar;
   readonly reels: THREE.Mesh[] = [];
   readonly hits: Record<string, THREE.Object3D> = {};
@@ -78,7 +89,7 @@ export class Room {
   private black = new THREE.MeshStandardMaterial({ color: '#1d1c1a', roughness: 0.6 });
   private poche = new THREE.MeshStandardMaterial({ color: '#2b2723', roughness: 0.9 });
 
-  constructor(records: { file: string; slug: string; title: string; date?: string; stamp: string; category: string }[], private tapes: ShelfTape[] = [], private reduce = false, private trays: TrayInfo[] = [], private zh = false) {
+  constructor(records: NoticeInfo[], private tapes: ShelfTape[] = [], private reduce = false, private trays: TrayInfo[] = [], private zh = false) {
     this.calendar = new WallCalendar(zh, reduce);
     this.shell();
     this.window();
@@ -543,7 +554,7 @@ export class Room {
   }
 
   /* ---------------- walls: board, calendar, map, clock ---------------- */
-  private walls(records: { file: string; slug: string; title: string; date?: string; stamp: string; category: string }[]) {
+  private walls(records: NoticeInfo[]) {
     const x = R.x0;
     // cork board with the latest backflow events pinned up
     const bw = 1.4, bh = 0.95;
@@ -555,18 +566,20 @@ export class Room {
     board.castShadow = true;
     cork.receiveShadow = true;
     this.group.add(board, cork);
-    const events = records.filter((r) => r.category === 'events').slice(-5);
     const pin = new THREE.MeshStandardMaterial({ color: '#c4321f', roughness: 0.35 });
-    events.forEach((r, i) => {
-      const card = new THREE.Mesh(new THREE.PlaneGeometry(0.3, 0.2), new THREE.MeshStandardMaterial({ map: noticeTexture(r.file, r.title, r.date ?? '', r.stamp), roughness: 0.9 }));
+    // a notice a sheet, half a foolscap page, pinned at the top
+    records.slice(-5).forEach((r, i) => {
+      const mat = new THREE.MeshStandardMaterial({ map: noticeTexture(r, this.zh), roughness: 0.9 });
+      const card = new THREE.Mesh(new THREE.PlaneGeometry(0.22, 0.29), mat);
       card.rotation.y = Math.PI / 2;
       card.rotation.x = ((i * 37) % 7 - 3) * 0.02;
       const col = i % 3, row = Math.floor(i / 3);
-      card.position.set(x + 0.036 + i * 0.0005, 1.75 - row * 0.36, -1.3 - 0.42 + col * 0.42 + row * 0.2);
+      card.position.set(x + 0.036 + i * 0.0005, 1.83 - row * 0.42, -1.3 - 0.42 + col * 0.42 + row * 0.2);
+      this.noticeSheets.push({ mat, info: r });
       card.castShadow = card.receiveShadow = true;
       card.userData.notice = r.slug;
       const head = new THREE.Mesh(new THREE.SphereGeometry(0.012, 10, 8), pin);
-      head.position.set(0.01, 0.07, 0);
+      head.position.set(0.01, 0.12, 0);
       card.add(head);
       this.group.add(card);
       this.notices.push({ mesh: card, file: r.file, slug: r.slug });

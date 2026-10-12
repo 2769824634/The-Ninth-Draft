@@ -16,6 +16,7 @@ import { Pages } from './pages';
 import { isZh, t } from '../i18n';
 import { reducedMotion } from '../prefs';
 import { isFiled } from '../island';
+import { filedAt, inRange, plainAt, standing, statusNow } from './asof';
 
 const pad2 = (n: number) => String(n).padStart(2, '0');
 
@@ -68,13 +69,7 @@ function barcode(file: string) {
   return `<svg viewBox="0 0 ${x} 20" preserveAspectRatio="none" style="width:${x * 0.9}px">${bars}</svg>`;
 }
 
-const inRange = (spec: string | undefined, d: number) => {
-  if (!spec) return false;
-  const [a, b] = spec.split('-').map(Number);
-  return d >= a && d <= (b || a);
-};
-
-/** How a marked passage reads in draft `n`. */
+/** How a marked passage reads on draft `n`'s sheet (an earlier draft underneath the file). */
 function stateAt(s: HTMLElement, n: number) {
   const add = Number(s.dataset.add) || 0;
   const del = Number(s.dataset.del) || 0;
@@ -85,29 +80,21 @@ function stateAt(s: HTMLElement, n: number) {
   };
 }
 
-/** Plain text of a fragment as filed: notes and struck lines dropped, black bars kept black. */
-function plain(html: string) {
-  const d = document.createElement('div');
-  d.innerHTML = html;
-  d.querySelectorAll('.rv-note, .rv[data-del]').forEach((x) => x.remove());
-  d.querySelectorAll<HTMLElement>('.redact, .rv[data-redact]').forEach((x) => {
-    const n = x.dataset.redact;
-    if (!n || inRange(n, 9)) x.textContent = '█'.repeat(Math.max(3, Math.min(12, (x.textContent ?? '').length)));
-  });
-  return (d.textContent ?? '').replace(/\s+/g, ' ').trim();
-}
-
 const CITE = /\b([PER])-(\d{4})\b/g;
 
-/** Set a fragment of a record's text as it reads in the final: struck, added and blacked-out passages, notes. */
-export function asFiled(el: HTMLElement) {
+/**
+ * Set a fragment of a record's text as it stands today: the final, or until a
+ * later draft's day comes, the last draft on file (`k`, see asof.ts).
+ */
+export function asFiled(el: HTMLElement, k = 9) {
   el.querySelectorAll<HTMLElement>('.rv').forEach((s) => {
-    const now = stateAt(s, 9);
+    const now = filedAt(s, k);
     s.classList.toggle('is-gone', now.gone);
+    s.classList.toggle('is-struck', false);
     s.classList.toggle('is-redacted', now.redacted);
   });
-  el.querySelectorAll<HTMLElement>('.rv-note').forEach((s) => s.classList.toggle('is-gone', !inRange(s.dataset.note, 9)));
-  showDraft(el, 9);
+  el.querySelectorAll<HTMLElement>('.rv-note').forEach((s) => s.classList.toggle('is-gone', k < 9 || !inRange(s.dataset.note, 9)));
+  showDraft(el, k);
 }
 
 export interface DossierHooks {
@@ -130,6 +117,8 @@ export class Dossier {
   private pages = new Pages(this.paper);
   private rec: ArchiveRecord | null = null;
   private draft = 9;
+  /** The draft the open file stands at today (9 once every named draft's day has come). */
+  private cur = 9;
   /** The earlier drafts lying under this file, oldest first. */
   private sheets: number[] = [];
   /** Drafts in which Heuss left at least one margin note. */
@@ -239,7 +228,9 @@ export class Dossier {
     });
     // a draft whose day has not come yet is not in the file
     const future = new Set(rec.drafts.filter((d) => !isFiled(d.date)).map((d) => d.n));
-    return [...out].filter((n) => !future.has(n)).sort((a, b) => a - b);
+    // the draft the file stands at is the top sheet itself, not one underneath
+    const cur = standing(rec.drafts);
+    return [...out].filter((n) => !future.has(n) && (cur === 9 || n < cur)).sort((a, b) => a - b);
   }
 
   /**
@@ -303,7 +294,7 @@ export class Dossier {
     const meta: [string, string, string?][] = [];
     if (rec.date) meta.push([t('Date'), esc(longDate(rec.date) ?? rec.date)]);
     if (rec.place) meta.push([t('Place'), esc(rec.place)]);
-    meta.push([t('Status'), esc(t(rec.status))]);
+    meta.push([t('Status'), esc(t(statusNow(rec.status, rec.drafts)))]);
     meta.push([t('Classification'), `<span id="ds-stamp">${esc(rec.stamp)}</span>`, 'is-stamp']);
     for (const f of rec.fields) meta.push([f.label, f.value]);
     $('ds-meta').innerHTML = meta
@@ -331,6 +322,7 @@ export class Dossier {
 
     // The drafts underneath
     this.noteDrafts = this.findNoteDrafts();
+    this.cur = standing(rec.drafts);
     this.sheets = this.findSheets(rec);
     this.sheaf.hidden = !this.sheets.length;
     this.el.dataset.sheets = String(Math.min(3, this.sheets.length));
@@ -413,8 +405,11 @@ export class Dossier {
   /** Put draft `n` on the paper: what it struck, added, blacked out, and its head. */
   private paintDraft(rec: ArchiveRecord, n: number) {
     const old = n < 9;
+    const cur = this.cur;
+    // the top sheet is the file as it stands today
+    const top = (s: HTMLElement) => ({ ...filedAt(s, cur), struck: false });
     this.paper.querySelectorAll<HTMLElement>('.rv').forEach((s) => {
-      const now = stateAt(s, n), fin = stateAt(s, 9);
+      const now = old ? stateAt(s, n) : top(s), fin = top(s);
       s.classList.toggle('is-gone', now.gone);
       s.classList.toggle('is-struck', old && now.struck);
       s.classList.toggle('is-redacted', now.redacted);
@@ -423,8 +418,8 @@ export class Dossier {
       s.classList.toggle('is-new', added);
       s.classList.toggle('is-diff', old && !now.gone && !added && !now.struck && (fin.gone !== now.gone || fin.redacted !== now.redacted));
     });
-    this.paper.querySelectorAll<HTMLElement>('.rv-note').forEach((s) => s.classList.toggle('is-gone', !inRange(s.dataset.note, n)));
-    showDraft(this.paper, n);
+    this.paper.querySelectorAll<HTMLElement>('.rv-note').forEach((s) => s.classList.toggle('is-gone', !inRange(s.dataset.note, n) || (!old && cur < 9)));
+    showDraft(this.paper, old ? n : cur);
 
     const info = draftInfo(rec, n);
     const head = document.getElementById('ds-old')!;
@@ -490,7 +485,7 @@ export class Dossier {
     if (!r) return;
     const cat = this.categories.find((c) => c.id === r.category);
     const where = [longDate(r.date), r.place].filter(Boolean).join(' · ');
-    const sum = plain(r.summary);
+    const sum = plainAt(r.summary, standing(r.drafts));
     const place = this.hooks.place(r);
     this.slip.innerHTML = `
       <div class="cite-slip__head micro"><b>${esc(r.file)}</b><span>${esc(t(cat?.label ?? ''))}</span><span class="cite-slip__stamp">${esc(r.stamp)}</span>
