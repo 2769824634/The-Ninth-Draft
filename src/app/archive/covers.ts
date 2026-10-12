@@ -111,6 +111,23 @@ export function coverHtml(rec: ArchiveRecord) {
       ${top ? '' : '<i class="cv-button"></i><i class="cv-button cv-button--b"></i><i class="cv-tie"></i>'}
       ${recv}${stamp}
       <span class="cv-form-no">FORM RO-31 · CASE ENVELOPE</span>`;
+  } else if (rec.category === 'routine') {
+    // a district office's pressboard folder: the office's own label, a routing box for the clerks
+    const office = rec.fields[1]?.value ?? '';
+    face = `<i class="cv-frame"></i>
+      <p class="cv-org">${esc(office)} <em>ROUTINE RETURNS</em></p>
+      <div class="cv-label cv-label--rt">
+        <p class="cv-label__kind">MONTHLY RETURNS <em>月报例行文件</em></p>
+        <h3 class="cv-label__title">${esc(rec.title)}</h3>
+        <p class="cv-label__no">${esc(rec.file)}</p>
+      </div>
+      <div class="cv-route">
+        ${row('RECEIVED', '收件', '')}
+        ${row('ENTERED', '登记', '')}
+        ${row('FILED', '归档', '')}
+      </div>
+      ${stamp}
+      <span class="cv-form-no">FORM RO-4 · DISTRICT RETURNS · KEEP FLAT</span>`;
   } else {
     face = `<i class="cv-spine"></i>
       <i class="cv-frame"></i>

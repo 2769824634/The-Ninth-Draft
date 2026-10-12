@@ -126,7 +126,7 @@ try {
   for (const size of sizes) {
     const context = await browser.newContext({ viewport: SIZES[size], deviceScaleFactor: Number(flags.dpr ?? 1), isMobile: size === 'phone', hasTouch: size === 'phone' });
     const page = await context.newPage();
-    page.on('pageerror', (e) => console.error('[page]', e.message));
+    page.on('pageerror', (e) => console.error('[page]', flags.stack ? e.stack : e.message));
     page.on('console', (m) => m.type() === 'error' && console.error('[console]', m.text()));
     await page.clock.install();
     const q = ['check', ...params, ...(flags.shadows || flags.gpu ? ['shadows'] : []), ...(flags.gpu ? ['hd'] : [])].join('&');

@@ -434,6 +434,40 @@ export function fileTab(file: string, stamp: string) {
   return tex(c);
 }
 
+/** A district office's grey-green pressboard folder, its label pasted on: the month, the district, the routing box. */
+function routineCover(c: HTMLCanvasElement, g: CanvasRenderingContext2D, W: number, H: number, file: string, title: string) {
+  grain(g, W, H, '#7f8f7a', file.charCodeAt(3) * 11 + title.length, 0.9);
+  g.strokeStyle = 'rgba(238,232,216,.25)';
+  g.strokeRect(14, 14, W - 28, H - 28);
+  g.fillStyle = 'rgba(238,232,216,.75)';
+  g.font = `600 13px ${DIN}`;
+  g.fillText('DISTRICT OFFICE · ROUTINE RETURNS', 24, 42, W - 48);
+  g.fillStyle = '#eee6d2';
+  g.fillRect(30, 70, W - 60, 150);
+  g.fillStyle = '#3e4a3c';
+  g.fillRect(30, 70, W - 60, 8);
+  g.fillStyle = 'rgba(29,27,23,.6)';
+  g.font = `700 11px ${DIN}`;
+  g.fillText('MONTHLY RETURNS', 44, 100);
+  g.fillStyle = INK;
+  g.font = `24px ${SONG}`;
+  const [a, b] = title.split(' · ');
+  g.fillText(a ?? title, 44, 140, W - 88);
+  g.font = `18px ${SONG}`;
+  if (b) g.fillText(b, 44, 172, W - 88);
+  g.font = `600 13px ${DIN}`;
+  g.fillText(file, 44, 204);
+  g.fillStyle = 'rgba(238,230,210,.9)';
+  g.fillRect(30, H - 130, 150, 92);
+  g.fillStyle = 'rgba(29,27,23,.6)';
+  g.font = `600 10px ${DIN}`;
+  ['RECEIVED', 'ENTERED', 'FILED'].forEach((k, i) => {
+    g.fillText(k, 40, H - 106 + i * 28);
+    g.fillRect(100, H - 104 + i * 28, 70, 1);
+  });
+  return tex(c);
+}
+
 /**
  * The cover of a file lying on the reading table: manila for personnel, kraft
  * for events, grey board for programs; the clearance band across the top,
@@ -442,6 +476,7 @@ export function fileTab(file: string, stamp: string) {
 export function fileCover(file: string, title: string, stamp: string, category: string) {
   const W = 300, H = 410;
   const [c, g] = cv(W, H);
+  if (category === 'routine') return routineCover(c, g, W, H, file, title);
   const base = category === 'events' ? '#c29d68' : category === 'programs' ? '#9aa197' : '#d8c79c';
   grain(g, W, H, base, file.charCodeAt(2) * 13 + title.length, 0.9);
   const ink = CLR_INK[stamp] ?? INK;
@@ -564,6 +599,55 @@ function wrapLines(g: CanvasRenderingContext2D, text: string, w: number, max: nu
   return out;
 }
 
+/** Inside a routine folder's front board: the district office's transmittal slip, ruled, with the clerk's ticks. */
+function routineInside(c: HTMLCanvasElement, g: CanvasRenderingContext2D, W: number, H: number, rec: { file: string; title: string; place?: string }) {
+  grain(g, W, H, '#e6dfcb', rec.file.charCodeAt(3) * 13 + rec.title.length, 0.6);
+  const GREEN = '#3e4a3c';
+  g.textBaseline = 'alphabetic';
+  g.fillStyle = GREEN;
+  g.font = `700 14px ${DINB}`;
+  g.fillText('TRANSMITTAL · FORM RO-4', 18, 34);
+  g.fillRect(18, 42, W - 36, 2);
+  const rows: [string, string][] = [['DISTRICT', rec.place ?? ''], ['TO', 'Records Office, Axis'], ['RETURNS', rec.title], ['REF', rec.file]];
+  rows.forEach(([k, v], i) => {
+    const y = 66 + i * 28;
+    g.fillStyle = GREEN;
+    g.font = `600 10px ${DIN}`;
+    g.fillText(k, 18, y);
+    g.fillStyle = INK;
+    g.font = `14px ${SONG}`;
+    g.fillText(v, 86, y, W - 104);
+    g.fillStyle = 'rgba(62,74,60,.45)';
+    g.fillRect(18, y + 6, W - 36, 1);
+  });
+  g.fillStyle = GREEN;
+  g.font = `700 11px ${DINB}`;
+  g.fillText('ENCLOSED', 18, 196);
+  ['Repairs register', 'Lost property', 'Meter rounds', 'Night patrol log', 'Other returns'].forEach((it, i) => {
+    const y = 218 + i * 22;
+    g.strokeStyle = 'rgba(62,74,60,.7)';
+    g.strokeRect(18, y - 10, 10, 10);
+    g.fillStyle = INK;
+    g.font = `13px ${SONG}`;
+    g.fillText(it, 38, y);
+    // the clerk's tick, a little off the box
+    g.strokeStyle = 'rgba(40,52,90,.75)';
+    g.lineWidth = 1.6;
+    g.beginPath();
+    g.moveTo(19, y - 5);
+    g.lineTo(23, y - 1);
+    g.lineTo(31, y - 13);
+    g.stroke();
+    g.lineWidth = 1;
+    g.fillStyle = 'rgba(62,74,60,.35)';
+    g.fillRect(38, y + 5, W - 56, 1);
+  });
+  g.fillStyle = 'rgba(29,27,23,.55)';
+  g.font = `600 10px ${DIN}`;
+  g.fillText('KEEP FLAT · DO NOT REMOVE FORMS', 18, H - 22);
+  return tex(c);
+}
+
 /**
  * The inside of the cover, the page that lies on the left when a file is
  * opened, printed from the record's own fields: the case form with its list
@@ -573,6 +657,7 @@ function wrapLines(g: CanvasRenderingContext2D, text: string, w: number, max: nu
 export function fileInside(rec: { file: string; title: string; category: string; place?: string; date?: string; status: string; summary: string; attachments: { kind: string }[]; stamp: string; drafts?: { n: number; date?: string; status?: string }[] }) {
   const W = 300, H = 410;
   const [c, g] = cv(W, H);
+  if (rec.category === 'routine') return routineInside(c, g, W, H, rec);
   const ev = rec.category === 'events', pr = rec.category === 'programs';
   grain(g, W, H, ev ? '#cba879' : pr ? '#aeb4a8' : '#dfd0a8', rec.file.charCodeAt(3) * 7 + rec.title.length, 0.7);
   const plain = (s: string) => plainAt(s, standing(rec.drafts));
