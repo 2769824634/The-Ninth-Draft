@@ -68,6 +68,8 @@ const records = defineCollection({
           date: z.string().optional(),
           by: z.string().optional(),
           stamp: z.enum(['DRAFT', 'TOP SECRET', 'SECRET', 'CONFIDENTIAL', 'RESTRICTED', 'DECLASSIFIED']).optional(),
+          /** The file's status as this draft left it; until a later draft's day comes, the file shows this one. */
+          status: z.string().optional(),
         }),
       )
       .default([]),
@@ -117,7 +119,7 @@ const recordsZh = defineCollection({
     summary: z.string().optional(),
     tags: z.array(z.string()).optional(),
     /** Draft labels / signatures by draft number; dates and stamps come from the English file. */
-    drafts: z.array(z.object({ n: z.number().int().min(1).max(8), label: z.string().optional(), by: z.string().optional() })).optional(),
+    drafts: z.array(z.object({ n: z.number().int().min(1).max(8), label: z.string().optional(), by: z.string().optional(), status: z.string().optional() })).optional(),
     /**
      * Attachments in the same order as the English file. Each entry overrides
      * the text of the attachment at that position; kind and draft stay English.

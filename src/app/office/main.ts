@@ -12,6 +12,7 @@ import { audio } from '../audio';
 import { isZh, onLang } from '../i18n';
 import { canvasFontsReady } from '../scene/textures';
 import { isFiled, islandNow } from '../island';
+import { statusNow } from '../ui/asof';
 import { prefs, reducedMotion } from '../prefs';
 import { ask, published } from '../check';
 import { esc } from '../ui/text';
@@ -56,11 +57,14 @@ const SHELVES: { kind: TapeData['kind'][]; en: string; zh: string }[] = [
 
 export function office() {
   const $ = (id: string) => document.getElementById(id)!;
-  const data = JSON.parse($('of-data').textContent || '{}') as MachineData & { base: string; notices: { file: string; slug: string; title: L; body: L; dates: string[]; posted?: string }[]; tapes: TapeData[]; slides: SlideFile[]; filedOn: Record<string, string | undefined>; calendar: CalItem[] };
+  const data = JSON.parse($('of-data').textContent || '{}') as MachineData & { base: string; notices: { file: string; slug: string; title: L; status: string; drafts: { n: number; date?: string; status?: string }[]; says: Record<string, L>; body: L; dates: string[]; posted?: string }[]; tapes: TapeData[]; slides: SlideFile[]; filedOn: Record<string, string | undefined>; calendar: CalItem[] };
   // Records dated to a day still to come are not on file yet: no notice, no log line, no tape, no slide
   const on = (file: string) => isFiled(data.filedOn[file]);
   data.notices = data.notices.filter((n) => on(n.file)).slice(-5);
-  for (const n of data.notices) n.posted = n.dates.filter((d) => isFiled(d)).sort().pop();
+  for (const n of data.notices) {
+    n.posted = n.dates.filter((d) => isFiled(d)).sort().pop();
+    n.body = n.says[statusNow(n.status, n.drafts)];
+  }
   data.log = data.log.filter((l) => on(l.file) && isFiled(l.date));
   data.files = data.files.filter((f) => on(f.file));
   data.tapes = data.tapes.filter((t) => t.kind !== 'record' || on(t.label));

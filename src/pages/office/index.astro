@@ -26,7 +26,14 @@ const notices = records
     file: r.file,
     slug: r.slug,
     title: { en: r.title, zh: r.zh?.title ?? r.title },
-    body: NOTICE.find(([k]) => k.test(r.status ?? ''))?.[1] ?? { en: 'The file is in the archive, in the events cabinet.', zh: '档案存在档案室的事件柜。' },
+    // what to say for each status the file has had; the page picks the one it has today
+    status: r.status,
+    drafts: r.drafts.map((d) => ({ n: d.n, date: d.date, status: d.status })),
+    says: Object.fromEntries(
+      [r.status, ...r.drafts.map((d) => d.status)]
+        .filter((s): s is string => !!s)
+        .map((s) => [s, NOTICE.find(([k]) => k.test(s))?.[1] ?? { en: 'The file is in the archive, in the events cabinet.', zh: '档案存在档案室的事件柜。' }]),
+    ),
     // posted on the last day something was filed to it; the page keeps the ones on file by today
     dates: [r.date, ...r.drafts.map((d) => d.date)].filter((d): d is string => !!d && /^\d{4}-\d{2}-\d{2}$/.test(d)),
   }));

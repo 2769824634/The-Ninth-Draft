@@ -73,16 +73,27 @@ export interface Issue {
  * The final draft as the press sets it: struck words and margin notes gone,
  * words added in a draft kept, black bars printed as black bars.
  */
-export const official = (html: string) =>
+export const official = (html: string, k = 9) =>
   html
     .replace(/<span class="rv-note"[\s\S]*?<\/span><\/span>/g, '')
-    .replace(/<span class="rv" data-del="\d">[\s\S]*?<\/span>/g, '')
-    .replace(/<span class="rv" data-redact="(\d)-(\d)"><span>([\s\S]*?)<\/span><\/span>/g, (_m, a, b, t) => (Number(a) <= 9 && 9 <= Number(b) ? bar(t) : t))
+    .replace(/<span class="rv" data-redact="(\d)-(\d)"><span>([\s\S]*?)<\/span><\/span>/g, (_m, a, b, t) => (Number(a) <= k && k <= Number(b) ? bar(t) : t))
     .replace(/<span class="redact"[^>]*><span>([\s\S]*?)<\/span><\/span>/g, (_m, t) => bar(t))
-    .replace(/<span class="rv" data-add="\d">([\s\S]*?)<\/span>/g, '$1')
+    .replace(/<span class="rv" data-del="(\d)">([\s\S]*?)<\/span>/g, (_m, n, t) => (k >= Number(n) ? '' : t))
+    .replace(/<span class="rv" data-add="(\d)">([\s\S]*?)<\/span>/g, (_m, n, t) => (k >= Number(n) ? t : ''))
     .replace(/<(?!\/?(p|b|i|em|strong|br)\b)[^>]+>/g, '')
     .replace(/\s+/g, ' ')
     .trim();
+/**
+ * The draft a file stood at on `day` (an ISO date): the last named draft filed by
+ * then, the final once all of them were, the first if none was yet.
+ */
+export function draftOn(drafts: { n: number; date?: string }[], day: string) {
+  const named = drafts.filter((d) => d.n < 9);
+  if (!named.length) return 9;
+  const by = named.filter((d) => (isoDate(d.date) ?? '') <= day).map((d) => d.n);
+  if (by.length === named.length) return 9;
+  return by.length ? Math.max(...by) : Math.min(...named.map((d) => d.n));
+}
 const bar = (t: string) => '█'.repeat(Math.max(3, Math.min(14, t.replace(/<[^>]+>/g, '').length)));
 
 const strip = (html: string) => html.replace(/<span class="rv-note"[\s\S]*?<\/span><\/span>/g, '').replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim();
@@ -137,7 +148,8 @@ export function buildIssues(records: ClientRecord[]): Issue[] {
       day(d).leads.push({
         kind: 'lead',
         head: t,
-        body: { en: official(r.summary), zh: official(zh?.summary ?? r.summary) },
+        // as the file stood that day: the paper cannot print a draft not yet written
+        body: { en: official(r.summary, draftOn(r.drafts, d)), zh: official(zh?.summary ?? r.summary, draftOn(r.drafts, d)) },
         deck: r.subtitle ? { en: r.subtitle, zh: zh?.subtitle ?? r.subtitle } : undefined,
         photo: { src: r.image, seed: r.file, caption: photoCaption },
         ...link,
@@ -165,8 +177,8 @@ export function buildIssues(records: ClientRecord[]): Issue[] {
       if (!ad) return;
       const az = zh?.attachments?.[i] ?? a;
       if (a.kind === 'clipping') {
-        const en = splitClipping(official(a.text));
-        const cz = splitClipping(official(az.text));
+        const en = splitClipping(official(a.text, draftOn(r.drafts, ad)));
+        const cz = splitClipping(official(az.text, draftOn(r.drafts, ad)));
         const page = a.title?.match(/page (\d+)|front page/i);
         day(ad).articles.push({
           kind: 'article',

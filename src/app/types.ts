@@ -39,7 +39,7 @@ export interface ArchiveRecord {
   related: string[];
   tags: string[];
   revised: boolean;
-  drafts: { n: number; label?: string; date?: string; by?: string; stamp?: string }[];
+  drafts: { n: number; label?: string; date?: string; by?: string; stamp?: string; status?: string }[];
   attachments: Attachment[];
   /** Chinese version, merged with the English one (only when a .zh.md exists). */
   zh?: RecordTexts;
