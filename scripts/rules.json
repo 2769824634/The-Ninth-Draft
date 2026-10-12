@@ -1,0 +1,62 @@
+{
+  "_说明": "scripts/check-rules.mjs 的规则。只检查这个分支相对 main 新加的行和新加的文件。说明见 docs/协作.md「自动检查查什么」。",
+
+  "codexBranchPrefix": "codex/",
+
+  "protectedForCodex": [
+    "CLAUDE.md",
+    "AGENTS.md",
+    ".github/",
+    ".cursor/",
+    ".claude/",
+    "scripts/check-rules.mjs",
+    "scripts/rules.json",
+    "astro.config.mjs",
+    "package.json",
+    "package-lock.json"
+  ],
+
+  "assetExtensions": [".png", ".jpg", ".jpeg", ".gif", ".webp", ".avif", ".svg", ".bmp", ".ico", ".glb", ".gltf", ".bin", ".fbx", ".obj", ".blend", ".mp3", ".wav", ".ogg", ".oga", ".m4a", ".aac", ".flac", ".opus", ".webm", ".mp4", ".mov", ".woff", ".woff2", ".ttf", ".otf", ".eot"],
+  "audioExtensions": [".mp3", ".wav", ".ogg", ".oga", ".m4a", ".aac", ".flac", ".opus"],
+
+  "urls": {
+    "include": ["src/", "public/", "integrations/", "astro.config.mjs"],
+    "textExtensions": [".ts", ".tsx", ".js", ".mjs", ".astro", ".css", ".json", ".md", ".html", ".svg", ".txt"],
+    "allowHosts": [
+      "www.w3.org",
+      "w3.org",
+      "findahelpline.com",
+      "www.findahelpline.com",
+      "sos.org.sg",
+      "www.sos.org.sg",
+      "openstreetmap.org",
+      "www.openstreetmap.org",
+      "opendatacommons.org",
+      "overturemaps.org",
+      "localhost",
+      "127.0.0.1"
+    ]
+  },
+
+  "lore": {
+    "include": ["src/"],
+    "exclude": ["src/content/records/"],
+    "patterns": ["第九稿", "前几稿", "第九版方案", "1999 ?循环", "ninth draft", "ninth proposal", "earlier drafts of (you|the island)"]
+  },
+
+  "draftAsTime": {
+    "include": ["src/"],
+    "patterns": [
+      "(慢|快|早|晚|差|隔)[一二三四五六七八九十两几0-9]*稿",
+      "[一二三四五六七八九十两几0-9]+稿(以前|之前|以后|之后|前|后)(?!的写法|的样子|的说法)",
+      "\\b(a|one|two|three|four|five|six|seven|eight|nine|\\d+) drafts? (ago|later|behind|ahead|from now)\\b",
+      "\\bdrafts? (ago|from now)\\b"
+    ]
+  },
+
+  "pairs": [
+    ["src/data/archivist.json", "src/data/archivist.zh.json"],
+    ["src/data/system.json", "src/data/system.zh.json"]
+  ],
+  "pairedContent": ["src/content/records/"]
+}
