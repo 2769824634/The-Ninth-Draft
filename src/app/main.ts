@@ -30,6 +30,7 @@ import { Stacks, TABLE_MAX, type ReadAt } from './archive/stacks';
 import type { PaperLit } from './archive/scene';
 import { Sheet } from './archive/sheet';
 import { Companion } from './archive/companion';
+import { stampNow, statusNow } from './ui/asof';
 import { published } from './check';
 
 export function start() {
@@ -38,7 +39,16 @@ export function start() {
   const $ = (id: string) => document.getElementById(id)!;
   // A record dated to a day still to come on the island is not on file yet: it turns up on the day
   const onFile = new Set(data.records.filter((r) => isFiled(r.date)).map((r) => r.file));
-  data.records = data.records.filter((r) => onFile.has(r.file)).map((r) => ({ ...r, related: r.related.filter((f) => onFile.has(f)) }));
+  // and a file whose later drafts have not come round yet carries the clearance and status of its last draft on file
+  data.records = data.records
+    .filter((r) => onFile.has(r.file))
+    .map((r) => ({
+      ...r,
+      related: r.related.filter((f) => onFile.has(f)),
+      stamp: stampNow(r.stamp, r.drafts) as typeof r.stamp,
+      status: statusNow(r.status, r.drafts),
+      zh: r.zh && { ...r.zh, status: statusNow(r.zh.status, r.zh.drafts) },
+    }));
   if (data.initial && !onFile.has(data.initial)) {
     data.initial = null;
     document.title = 'Public Archive — The Ninth Draft';

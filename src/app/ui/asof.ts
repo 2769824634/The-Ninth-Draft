@@ -7,7 +7,7 @@
  */
 import { isFiled } from '../island';
 
-interface Draft { n: number; date?: string; status?: string }
+interface Draft { n: number; date?: string; status?: string; stamp?: string }
 
 /** The draft a file stands at today: 9, or the last named draft on file. */
 export function standing(drafts: Draft[] = []): number {
@@ -24,6 +24,27 @@ export function statusNow(status: string, drafts: Draft[] = []) {
   const d = drafts.filter((x) => x.n <= k && x.status).sort((a, b) => b.n - a.n)[0];
   return d?.status ?? status;
 }
+
+/** The clearance the file has today: the last one a draft on file was stamped with (DRAFT is not one), else the file's own. */
+export function stampNow(stamp: string, drafts: Draft[] = []) {
+  const k = standing(drafts);
+  if (k === 9) return stamp;
+  const d = drafts.filter((x) => x.n <= k && x.stamp && x.stamp !== 'DRAFT').sort((a, b) => b.n - a.n)[0];
+  return d?.stamp ?? stamp;
+}
+
+/**
+ * A file's stamp as it stands today, looked up by number in the page's file
+ * index (flat pages and the rooms built on them); `fallback` when it is not there.
+ */
+export function stampOf(file: string, fallback: string) {
+  const el = typeof document !== 'undefined' ? document.getElementById('file-index') : null;
+  if (!el) return fallback;
+  index ??= JSON.parse(el.textContent || '{}') as { files: { file: string; stamp: string; drafts?: Draft[] }[] };
+  const f = index.files?.find((x) => x.file === file);
+  return f ? stampNow(f.stamp, f.drafts) : fallback;
+}
+let index: { files: { file: string; stamp: string; drafts?: Draft[] }[] } | null = null;
 
 export const inRange = (spec: string | undefined, d: number) => {
   if (!spec) return false;

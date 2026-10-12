@@ -26,7 +26,7 @@ const fileIndex = (await loadRecords(base)).map((r) => ({
   category: r.category,
   stamp: r.stamp,
   date: r.date,
-  drafts: r.drafts.map((d) => ({ n: d.n, date: d.date })),
+  drafts: r.drafts.map((d) => ({ n: d.n, date: d.date, stamp: d.stamp })),
   en: { title: r.title, subtitle: r.subtitle, place: r.place, summary: r.summary },
   zh: r.zh ? { title: r.zh.title, subtitle: r.zh.subtitle, place: r.zh.place, summary: r.zh.summary } : undefined,
 }));

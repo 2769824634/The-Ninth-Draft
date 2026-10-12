@@ -27,6 +27,8 @@ export interface MachineFile {
   /** Body HTML with revision marks, for restoring an earlier draft. */
   body: L;
   revised: boolean;
+  /** Its named drafts' numbers, dates and stamps: which of them are on tape yet. */
+  drafts: { n: number; date?: string; stamp?: string }[];
 }
 
 export interface MachineData {
@@ -62,6 +64,7 @@ export function buildMachine(records: ClientRecord[]): MachineData {
       title: { en: r.title, zh: r.zh?.title ?? r.title },
       body: { en: r.body, zh: r.zh?.body ?? r.body },
       revised: r.revised,
+      drafts: r.drafts.map((d) => ({ n: d.n, date: d.date, stamp: d.stamp })),
     }));
   return { log, files };
 }

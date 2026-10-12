@@ -10,10 +10,10 @@ import { isZh, onLang, t } from '../i18n';
 import { reducedMotion } from '../prefs';
 import { fromHere } from './recordlink';
 import { esc } from './text';
-import { plainAt, standing } from './asof';
+import { plainAt, standing, stampNow } from './asof';
 
 interface Texts { title: string; subtitle?: string; place?: string; summary: string }
-interface FileEntry { file: string; slug: string; category: string; stamp: string; date?: string; drafts?: { n: number; date?: string }[]; en: Texts; zh?: Texts }
+interface FileEntry { file: string; slug: string; category: string; stamp: string; date?: string; drafts?: { n: number; date?: string; stamp?: string }[]; en: Texts; zh?: Texts }
 
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 const CAT_LABEL: Record<string, string> = { personnel: 'Personnel', events: 'Events', programs: 'Programs' };
@@ -83,7 +83,7 @@ export function openFile(slugOrFile: string, at?: Element | null, note?: { head:
       <div class="fslip__head micro"><span class="fslip__kick">${esc(t('Call slip'))}</span>
         <button type="button" class="fslip__x" data-fslip-close aria-label="${esc(t('Close'))}">×</button></div>
       ${note ? `<div class="fslip__note"><span class="micro">${esc(note.head)}</span><p>${esc(note.text)}</p></div>` : ''}
-      <div class="fslip__no micro"><b>${esc(f.file)}</b><span>${esc(t(CAT_LABEL[f.category] ?? f.category))}</span><span class="fslip__stamp">${esc(f.stamp)}</span></div>
+      <div class="fslip__no micro"><b>${esc(f.file)}</b><span>${esc(t(CAT_LABEL[f.category] ?? f.category))}</span><span class="fslip__stamp">${esc(stampNow(f.stamp, f.drafts))}</span></div>
       <p class="fslip__title">${esc(tx.title)}</p>
       ${tx.subtitle ? `<p class="fslip__sub">${esc(tx.subtitle)}</p>` : ''}
       ${when ? `<p class="fslip__when micro">${esc(when)}</p>` : ''}
@@ -95,7 +95,7 @@ export function openFile(slugOrFile: string, at?: Element | null, note?: { head:
       </div>
       <a class="fslip__go" href="${esc(fromHere(`${base}records/${f.slug}/`))}" data-fslip-go>${esc(t('Request it from the archive'))} →</a>`;
   }
-  s.dataset.clr = CLR[f?.stamp ?? ''] ?? '';
+  s.dataset.clr = CLR[f ? stampNow(f.stamp, f.drafts) : ''] ?? '';
   s.hidden = false;
   place(s, at);
   audio.paper();

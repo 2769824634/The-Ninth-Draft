@@ -4,6 +4,7 @@
  * the right: the reader, a catalogue drawer, the circulation desk. Without
  * WebGL the lists and panels still work; nothing moves.
  */
+import { stampOf } from '../ui/asof';
 import type { CatDrawer, LibBay, LibBook, LibPage } from '../../lib/library';
 import { contents } from '../../lib/toc';
 import type { ArchivistLines } from '../types';
@@ -51,7 +52,7 @@ export function library() {
       book.pages = kept;
     }
   }
-  for (const d of catalogue) d.cards = d.cards.filter((c) => isFiled(c.date));
+  for (const d of catalogue) d.cards = d.cards.filter((c) => isFiled(c.date)).map((c) => ({ ...c, stamp: stampOf(c.file, c.stamp) }));
   // the rack only carries the months that have come round on the island
   const thisMonth = islandIso().slice(0, 7);
   const stickMonth = (id: string) => (id === 'daily-early' ? 'early' : `1999-${id.slice(6)}`);

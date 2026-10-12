@@ -12,7 +12,7 @@ import { audio } from '../audio';
 import { isZh, onLang } from '../i18n';
 import { canvasFontsReady } from '../scene/textures';
 import { isFiled, islandNow } from '../island';
-import { statusNow } from '../ui/asof';
+import { stampOf, standing, statusNow } from '../ui/asof';
 import { prefs, reducedMotion } from '../prefs';
 import { ask, published } from '../check';
 import { esc } from '../ui/text';
@@ -69,6 +69,15 @@ export function office() {
   data.files = data.files.filter((f) => on(f.file));
   data.tapes = data.tapes.filter((t) => t.kind !== 'record' || on(t.label));
   data.slides = data.slides.filter((f) => on(f.file));
+  // clearances as the files stand today
+  for (const f of [...data.files, ...data.slides]) f.stamp = stampOf(f.file, f.stamp);
+  for (const t of data.tapes) {
+    if (t.kind !== 'record') continue;
+    t.stamp = stampOf(t.label, t.stamp ?? '');
+    // a file's tape reads it as it stands today
+    const k = standing(t.drafts);
+    if (k < 9 && t.at?.[k]) t.lines = t.at[k];
+  }
   // the counts under the room's name, as they stand today
   const stat = (k: string, n: number) => document.querySelectorAll<HTMLElement>(`[data-stat="${k}"]`).forEach((el) => (el.textContent = String(n)));
   stat('log', data.log.length);
