@@ -64,7 +64,7 @@ try {
       };
     }
   });
-  await page.goto(`${origin}${BASE}${ROOMS[room] ?? room}?check&shadows`, { waitUntil: 'load' });
+  await page.goto(`${origin}${BASE}${ROOMS[room] ?? room}?check&shadows`, { waitUntil: 'load', timeout: 180_000 });
   await page.waitForFunction(() => window.__n9?.ready, null, { timeout: 180_000, polling: 250 });
   await page.waitForTimeout(1500);
 
