@@ -52,7 +52,7 @@ const links = new Set(records.flatMap((r) => r.related.filter((f) => records.som
     </a>
   </header>
 
-  <SiteNav current={room === 'wall' ? 'links' : 'archive'} wall />
+  <SiteNav current={room === 'wall' ? 'links' : 'archive'} />
 
   <nav class="tools" aria-label="Tools">
     <a class="tool" id="btn-me" href={`${base}register/`}>
