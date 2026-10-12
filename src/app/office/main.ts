@@ -56,10 +56,11 @@ const SHELVES: { kind: TapeData['kind'][]; en: string; zh: string }[] = [
 
 export function office() {
   const $ = (id: string) => document.getElementById(id)!;
-  const data = JSON.parse($('of-data').textContent || '{}') as MachineData & { base: string; notices: { file: string; slug: string; title: L; date?: string; stamp: string; category: string }[]; tapes: TapeData[]; slides: SlideFile[]; filedOn: Record<string, string | undefined>; calendar: CalItem[] };
+  const data = JSON.parse($('of-data').textContent || '{}') as MachineData & { base: string; notices: { file: string; slug: string; title: L; body: L; dates: string[]; posted?: string }[]; tapes: TapeData[]; slides: SlideFile[]; filedOn: Record<string, string | undefined>; calendar: CalItem[] };
   // Records dated to a day still to come are not on file yet: no notice, no log line, no tape, no slide
   const on = (file: string) => isFiled(data.filedOn[file]);
   data.notices = data.notices.filter((n) => on(n.file)).slice(-5);
+  for (const n of data.notices) n.posted = n.dates.filter((d) => isFiled(d)).sort().pop();
   data.log = data.log.filter((l) => on(l.file) && isFiled(l.date));
   data.files = data.files.filter((f) => on(f.file));
   data.tapes = data.tapes.filter((t) => t.kind !== 'record' || on(t.label));
@@ -151,7 +152,7 @@ export function office() {
     else if (zone === 'sofa') drawShow(item);
     else if (zone === 'wall') {
       if (calOpen) return drawCalendar(item);
-      for (const n of data.notices) item(n.file, T(n.title), () => openFile(n.slug));
+      for (const n of data.notices) item(n.file, `${isZh() ? '通知' : 'Notice'} · ${T(n.title)}`, () => readNotice(n.slug));
       item('⌚', isZh() ? '墙上的钟：换一个区' : 'The clock: another district', cycleClock);
       item('▦', isZh() ? `挂历：1999 年 ${calMonth + 1} 月` : `The calendar: ${MONTHS[calMonth]} 1999`, () => openCalendar());
     }
@@ -531,6 +532,15 @@ export function office() {
     drawList();
   }
 
+  /** A notice on the board: its words on the call slip for the file it is about. */
+  function readNotice(slug: string) {
+    const n = data.notices.find((x) => x.slug === slug);
+    if (!n) return openFile(slug);
+    const zh = isZh();
+    const d = n.posted ? `${Number(n.posted.slice(8))}.${Number(n.posted.slice(5, 7))}.99` : '';
+    openFile(slug, null, { head: `${zh ? '告示板 · 通知' : 'Notice'} No. 99/${n.file.slice(-3)}${d ? ` · ${d}` : ''}`, text: T(n.body) });
+  }
+
   /* ---------------- the wall calendar ---------------- */
   // only what is on file by the island's today, and only from the day it happened
   const calItems = data.calendar.filter((i) => isFiled(i.filed) && isFiled(i.day));
@@ -651,7 +661,10 @@ export function office() {
     const cal = scene?.room.calendar;
     if (!cal) return;
     cal.redraw(isZh());
+    scene?.room.redrawNotices(isZh());
     if (isZh()) void canvasFontsReady(CAL_GLYPHS).then(() => cal.redraw(isZh()));
+    // the notices print what the page carries, in its own glyphs
+    if (isZh()) void canvasFontsReady(data.notices.map((n) => `${n.title.zh}${n.body.zh}`).join('') + '通知数据组记录署').then(() => scene?.room.redrawNotices(isZh()));
   }
   /** A click on the calendar itself: a day pins a slip, the picture turns the page. */
   function clickCalendar(u: number, v: number) {
@@ -730,13 +743,13 @@ export function office() {
   onLang(warmFonts);
   const call = $('of-callout');
   try {
-    scene = new OfficeScene(root, $('of-canvas') as HTMLCanvasElement, pc, data.notices.map((n) => ({ ...n, title: n.title.en })), {
+    scene = new OfficeScene(root, $('of-canvas') as HTMLCanvasElement, pc, data.notices, {
       zone: setZone,
       hover: (k) => {
         if (!k) return call.classList.remove('is-on');
         const n = data.notices.find((x) => x.slug === k);
         call.textContent = n
-          ? `${n.file} · ${T(n.title)}`
+          ? `${isZh() ? '通知' : 'Notice'} · ${n.file} ${T(n.title)}`
           : k === 'projector'
             ? isZh() ? `放映机 · 点一下${slideshow.on ? '关' : '开'}灯` : `Projector · click to switch the lamp ${slideshow.on ? 'off' : 'on'}`
             : k.startsWith('tray:')
@@ -760,7 +773,7 @@ export function office() {
             : k === 'clock' ? (isZh() ? '挂钟 · 点一下换一个区' : 'Wall clock · click for another district') : T(ZONE_NAME[k as Zone] ?? { en: k, zh: k });
         call.classList.add('is-on');
       },
-      notice: (slug) => openFile(slug),
+      notice: (slug) => readNotice(slug),
       calendar: clickCalendar,
       clock: cycleClock,
       deck: () => press(),
@@ -797,7 +810,7 @@ export function office() {
     scene.setTheme(prefs.get('theme'));
     const at = ask('at');
     if (at && (ZONES as string[]).includes(at)) scene.goZone(at as Zone);
-    published('office', { scene, calendar: { open: openCalendar, pin: pinDay, turn: turnTo } });
+    published('office', { scene, calendar: { open: openCalendar, pin: pinDay, turn: turnTo }, notice: readNotice });
     requestAnimationFrame(() => root.classList.add('is-lit'));
   } catch (err) {
     console.error('[office] room unavailable', err);

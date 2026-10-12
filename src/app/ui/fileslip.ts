@@ -70,7 +70,11 @@ export function closeFile() {
 }
 
 /** Open the slip for a file. `at` is what was clicked; without it the slip lies at the side. */
-export function openFile(slugOrFile: string, at?: Element | null) {
+/**
+ * `note`: what the thing that named the file said about it (a notice on the office
+ * board), printed at the top of the slip so it can be read without walking closer.
+ */
+export function openFile(slugOrFile: string, at?: Element | null, note?: { head: string; text: string }) {
   const key = slugOrFile.toLowerCase();
   const f = load().files.find((x) => x.slug === key);
   if (!slip) build();
@@ -88,6 +92,7 @@ export function openFile(slugOrFile: string, at?: Element | null) {
     s.innerHTML = `
       <div class="fslip__head micro"><span class="fslip__kick">${esc(t('Call slip'))}</span>
         <button type="button" class="fslip__x" data-fslip-close aria-label="${esc(t('Close'))}">×</button></div>
+      ${note ? `<div class="fslip__note"><span class="micro">${esc(note.head)}</span><p>${esc(note.text)}</p></div>` : ''}
       <div class="fslip__no micro"><b>${esc(f.file)}</b><span>${esc(t(CAT_LABEL[f.category] ?? f.category))}</span><span class="fslip__stamp">${esc(f.stamp)}</span></div>
       <p class="fslip__title">${esc(tx.title)}</p>
       ${tx.subtitle ? `<p class="fslip__sub">${esc(tx.subtitle)}</p>` : ''}
