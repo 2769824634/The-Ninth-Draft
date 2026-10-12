@@ -32,6 +32,7 @@ import { Sheet } from './archive/sheet';
 import { Companion } from './archive/companion';
 import { stampNow, statusNow } from './ui/asof';
 import { published } from './check';
+import { fillFolder, ROUTINE, routineOf } from './archive/routine';
 
 export function start() {
   const data: ArchiveData = JSON.parse(document.getElementById('archive-data')!.textContent!);
@@ -226,6 +227,7 @@ export function start() {
     search: () => search.show(),
   });
 
+  applyRecords(stacks.routine);
   applyTheme(prefs.get('theme'), true);
   applySound();
 
@@ -234,6 +236,11 @@ export function start() {
 
   /** Open a file as paper over the room, read where it was taken out. */
   function openRecord(rec: ArchiveRecord, at: ReadAt = 'drawer', push = true) {
+    // a routine folder's forms are written out the first time it is read
+    if (routineOf(rec) && !rec.en?.body) {
+      void fillFolder(rec, base, records, isZh()).then(() => openRecord(rec, at, push));
+      return;
+    }
     if (roomTarget === 'wall') {
       leaveWall(rec, push);
       return;
@@ -254,8 +261,10 @@ export function start() {
     }
     companion.hide();
     $('dossier').setAttribute('aria-hidden', 'false');
-    const ci = categories.findIndex((c) => c.id === rec.category);
-    const list = records.filter((r) => r.category === rec.category);
+    const rt = routineOf(rec);
+    const ci = rt ? stacks.rtDrawer(rec) : categories.findIndex((c) => c.id === rec.category);
+    // a routine folder counts among its district's months
+    const list = rt ? stacks.routine.filter((r) => routineOf(r)!.district === rt.district) : records.filter((r) => r.category === rec.category);
     // the sheet itself: filled at once, or once the last one has gone out of the way
     const fill = () => {
       dossier.fill(rec, { index: list.indexOf(rec), total: list.length });
@@ -286,7 +295,7 @@ export function start() {
     retrieve.run(
       at === 'table'
         ? t('Reading table · {file}', { file: rec.file })
-        : t('Drawer {drawer} · Folder {folder} · {file}', { drawer: String(ci + 1).padStart(2, '0'), folder: String(list.indexOf(rec) + 1).padStart(2, '0'), file: rec.file }),
+        : t('Drawer {drawer} · Folder {folder} · {file}', { drawer: String(ci + 1).padStart(2, '0'), folder: String(rt ? rt.month : list.indexOf(rec) + 1).padStart(2, '0'), file: rec.file }),
       notes
         ? voice.pick('retrieve.notes', { drafts: notes })
         : voice.pick(`retrieve.${rec.category}`, { file: rec.file, title: rec.title }) ?? voice.pick('retrieve.any', { file: rec.file }),
@@ -297,7 +306,8 @@ export function start() {
     system.opened(rec.stamp);
     if (!already) setTimeout(() => audio.stamp(), 900);
     document.title = t('{file} · {title} — The Ninth Draft', { file: rec.file, title: rec.title });
-    if (push) history.pushState({ file: rec.file }, '', recordUrl(rec));
+    // routine folders have no page of their own
+    if (push && rec.slug) history.pushState({ file: rec.file }, '', recordUrl(rec));
   }
 
   /**
@@ -442,16 +452,23 @@ export function start() {
     const el = e.target as HTMLElement;
     const open = el.closest<HTMLElement>('[data-open]')?.dataset.open;
     if (open) {
-      const rec = records.find((r) => r.file === open);
+      const rec = stacks.find(open);
       if (rec) openRecord(rec, 'table');
       return;
     }
     const side = el.closest<HTMLElement>('[data-side]')?.dataset.side;
     if (!side) return;
-    const rec = records.find((r) => r.file === side);
+    const rec = stacks.find(side);
     if (!rec) return;
     if (companion.rec === rec) companion.hide();
-    else {
+    else if (routineOf(rec) && !rec.en?.body) {
+      void fillFolder(rec, base, records, isZh()).then(() => {
+        companion.show(rec);
+        audio.paper();
+        markTable();
+      });
+      return;
+    } else {
       companion.show(rec);
       audio.paper();
     }
@@ -576,7 +593,7 @@ export function start() {
   }
 
   let lastDraftVoice = 9;
-  const dossier = new Dossier(records, categories, base, {
+  const dossier = new Dossier(records, [...categories, ROUTINE as unknown as (typeof categories)[number]], base, {
     go: (r) => stacks.fetch(r, true),
     place: (r) => ({ where: stacks.shelfMark(r), onTable: stacks.isOnTable(r) }),
     pair: (r) => {
@@ -630,6 +647,7 @@ export function start() {
     window.clearTimeout(relangT);
     relangT = window.setTimeout(async () => {
       applyRecords(records);
+      applyRecords(stacks.routine);
       translateDom(root);
       applySound();
       markMe();
@@ -662,7 +680,7 @@ export function start() {
 
   /* ---------------- controls ---------------- */
   $('btn-back').addEventListener('click', () => closeRecord());
-  // the Links entry left the archive's nav; old addresses still reach the wall
+  // the archive nav no longer carries Links (the wall is on W and on the dossier's button)
   document.getElementById('nav-links')?.addEventListener('click', (e) => {
     if (e.metaKey || e.ctrlKey) return;
     e.preventDefault();

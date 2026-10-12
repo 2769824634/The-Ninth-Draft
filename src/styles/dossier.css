@@ -1021,6 +1021,41 @@ a.cite:hover, a.cite:focus-visible { color: var(--accent); text-decoration-style
 .ds-cover--programs .cv-stamp { right: 13%; bottom: 13%; mix-blend-mode: normal; background: rgb(238 230 210 / .08); }
 .ds-cover--programs .cv-form-no { left: 19%; color: rgb(232 226 210 / .55); }
 
+/* routine: a district office's grey-green pressboard folder, its own label pasted on */
+.ds-cover--routine .ds-cover__face, .ds-cover--routine .ds-cover__inside { --board: #7f8f7a; }
+.ds-cover--routine .ds-cover__face { color: #eee8d8; }
+.ds-cover--routine .cv-frame { left: 6%; }
+.ds-cover--routine .cv-org { left: 10%; top: 10%; color: rgb(238 232 216 / .75); }
+.ds-cover--routine .cv-label { left: 12%; right: 12%; top: 24%; border-top-color: #3e4a3c; }
+.ds-cover--routine .cv-label__title { font-size: 1.6em; text-transform: none; }
+.cv-route { position: absolute; left: 12%; right: 40%; bottom: 14%; padding: .8em 1em; background: rgb(238 230 210 / .9); color: var(--type); box-shadow: 0 1px 2px rgb(0 0 0 / .3); }
+.ds-cover--routine .cv-stamp { right: 10%; bottom: 14%; mix-blend-mode: normal; background: rgb(238 230 210 / .08); }
+.ds-cover--routine .cv-form-no { left: 10%; color: rgb(238 232 216 / .6); }
+
+/* routine returns: the district office's forms, one after another on the page */
+.rt-sheet { margin: 0 0 2.4em; padding: 1.1em 1.2em 1em; border: 1px solid rgb(30 24 16 / .28); background: rgb(255 255 255 / .18); break-inside: avoid; }
+.rt-sheet__head { display: grid; grid-template-columns: 1fr auto; align-items: end; gap: .1em 1em; padding-bottom: .55em; margin-bottom: .7em; border-bottom: 2px solid rgb(30 24 16 / .7); }
+.rt-sheet__issuer { grid-column: 1 / -1; margin: 0; font: 600 .7em/1.3 var(--f-mono); letter-spacing: .12em; text-transform: uppercase; color: rgb(30 24 16 / .6); }
+.rt-sheet__title { margin: 0; font: 700 1.15em/1.25 var(--f-sans); letter-spacing: .02em; }
+.rt-sheet__ref { margin: 0; font: 600 .68em/1 var(--f-mono); letter-spacing: .1em; color: rgb(30 24 16 / .55); }
+.rt-table { width: 100%; border-collapse: collapse; font-size: .86em; line-height: 1.45; }
+.rt-table th { text-align: left; font: 600 .78em/1.2 var(--f-mono); letter-spacing: .06em; padding: .35em .5em; border-bottom: 1px solid rgb(30 24 16 / .5); color: rgb(30 24 16 / .7); vertical-align: bottom; }
+.rt-table td { padding: .42em .5em; border-bottom: 1px solid rgb(60 90 140 / .22); vertical-align: top; }
+.rt-table td.rt-d { font-family: var(--f-mono); white-space: nowrap; color: rgb(30 24 16 / .7); }
+.rt-table td.rt-none { color: rgb(30 24 16 / .5); font-style: italic; }
+.rt-sheet--water td:nth-child(n + 3), .rt-sheet--power td:nth-child(n + 3) { font-family: var(--f-mono); }
+.rt-paras p { margin: 0 0 .7em; line-height: 1.7; }
+.rt-sheet--letter { background: rgb(255 255 255 / .28); }
+.rt-notes { margin: .7em 0 0; padding: 0; list-style: none; font-size: .84em; line-height: 1.6; }
+.rt-notes li { padding-left: 1.1em; text-indent: -1.1em; }
+.rt-notes li::before { content: '※ '; color: rgb(30 24 16 / .5); }
+.rt-sign { margin: .8em 0 0; text-align: right; font: 500 .78em/1.4 var(--f-mono); color: rgb(30 24 16 / .6); }
+@media (max-width: 640px) {
+  .rt-sheet { padding: .9em .7em; }
+  .rt-table { font-size: .78em; }
+  .rt-table th, .rt-table td { padding: .35em .3em; }
+}
+
 /* TOP SECRET: shut with string wound round two washers */
 .cv-string { position: absolute; left: 86%; top: 46%; width: 3em; height: 9em; margin-left: -1.5em; z-index: 2; }
 .cv-washer { position: absolute; left: 50%; top: 0; width: 2.2em; height: 2.2em; margin-left: -1.1em; border-radius: 50%; background: radial-gradient(circle, #5a120d .32em, #b3271c .36em, #8e1d15 1.05em); box-shadow: 0 1px 3px rgb(0 0 0 / .45); }

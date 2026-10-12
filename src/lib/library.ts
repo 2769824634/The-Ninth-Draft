@@ -305,47 +305,56 @@ export function buildLibrary(records: ClientRecord[], base: string, books: LibBo
   ];
 
   /* ---------------- the card catalogue ---------------- */
-  // the finding aid for the archive: a card says what a file is and where it is kept
-  const CATS = [
-    { id: 'personnel', code: 'P', en: 'Personnel', zh: '人员' },
-    { id: 'events', code: 'E', en: 'Events', zh: '事件' },
-    { id: 'programs', code: 'R', en: 'Programs', zh: '计划' },
-  ] as const;
+  // the finding aid for this room only: one card a publication, with its call number and
+  // where it stands. The Office's files are indexed in the archive's own card cabinet.
+  const WHERE: Record<LibBay['zone'], L> = {
+    rack: { en: 'Newspaper rack', zh: '报刊架' },
+    stacks: { en: 'Stacks', zh: '书墙' },
+    desk: { en: 'Circulation desk', zh: '借还台' },
+  };
+  // a run of call numbers is written once: GD 06–11, PD 007–012
+  const span = (a: string, z: string) => {
+    const last = (x: string) => x.slice(x.lastIndexOf('/') + 1);
+    return `${a.split('/')[0]} ${last(a)}${a === z ? '' : `–${last(z)}`}`;
+  };
+  // a spine is set in capitals; the card is typed in ordinary case
+  const proper = (s: string) => (s === s.toUpperCase() ? s.toLowerCase().replace(/(^|[\s-])\w/g, (c) => c.toUpperCase()) : s);
+  const paperTitle = (mark: string): L => {
+    const mm = mark.match(/\/99\/(\d\d)$/)?.[1];
+    return mm
+      ? { en: `The Gerimis Daily, ${MONTHS_EN[Number(mm) - 1]} 1999`, zh: `霏微日报 · 1999 年 ${Number(mm)} 月` }
+      : { en: 'The Gerimis Daily, before 1999', zh: '霏微日报 · 1999 年以前' };
+  };
   const catalogue: CatDrawer[] = [];
-  for (const c of CATS) {
-    const recs = records.filter((r) => r.category === c.id).sort((a, b) => a.file.localeCompare(b.file));
-    for (let i = 0; i < recs.length; i += PER_DRAWER) {
-      const chunk = recs.slice(i, i + PER_DRAWER);
+  for (const bay of [...bays].sort((x, y) => x.code.localeCompare(y.code))) {
+    for (let i = 0; i < bay.books.length; i += PER_DRAWER) {
+      const chunk = bay.books.slice(i, i + PER_DRAWER);
       catalogue.push({
-        label: `${chunk[0].file}–${chunk[chunk.length - 1].file}`,
-        cards: chunk.map((r) => {
-          const where = r.district ? DISTRICTS.find((d) => d.id === r.district) : null;
-          const date = isoDate(r.date);
-          return {
-            file: r.file,
-            slug: r.slug,
-            stamp: r.stamp,
-            date: islandDay(r.date),
-            title: title(r),
-            line: {
-              en: [c.en, where?.en, date ? longDate(date).en : null].filter(Boolean).join(' · '),
-              zh: [c.zh, where?.zh, date ? longDate(date).zh : null].filter(Boolean).join(' · '),
-            },
-          };
-        }),
+        label: span(chunk[0].mark, chunk[chunk.length - 1].mark),
+        cards: chunk.map((book) => ({
+          file: book.mark,
+          slug: book.id,
+          stamp: 'OPEN SHELF',
+          title: book.kind === 'news' ? paperTitle(book.mark) : bay.id === 'gazetteer' ? { en: `${bay.title.en}: ${proper(book.spine.en)}`, zh: `${bay.title.zh} · ${book.spine.zh}` } : { en: proper(book.spine.en), zh: book.spine.zh },
+          line: book.kind === 'news' ? WHERE[bay.zone] : { en: `${WHERE[bay.zone].en} · ${book.sub.en}`, zh: `${WHERE[bay.zone].zh} · ${book.sub.zh}` },
+          // a month of the paper is catalogued when it starts coming in
+          date: book.kind === 'news' && /\/99\/\d\d$/.test(book.mark) ? `1999-${book.mark.slice(-2)}-01` : undefined,
+        })),
       });
     }
   }
-  // the rest of the cabinet is labelled for files that have not come in yet
-  const next: Record<string, number> = {};
-  for (const c of CATS) next[c.code] = records.filter((r) => r.category === c.id).length + 1;
+  // the rest of the cabinet is labelled for books and counter copies still to come
+  const tail = (bay: string, stem: string, pad: number) => {
+    const n = bays.find((x) => x.id === bay)?.books.length ?? 0;
+    return { stem, pad, next: n + 1 };
+  };
+  const more = [tail('books', 'PD/', 3), tail('counter', 'RO/G/', 2)];
   let k = 0;
   while (catalogue.length < CAT_DRAWERS) {
-    const c = CATS[k++ % CATS.length];
-    const from = next[c.code];
-    next[c.code] += PER_DRAWER;
-    const f = (n: number) => `${c.code}-${String(n).padStart(4, '0')}`;
-    catalogue.push({ label: `${f(from)}–${f(from + PER_DRAWER - 1)}`, cards: [] });
+    const m = more[k++ % more.length];
+    const f = (n: number) => `${m.stem}${String(n).padStart(m.pad, '0')}`;
+    catalogue.push({ label: span(f(m.next), f(m.next + PER_DRAWER - 1)), cards: [] });
+    m.next += PER_DRAWER;
   }
 
   return { bays, catalogue };

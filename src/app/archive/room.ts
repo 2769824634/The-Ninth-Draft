@@ -22,6 +22,10 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { Studer, spun } from './studer';
 import { REEL_BOXES } from './reels';
 import { dress, scan } from '../scene/pbr';
+import { ROUTINE_BANKS, ROUTINE_DRAWERS } from './routine';
+
+/** The routine cabinets' place after the three formal categories. */
+const ROUTINE_CI = 3;
 
 export const AR = { x0: -5.6, x1: 5.6, z0: -3.6, z1: 3.6, h: 3.4, wall: 0.22, slab: 0.24 };
 const CAB = { w: 0.47, d: 0.62, h: 1.32, n: 4 };
@@ -200,7 +204,7 @@ export class StacksRoom {
   private folderModel(category: string, map: THREE.Texture) {
     const W = 0.235, D = 0.32;
     const g = new THREE.Group();
-    const body = category === 'events' ? this.M.kraft : category === 'programs' ? std({ color: '#55625a', roughness: 0.85 }) : this.M.manila;
+    const body = category === 'routine' ? this.M.routine : category === 'events' ? this.M.kraft : category === 'programs' ? std({ color: '#55625a', roughness: 0.85 }) : this.M.manila;
     const slab = this.rbox(g, W, 0.01, D, 0.002, 0, 0.005, 0, body);
     slab.castShadow = true;
     const face = new THREE.Mesh(new THREE.PlaneGeometry(W - 0.005, D - 0.005), std({ map, roughness: 0.85 }));
@@ -382,6 +386,8 @@ export class StacksRoom {
     skirting: std({ color: '#2e1d12', roughness: 0.6 }),
     cream: std({ color: '#efe9da', roughness: 0.5 }),
     kraft: std({ color: '#c29d68', roughness: 0.9 }),
+    // the district offices' grey-green pressboard folders, thinner than the formal files
+    routine: std({ color: '#7f8f7a', roughness: 0.88 }),
     kraftD: std({ color: '#a8844f', roughness: 0.95 }),
     manila: std({ color: '#d8c79c', roughness: 0.9 }),
     enamelW: std({ color: '#f2efe6', roughness: 0.3, metalness: 0.1 }),
@@ -667,28 +673,44 @@ export class StacksRoom {
     });
   }
 
-  /** 02 · routine paperwork: two free-standing banks, cabinets back to back, by region. */
+  /**
+   * 02 · routine paperwork: two free-standing banks, cabinets back to back,
+   * one drawer a district (src/app/archive/routine.ts). The first bank holds
+   * the Central and East districts, the second North, North-East and West;
+   * the drawers left over at the end of each are spares.
+   */
   private routine() {
     const M = this.M;
-    const REG: [string, string, string[]][] = [
-      ['北部', 'NORTH', ['兀兰', '义顺', '三巴旺', '实里达']],
-      ['东北部', 'NORTH-EAST', ['宏茂桥', '后港', '实龙岗', '盛港']],
-      ['东部', 'EAST', ['勿洛', '淡滨尼', '白沙', '樟宜']],
-      ['西部', 'WEST', ['裕廊东', '武吉巴督', '蔡厝港', '金文泰']],
-    ];
+    const two = (n: number) => String(n).padStart(2, '0');
+    const cabs: THREE.Group[] = [];
     [-1.63, 1.21].forEach((bx, bi) => {
-      for (const side of [1, -1]) {
-        const reg = REG[bi * 2 + (side > 0 ? 1 : 0)];
+      [1, -1].forEach((side, si) => {
         for (let k = 0; k < 4; k++) {
+          const q = bi * 8 + si * 4 + k;
           const z = -2.95 + k * (CAB.w + 0.004) + CAB.w / 2;
-          const pulls = bi === 0 && side > 0 && k === 1 ? [0, 0, 0, 0.34] : bi === 1 && side < 0 && k === 2 ? [0, 0, 0.22, 0] : bi === 1 && side > 0 && k === 3 ? [0, 0.15, 0, 0] : [];
-          this.cabinet(bx + side * CAB.d, z, (side * Math.PI) / 2, (i) => [reg[2][k], reg[1], `1999 · Q${4 - i}`], pulls);
+          // drawer i counts up from the floor; the routine drawers are numbered from the top
+          const at = (i: number) => q * CAB.n + (CAB.n - 1 - i);
+          const cab = this.cabinet(bx + side * CAB.d, z, (side * Math.PI) / 2, (i) => {
+            const d = ROUTINE_DRAWERS[at(i)]?.district;
+            return d ? [d.zh, d.en.toUpperCase(), `RT · ${two(at(i) + 1)}`] : ['备用', 'SPARE', `RT · ${two(at(i) + 1)}`];
+          });
+          (cab.userData.drawers as THREE.Group[]).forEach((dg, i) => {
+            const dh = dg.userData.dh as number;
+            const hb = new THREE.Mesh(BOX, new THREE.MeshBasicMaterial({ visible: false }));
+            hb.scale.set(CAB.w - 0.03, dh - 0.016, 0.06);
+            hb.position.set(0, dh / 2, 0.02);
+            hb.userData = { rtd: at(i), key: `rtd:${at(i)}` };
+            dg.add(hb);
+            this.hits.push(hb);
+          });
+          cabs[q] = cab;
         }
-      }
+      });
       const endZ = -2.95 + 4 * (CAB.w + 0.004) + 0.012;
       this.rbox(this.group, CAB.d * 2 + 0.04, CAB.h + 0.04, 0.022, 0.006, bx, (CAB.h + 0.04) / 2, endZ, std({ color: '#c9c6b8', roughness: 0.4, metalness: 0.1 }));
-      const a = REG[bi * 2], b = REG[bi * 2 + 1];
-      const ep = plate([[`700 46px ${KU}`, `${a[0]} · ${b[0]}`, 26, 72], [`600 24px ${DIN}`, `${a[1]} · ${b[1]}`, 28, 116], [`600 20px ${DIN}`, 'ROUTINE PAPERWORK 1999', 28, 146, '#c9c1ad']], 512, 170, '#26302a', '#efe8d6', '#c9c1ad');
+      const lab = ROUTINE_BANKS[bi].label;
+      const big = lab.zh.length > 6;
+      const ep = plate([[`700 ${big ? 34 : 46}px ${KU}`, lab.zh, 26, 72], [`600 ${big ? 18 : 24}px ${DIN}`, lab.en.toUpperCase(), 28, 116], [`600 20px ${DIN}`, 'ROUTINE PAPERWORK 1999', 28, 146, '#c9c1ad']], 512, 170, '#26302a', '#efe8d6', '#c9c1ad');
       this.box(this.group, 0.8, 0.28, 0.008, bx, 1.05, endZ + 0.014, M.brass, false);
       this.quad(this.group, 0.76, 0.25, ep, bx, 1.05, endZ + 0.02);
       this.rbox(this.group, 0.36, 0.2, 0.01, 0.004, bx, 0.55, endZ + 0.016, M.cream, false);
@@ -696,13 +718,12 @@ export class StacksRoom {
       const sg = new THREE.Group();
       sg.position.set(bx, 2.35, endZ - 0.2);
       this.group.add(sg);
-      const t = plate([[`700 70px ${KU}`, b[0], 30, 92], [`600 28px ${DIN}`, b[1], 32, 132], [`700 30px ${KU}`, '署内例行', 330, 80, '#c9c1ad'], [`600 22px ${DIN}`, 'ROUTINE', 330, 112, '#c9c1ad']], 512, 160, '#26302a', '#efe8d6', '#c9c1ad');
+      const t = plate([[`700 ${big ? 40 : 60}px ${KU}`, lab.zh, 30, 92], [`600 ${big ? 20 : 26}px ${DIN}`, lab.en.toUpperCase(), 32, 132], [`700 30px ${KU}`, '署内例行', 360, 60, '#c9c1ad'], [`600 22px ${DIN}`, 'ROUTINE', 360, 88, '#c9c1ad']], 512, 160, '#26302a', '#efe8d6', '#c9c1ad');
       this.rbox(sg, 0.9, 0.3, 0.03, 0.01, 0, 0, 0, M.cream);
       this.quad(sg, 0.88, 0.275, t, 0, 0, 0.016);
       for (const sx of [-0.36, 0.36]) this.box(sg, 0.006, AR.h - 2.35, 0.006, sx, (AR.h - 2.35) / 2 + 0.15, 0, M.steelDark, false);
-      const zMid = (-2.95 + endZ) / 2;
-      this.hit({ bank: bi, key: `bank:${bi}` }, CAB.d * 2 + 0.1, CAB.h + 0.1, endZ + 2.95, bx, (CAB.h + 0.1) / 2, zMid);
     });
+    this.formalCabs[ROUTINE_CI] = cabs;
   }
 
   /* ---------------- lamps ---------------- */
@@ -1562,6 +1583,14 @@ export class StacksRoom {
     return (this.formalCabs[ci] ?? []).flatMap((c) => [...(c.userData.drawers as THREE.Group[])].reverse());
   }
 
+  /** Which way a drawer faces, in the room (its cabinet's front). */
+  drawerFacing(ci: number, d: number) {
+    const dg = this.drawersOf(ci)[d];
+    if (!dg) return new THREE.Vector3(1, 0, 0);
+    dg.updateWorldMatrix(true, false);
+    return new THREE.Vector3(0, 0, 1).transformDirection(dg.matrixWorld).setY(0).normalize();
+  }
+
   /** Where the front of a drawer is when it is pulled out, in the room. */
   drawerFront(ci: number, d: number) {
     const dg = this.drawersOf(ci)[d];
@@ -1605,7 +1634,7 @@ export class StacksRoom {
     const step = Math.min(0.04, (L - 0.1) / n);
     const fw = iw - 0.03, fh = dh * 0.72;
     const top = dh * 0.82;
-    const mats: Record<string, THREE.Material> = { personnel: M.manila, events: M.kraft, programs: std({ color: '#9aa197', roughness: 0.85 }) };
+    const mats: Record<string, THREE.Material> = { personnel: M.manila, events: M.kraft, programs: std({ color: '#9aa197', roughness: 0.85 }), routine: M.routine };
     const secret = std({ color: '#8f5a3c', roughness: 0.9 });
     const red = std({ color: '#b4302a', roughness: 0.6 });
     items.forEach((it, i) => {
@@ -1853,7 +1882,7 @@ export class StacksRoom {
     const M = this.M;
     const W = 0.235, D = 0.32;
     const g = new THREE.Group();
-    const body = category === 'events' ? M.kraft : category === 'programs' ? std({ color: '#55625a', roughness: 0.85 }) : M.manila;
+    const body = category === 'routine' ? M.routine : category === 'events' ? M.kraft : category === 'programs' ? std({ color: '#55625a', roughness: 0.85 }) : M.manila;
     this.rbox(g, W, 0.006, D, 0.002, 0, 0.003, 0, body);
     // the sheet inside, a little smaller than the board
     const leaf = new THREE.Mesh(new THREE.PlaneGeometry(W - 0.02, D - 0.02), std({ map: sheet(file.length * 7 + file.charCodeAt(file.length - 1), '', false), roughness: 0.9 }));

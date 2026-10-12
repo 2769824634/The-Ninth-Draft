@@ -9,7 +9,8 @@ export interface Attachment {
   draft?: number;
 }
 
-export type CategoryId = 'personnel' | 'events' | 'programs';
+/** 'routine' is the district offices' monthly folders in the routine cabinets: never in the archive data, only made up in the stacks. */
+export type CategoryId = 'personnel' | 'events' | 'programs' | 'routine';
 
 export interface Category {
   id: CategoryId;

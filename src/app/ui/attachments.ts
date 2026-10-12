@@ -97,6 +97,8 @@ function body(a: Attachment, rec: ArchiveRecord, i: number) {
 
 /** Markup for the Overview tab. */
 export function attachmentsHtml(rec: ArchiveRecord) {
+  // a district office's routine folder is routed on its own cover, and has nothing clipped to it
+  if (rec.category === 'routine') return '';
   const s = hash(rec.file);
   const items = [
     `<button type="button" class="clip clip--slip" style="--r:${(jitter(s, 0) * 3).toFixed(2)}deg" aria-label="${t('Routing slip')}">${routingSlip(rec)}</button>`,
