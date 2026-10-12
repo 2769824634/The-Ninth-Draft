@@ -504,6 +504,15 @@ export class StacksScene {
     this.camera.position.copy(look).addScaledVector(camDir.normalize(), dist);
     this.camera.lookAt(look);
     this.camera.updateMatrixWorld();
+    // sitting down, the long lens looks at the blotter from high over the chair, past the pendant above the table:
+    // the fitting is left out of the picture where it would stand between the eye and the paper; its light stays on
+    this.sight.set(this.camera.position, look);
+    for (const pd of this.room.pendants) {
+      let near = false;
+      for (let y = -0.12; y <= pd.drop && !near; y += 0.08) near = this.sight.closestPointToPoint(this.v1.set(pd.at.x, pd.at.y + y, pd.at.z), true, this.v2).distanceTo(this.v1) < 0.24;
+      const off = this.seated && near;
+      for (const o of pd.body) o.visible = !off;
+    }
 
     if (drawing()) this.renderer.render(this.scene, this.camera);
   }
@@ -511,6 +520,7 @@ export class StacksScene {
   /* ---------------- the light on a page ---------------- */
   private v1 = new THREE.Vector3();
   private v2 = new THREE.Vector3();
+  private sight = new THREE.Line3();
   private v3 = new THREE.Vector3();
   private v4 = new THREE.Vector3();
   private bestAt = new THREE.Vector3();

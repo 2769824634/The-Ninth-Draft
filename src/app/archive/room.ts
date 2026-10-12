@@ -55,6 +55,9 @@ export interface Pendant {
   glass: THREE.MeshStandardMaterial;
   row: number;
   at: THREE.Vector3;
+  /** The fitting itself (rod, gallery, glass, bulb), without its lights. */
+  body: THREE.Object3D[];
+  drop: number;
 }
 
 let haze: THREE.Texture | null = null;
@@ -742,7 +745,8 @@ export class StacksRoom {
     g.add(light, light.target);
     const fill = new THREE.PointLight('#ffe7c0', 0, 4, 1.8);
     g.add(fill);
-    this.pendants.push({ light, fill, bulb, glass, row, at: new THREE.Vector3(x, AR.h - drop, z) });
+    const body = g.children.filter((o) => (o as THREE.Mesh).isMesh);
+    this.pendants.push({ light, fill, bulb, glass, row, at: new THREE.Vector3(x, AR.h - drop, z), body, drop });
   }
 
   /** The two reading lamps, each turned to the file on its own blotter. */
