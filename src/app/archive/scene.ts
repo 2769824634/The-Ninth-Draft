@@ -22,7 +22,8 @@ import { islandNow } from '../island';
 import { StacksRoom, AR, WINDOWS, type StacksCategory } from './room';
 import { setStacksAniso } from './textures';
 import { laidOver } from './homography';
-import { checking, drawing, pixelRatio, shadows } from '../check';
+import { checking, drawing, shadows } from '../check';
+import { ShadowCache, Resolution, keepWarm, off } from '../scene/budget';
 import { setPbrAniso } from '../scene/pbr';
 
 export type StacksZone = 'overview' | 'formal' | 'routine' | 'reading' | 'counter' | 'door' | 'reel';
@@ -128,6 +129,9 @@ const UP = new THREE.Vector3(0, 1, 0);
 
 export class StacksScene {
   private renderer: THREE.WebGLRenderer;
+  private shadowCache: ShadowCache;
+  private res = new Resolution(1.75, () => this.resize());
+  private warm = 0;
   private scene = new THREE.Scene();
   private camera = new THREE.PerspectiveCamera(19, 1, 0.1, 200);
   private hemi = new THREE.HemisphereLight(0xfff6e8, 0x8a8070, 1);
@@ -180,7 +184,8 @@ export class StacksScene {
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.renderer.toneMappingExposure = 1;
     this.renderer.shadowMap.enabled = shadows;
-    this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    this.renderer.shadowMap.type = THREE.PCFShadowMap;
+    this.shadowCache = new ShadowCache(this.renderer, this.scene);
     setStacksAniso(Math.min(8, this.renderer.capabilities.getMaxAnisotropy()));
     setPbrAniso(Math.min(8, this.renderer.capabilities.getMaxAnisotropy()));
     const pmrem = new THREE.PMREMGenerator(this.renderer);
@@ -210,6 +215,7 @@ export class StacksScene {
     this.bind();
     this.resize();
     this.view.dist.set(this.fit(v));
+    this.warm = keepWarm(this.renderer, this.scene, this.camera);
     this.loop();
   }
 
@@ -393,6 +399,7 @@ export class StacksScene {
     const now = performance.now();
     const dt = Math.min((now - this.last) / 1000, 0.1);
     this.last = now;
+    this.res.frame(now);
     const t = (now - this.t0) / 1000;
     const k = damp(2.2, dt);
     const L = this.look, T = this.lookTarget;
@@ -413,16 +420,13 @@ export class StacksScene {
     const beamK = day * (1 - wet) * (1 - this.blindK) * Math.max(0, Math.min(1, (hour - 6.5) / 1.5)) * Math.max(0, Math.min(1, (19 - hour) / 1.5));
     const shade = 1 - 0.14 * beamK;
     this.hemi.intensity = L.hemi * (1 - wet * 0.2) * open * (1 - 0.6 * this.hush) * shade;
-    this.sun.intensity = L.sun * (1 - wet * 0.4) * open;
-    this.sun.visible = this.sun.intensity > 0.05;
+    this.sun.intensity = off(L.sun * (1 - wet * 0.4) * open, 0.05);
     this.sun.color.set('#fff1d8').lerp(new THREE.Color('#dfe6ee'), wet).lerp(new THREE.Color('#ffc890'), dusk * (1 - wet) * 0.7);
     this.scene.environmentIntensity = L.env * (1 - wet * 0.2) * open * (1 - 0.6 * this.hush) * shade;
     // outside at night: the sodium lamp always, the moon when it is up and the sky is clear
     const moon = this.moonK * L.night;
-    r.street.intensity = L.street * (this.moonK > 0.18 ? 0.5 : 1) * open;
-    r.street.visible = r.street.intensity > 0.1;
-    r.moon.intensity = moon * 0.9 * open;
-    r.moon.visible = r.moon.intensity > 0.01;
+    r.street.intensity = off(L.street * (this.moonK > 0.18 ? 0.5 : 1) * open, 0.1);
+    r.moon.intensity = off(moon * 0.9 * open, 0.01);
     r.paperShadow.opacity = 0.3 + L.night * 0.3;
     const patch = new THREE.Color('#fff3d6').lerp(new THREE.Color('#ffb46a'), dusk);
     const nightPatch = new THREE.Color('#ff9a3c').lerp(new THREE.Color('#9fb2e6'), Math.min(1, this.moonK * 1.6));
@@ -452,8 +456,7 @@ export class StacksScene {
     const quiet = 1 - 0.92 * this.hush;
     for (const p of r.pendants) {
       const lv = this.rowLevel[p.row] * quiet;
-      p.light.intensity = L.pendant * lv * LAMP;
-      p.light.visible = p.light.intensity > 0.01;
+      p.light.intensity = off(L.pendant * lv * LAMP, 0.01);
       p.fill.intensity = lv * (0.4 + L.night * 0.25) * LAMP;
       p.bulb.emissiveIntensity = 0.05 + lv * (0.6 + L.night * 1.9);
       p.glass.emissiveIntensity = 0.02 + lv * (0.15 + L.night * 0.75);
@@ -463,12 +466,10 @@ export class StacksScene {
       // each reading lamp comes on by itself when a file is open under it; the pull chain overrides
       const wanted = this.desks[i] || (i < 2 && this.seated && r.occupied(i === 0 ? 'l' : 'r'));
       this.deskLevel[i] += ((wanted ? 1 : 0) - this.deskLevel[i]) * Math.min(1, dt * (wanted ? 7 : 4.5));
-      d.light.intensity = L.desk * this.deskLevel[i] * (i === 2 ? 0.38 : LAMP * 1.7 * lampK);
-      d.light.visible = d.light.intensity > 0.01;
+      d.light.intensity = off(L.desk * this.deskLevel[i] * (i === 2 ? 0.38 : LAMP * 1.7 * lampK), 0.01);
       d.inner.emissiveIntensity = 0.05 + this.deskLevel[i] * (0.4 + L.night * 0.8);
     });
-    r.pictureLight.intensity = this.rowLevel[0] * (0.6 + L.night * 2.4);
-    r.pictureLight.visible = r.pictureLight.intensity > 0.01;
+    r.pictureLight.intensity = off(this.rowLevel[0] * (0.6 + L.night * 2.4), 0.01);
     if (this.readPoint && this.seated) this.readPoint.copy(this.room.mainSpot());
     if (this.readPoint) this.reportPaper(dt);
     this.reportSheet();
@@ -505,7 +506,10 @@ export class StacksScene {
     this.camera.lookAt(look);
     this.camera.updateMatrixWorld();
 
-    if (drawing()) this.renderer.render(this.scene, this.camera);
+    if (drawing()) {
+      this.shadowCache.update();
+      this.renderer.render(this.scene, this.camera);
+    }
   }
 
   /* ---------------- the light on a page ---------------- */
@@ -699,7 +703,7 @@ export class StacksScene {
   private resize() {
     const w = this.canvas.clientWidth, h = this.canvas.clientHeight;
     if (!w || !h) return;
-    this.renderer.setPixelRatio(pixelRatio(1.75));
+    this.renderer.setPixelRatio(this.res.ratio);
     this.renderer.setSize(w, h, false);
     this.camera.fov = w / h < 0.85 ? 30 : 19;
     this.camera.aspect = w / h;
@@ -708,5 +712,6 @@ export class StacksScene {
 
   dispose() {
     cancelAnimationFrame(this.raf);
+    clearInterval(this.warm);
   }
 }

@@ -18,6 +18,7 @@ import { Book, Leaves, PageCache } from './books';
 import { Room, ROOM, TABLE_H, shelfPose, type ShelfRun } from './room';
 import { dustTexture, plateTexture } from './textures';
 import { checking, drawing, shadows } from '../check';
+import { ShadowCache, keepWarm, off } from '../scene/budget';
 
 export type Zone = 'overview' | 'stacks' | 'rack' | 'catalogue' | 'desk';
 export const ZONES: Zone[] = ['overview', 'rack', 'stacks', 'catalogue', 'desk'];
@@ -79,6 +80,8 @@ const smooth = (a: number, b: number, x: number) => {
 
 export class LibraryScene {
   private renderer: THREE.WebGLRenderer;
+  private shadowCache!: ShadowCache;
+  private warm = 0;
   private scene = new THREE.Scene();
   private camera = new THREE.PerspectiveCamera(19, 1, 0.1, 200);
   private hemi = new THREE.HemisphereLight(0xfffaf0, 0xb3a184, 1);
@@ -153,6 +156,7 @@ export class LibraryScene {
     this.renderer.toneMapping = THREE.NoToneMapping;
     this.renderer.shadowMap.enabled = shadows;
     this.renderer.shadowMap.type = THREE.PCFShadowMap;
+    this.shadowCache = new ShadowCache(this.renderer, this.scene);
     try {
       const gl = this.renderer.getContext();
       const info = gl.getExtension('WEBGL_debug_renderer_info');
@@ -408,6 +412,7 @@ export class LibraryScene {
       if (!document.hidden) this.frame();
     };
     loop();
+    this.warm ||= keepWarm(this.renderer, this.scene, this.camera);
   }
 
   setTheme(theme: 'day' | 'night') {
@@ -651,8 +656,7 @@ export class LibraryScene {
     this.room.showBeams(this.camera.position);
 
     // the night key follows what we look at
-    this.key.intensity = L.key * (1 - reading * 0.45);
-    this.key.visible = this.key.intensity > 0.3;
+    this.key.intensity = off(L.key * (1 - reading * 0.45), 0.3);
     const keyAt = this.active && this.tl > 0 ? this.active.group.position : at;
     this.key.position.lerp(new THREE.Vector3(keyAt.x + 0.6, 4.6, keyAt.z + 0.8), damp(3, dt));
     this.key.target.position.lerp(keyAt, damp(3, dt));
@@ -688,7 +692,10 @@ export class LibraryScene {
     if (this.active) this.pose(this.active, dt);
     this.leaves.update(dt);
 
-    if (drawing()) this.renderer.render(this.scene, this.camera);
+    if (drawing()) {
+      this.shadowCache.update();
+      this.renderer.render(this.scene, this.camera);
+    }
     this.measure(now - (this.frameStart || now));
     this.frameStart = now;
   }

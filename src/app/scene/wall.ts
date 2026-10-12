@@ -11,7 +11,8 @@ import { Spring, SpringV3, damp } from '../spring';
 import { reducedMotion } from '../prefs';
 import { t } from '../i18n';
 import { boardTexture, CARD, cardTexture, gridTexture, hash, loadPhoto, setMaxAnisotropy, sweepTexture } from './textures';
-import { checking, drawing, pixelRatio, shadows } from '../check';
+import { checking, drawing, shadows } from '../check';
+import { ShadowCache, Resolution, keepWarm } from './budget';
 
 const KEY = 'n9:wall';
 const CARD_Z = 0.03;
@@ -86,6 +87,9 @@ const needleMat = new THREE.MeshStandardMaterial({ color: '#a7abb0', roughness: 
 
 export class Wall {
   private renderer: THREE.WebGLRenderer;
+  private shadowCache!: ShadowCache;
+  private warm = 0;
+  private res = new Resolution(1.75, () => this.resize());
   private scene = new THREE.Scene();
   private camera = new THREE.PerspectiveCamera(28, 1, 0.5, 120);
   private hemi = new THREE.HemisphereLight(0xffffff, 0x8a8172, 1.4);
@@ -138,6 +142,7 @@ export class Wall {
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.shadowMap.enabled = shadows;
     this.renderer.shadowMap.type = THREE.PCFShadowMap;
+    this.shadowCache = new ShadowCache(this.renderer, this.scene);
     setMaxAnisotropy(Math.min(8, this.renderer.capabilities.getMaxAnisotropy()));
 
     this.sun.castShadow = true;
@@ -402,6 +407,7 @@ export class Wall {
       if (!document.hidden) this.frame();
     };
     loop();
+    this.warm ||= keepWarm(this.renderer, this.scene, this.camera);
   }
 
   stop() {
@@ -578,6 +584,7 @@ export class Wall {
   /* ------------------------------------------------------------------ */
   private frame() {
     const now = performance.now();
+    this.res.frame(now);
     const dt = Math.min((now - this.last) / 1000, 0.05);
     this.last = now;
 
@@ -642,7 +649,10 @@ export class Wall {
       l.mat.emissive.setRGB(0.25 * hot, 0.02 * hot, 0);
     }
 
-    if (drawing()) this.renderer.render(this.scene, this.camera);
+    if (drawing()) {
+      this.shadowCache.update();
+      this.renderer.render(this.scene, this.camera);
+    }
   }
 
   /** Sweep band across the board, pings, and the coordinate readout. */
@@ -835,7 +845,7 @@ export class Wall {
   private resize() {
     const w = this.canvas.clientWidth, h = this.canvas.clientHeight;
     if (!w || !h) return;
-    this.renderer.setPixelRatio(pixelRatio(1.75));
+    this.renderer.setPixelRatio(this.res.ratio);
     this.renderer.setSize(w, h, false);
     this.camera.aspect = w / h;
     this.camera.updateProjectionMatrix();

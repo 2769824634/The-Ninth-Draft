@@ -662,7 +662,8 @@ export function start() {
 
   /* ---------------- controls ---------------- */
   $('btn-back').addEventListener('click', () => closeRecord());
-  $('nav-links').addEventListener('click', (e) => {
+  // the Links entry left the archive's nav; old addresses still reach the wall
+  document.getElementById('nav-links')?.addEventListener('click', (e) => {
     if (e.metaKey || e.ctrlKey) return;
     e.preventDefault();
     if (roomTarget === 'wall') leaveWall(null);
