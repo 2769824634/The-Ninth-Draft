@@ -186,7 +186,7 @@ export function buildLibrary(records: ClientRecord[], base: string, books: LibBo
     const mm = String(i + 1).padStart(2, '0');
     return volume(
       `daily-${mm}`,
-      `GD/99/${mm}`,
+      `AD/99/${mm}`,
       { en: `DAILY ${MON[i]}`, zh: `日报 ${ZH_MONTH[i]}月` },
       both('1999'),
       { en: `The Ashmere Daily · ${m} 1999`, zh: `《雨洲日报》· 1999 年 ${ZH_MONTH[i]}月` },
@@ -203,7 +203,7 @@ export function buildLibrary(records: ClientRecord[], base: string, books: LibBo
     daily.unshift(
       volume(
         'daily-early',
-        'GD/PRE',
+        'AD/PRE',
         { en: 'DAILY PRE-99', zh: '日报 旧年' },
         { en: 'Earlier', zh: '往年' },
         { en: 'The Ashmere Daily · before 1999', zh: '《雨洲日报》· 1999 年以前' },
