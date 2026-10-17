@@ -1,5 +1,5 @@
 /**
- * The street map of Gerimis: a 1999 street directory you can drag and zoom.
+ * The street map of Ashmere: a 1999 street directory you can drag and zoom.
  *
  * Drawn on a canvas from public/map/base.json (the island) and detail.json
  * (close up: small roads, HDB blocks), both made by scripts/map/build.py from

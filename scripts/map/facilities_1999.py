@@ -138,7 +138,7 @@ LISTED = [
     ('sc', 'Teck Whye Shopping Centre', '德惠购物中心', 1985, None, None),
 
     # hospitals
-    ('hp', 'Gerimis General Hospital', '霏微中央医院', 1926, 'Singapore General Hospital', None),
+    ('hp', 'Ashmere General Hospital', '雨洲中央医院', 1926, 'Singapore General Hospital', None),
     ('hp', 'Tan Tock Seng Hospital', '陈笃生医院', 1909, None, None),
     ("hp", "KK Women's and Children's Hospital", '竹脚妇幼医院', 1997, None, None),
     ('hp', 'National University Hospital', '国立大学医院', 1985, None, None),

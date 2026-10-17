@@ -1,5 +1,5 @@
 /**
- * The Gerimis Daily, laid out on the reading table.
+ * The Ashmere Daily, laid out on the reading table.
  *
  * A month of papers hangs on one stick of the rack. Taking the stick down
  * fetches that month (library/daily/<yyyy-mm>.json) and spreads the chosen
@@ -275,7 +275,7 @@ export class Paper {
     const prevOk = this.date > '1999-01-01' && this.date.startsWith('1999');
     const nextOk = this.date < today && this.date.startsWith('1999');
     bar.innerHTML = `
-      <p class="np-bar__vol">${zh ? '霏微日报' : 'The Gerimis Daily'} · ${esc(monthName(this.month))}</p>
+      <p class="np-bar__vol">${zh ? '雨洲日报' : 'The Ashmere Daily'} · ${esc(monthName(this.month))}</p>
       <nav class="np-bar__pages" aria-label="${zh ? '版面' : 'Pages'}">${PAGES.map((p, i) => `<button type="button" data-np="page" data-n="${i}" aria-pressed="${i === this.page}"${x && x.date <= today ? '' : ' disabled'}><i>${i + 1}</i><span>${esc(T(p))}</span></button>`).join('')}</nav>
       <div class="np-bar__tools">
         <button type="button" data-np="yesterday"${prevOk ? '' : ' disabled'}>← ${zh ? '前一天' : 'Day before'}</button>
@@ -308,7 +308,7 @@ const W = (x: L) => esc(T(x));
 const copy = (html: string) => (html ? `<p>${html}</p>` : '');
 
 function runningHead(x: Issue, n: number) {
-  return `<header class="np-run"><span>${isZh() ? '霏微日报' : 'The Gerimis Daily'}</span><span>${esc(longDate(x.date))}</span><span>${isZh() ? `第 ${n} 版 · ${PAGES[n - 1].zh}` : `Page ${n} · ${PAGES[n - 1].en}`}</span></header>`;
+  return `<header class="np-run"><span>${isZh() ? '雨洲日报' : 'The Ashmere Daily'}</span><span>${esc(longDate(x.date))}</span><span>${isZh() ? `第 ${n} 版 · ${PAGES[n - 1].zh}` : `Page ${n} · ${PAGES[n - 1].en}`}</span></header>`;
 }
 
 function front(x: Issue, base: string) {
@@ -321,7 +321,7 @@ function front(x: Issue, base: string) {
         <b>${zh ? '天气' : 'Weather'}</b>
         <span>${W(x.weather)}</span>
       </div>
-      <h1 class="np-mast__name">${zh ? '霏微日报' : 'The Gerimis Daily'}</h1>
+      <h1 class="np-mast__name">${zh ? '雨洲日报' : 'The Ashmere Daily'}</h1>
       <div class="np-mast__ear np-mast__ear--r">
         <b>${zh ? '每份二角' : '20 cents'}</b>
         <span>${zh ? '晚报版 · 共四版' : 'Late edition · 4 pages'}</span>
@@ -421,7 +421,7 @@ function notices(x: Issue, base: string) {
           <h4 class="np-boxh">${zh ? '本周活动' : 'What’s on'}</h4>
           ${x.events.map((e) => `<p>${W(e)}</p>`).join('')}
         </section>
-        <p class="np-small">${zh ? '来信请寄：中枢巴刹巷 3 号 霏微日报编辑部。来信可能经删节。' : 'Write to the Editor, The Gerimis Daily, 3 Market Lane, Axis. Letters may be shortened.'}</p>
+        <p class="np-small">${zh ? '来信请寄：中枢巴刹巷 3 号 雨洲日报编辑部。来信可能经删节。' : 'Write to the Editor, The Ashmere Daily, 3 Market Lane, Axis. Letters may be shortened.'}</p>
       </section>
     </div>`;
 }
@@ -452,7 +452,7 @@ function classified(x: Issue) {
           <h4 class="np-boxh">${zh ? '今晚电视' : 'Tonight on television'}</h4>
           ${x.tv.map((t) => `<p class="np-tv">${W(t)}</p>`).join('')}
         </section>
-        <p class="np-imprint">${zh ? '霏微日报社出版发行。中枢巴刹巷 3 号。本报有关记录署事务的报道，以记录署公布的档案为准。' : 'Printed and published by the Gerimis Daily Press, 3 Market Lane, Axis. Reports on Records Office matters follow the files the Office has published.'}</p>
+        <p class="np-imprint">${zh ? '雨洲日报社出版发行。中枢巴刹巷 3 号。本报有关记录署事务的报道，以记录署公布的档案为准。' : 'Printed and published by the Ashmere Daily Press, 3 Market Lane, Axis. Reports on Records Office matters follow the files the Office has published.'}</p>
       </aside>
     </div>`;
 }

@@ -236,7 +236,7 @@ export function letters(
       : !prev
       ? { en: 'This is the first bill for this account. A deposit of $40.00 has been included and will be refunded when the account is closed.', zh: '这是本户口的第一张账单，已包括按金 40.00 元，户口结束时退还。' }
       : { en: `This account is still registered to ${prev.plate}. If you are the new occupant, please bring your tenancy papers to any Utilities Board office so that the account can be transferred to your name.`, zh: `此户口仍登记在 ${prev.plate} 名下。如您是新住户，请携带租住文件到任何一间公用事业局办事处办理过户。` };
-    return { kind: 'bill', from: { en: 'Gerimis Utilities Board', zh: '霏微公用事业局' }, to, date: `${dd(d)}.${dd(m + 1)}.99`,
+    return { kind: 'bill', from: { en: 'Ashmere Utilities Board', zh: '雨洲公用事业局' }, to, date: `${dd(d)}.${dd(m + 1)}.99`,
       body: {
         en: `Account ${acct}, ${door}\nBill for ${MON[m]} 1999\n\nElectricity, ${kwh} kWh: $${el.toFixed(2)}\nWater, ${m3} cubic metres: $${wa.toFixed(2)}\nRefuse collection: $${re.toFixed(2)}\nTotal due: $${tot}\n\nPlease pay by ${due} ${MON[m]} at any post office or Utilities Board office. A late charge of $2.00 applies after that date. Disregard this notice if you have already paid.\n\n${tail.en}`,
         zh: `户口 ${acct}，${door}\n1999 年 ${m + 1} 月账单\n\n电费，${kwh} 度：${el.toFixed(2)} 元\n水费，${m3} 立方米：${wa.toFixed(2)} 元\n垃圾清理费：${re.toFixed(2)} 元\n应缴总额：${tot} 元\n\n请于 ${m + 1} 月 ${due} 日前到任何邮局或公用事业局办事处缴付，逾期加收 2 元。已缴付者请勿理会。\n\n${tail.zh}`,
@@ -262,10 +262,10 @@ export function letters(
   const paper = (): Letter => {
     const { m, d } = pastDay();
     const end = Math.min(28, d + 14);
-    return { kind: 'paper', from: { en: 'The Gerimis Daily, circulation', zh: '霏微日报发行部' }, to, date: `${dd(d)}.${dd(m + 1)}.99`,
+    return { kind: 'paper', from: { en: 'The Ashmere Daily, circulation', zh: '雨洲日报发行部' }, to, date: `${dd(d)}.${dd(m + 1)}.99`,
       body: {
-        en: !prev && !born ? `Dear new resident,\n\nWelcome to Blk ${h.blk}. The Gerimis Daily can be delivered to ${door} every morning before 6.30 for $27.00 for three months, paid to your newsagent or at our counter in the Axis. The Sunday edition with the cinema listings and the classifieds is included.\n\nThis offer needs no reply if you are not interested.` : `Dear reader,\n\nYour three-month home delivery subscription ends on ${end} ${MON[m]} 1999. To keep receiving the paper at ${door} every morning before 6.30, please pay $27.00 to your newsagent, or at our counter in the Axis, before that date.\n\nThe Sunday edition with the cinema listings and the classifieds is included at no extra charge.\n\nIf you no longer wish to receive the paper, no action is needed. Delivery will stop on its own.`,
-        zh: !prev && !born ? `新住户您好：\n\n欢迎搬进 ${h.blk} 座。《霏微日报》可以每天早上六点半以前送到 ${door}，三个月 27 元，交给您的报贩或到我们在中枢的柜台缴付都可以。星期天那份有戏院场次和分类广告，不另收费。\n\n没兴趣的话不必回复。` : `读者您好：\n\n您订的三个月送报服务将于 1999 年 ${m + 1} 月 ${end} 日到期。如要继续每天早上六点半以前收到报纸，请在到期前把 27 元交给您的报贩，或到我们在中枢的柜台缴付。\n\n星期天那份附有戏院场次和分类广告，不另收费。\n\n如不再订阅，无须办理任何手续，到期自动停送。`,
+        en: !prev && !born ? `Dear new resident,\n\nWelcome to Blk ${h.blk}. The Ashmere Daily can be delivered to ${door} every morning before 6.30 for $27.00 for three months, paid to your newsagent or at our counter in the Axis. The Sunday edition with the cinema listings and the classifieds is included.\n\nThis offer needs no reply if you are not interested.` : `Dear reader,\n\nYour three-month home delivery subscription ends on ${end} ${MON[m]} 1999. To keep receiving the paper at ${door} every morning before 6.30, please pay $27.00 to your newsagent, or at our counter in the Axis, before that date.\n\nThe Sunday edition with the cinema listings and the classifieds is included at no extra charge.\n\nIf you no longer wish to receive the paper, no action is needed. Delivery will stop on its own.`,
+        zh: !prev && !born ? `新住户您好：\n\n欢迎搬进 ${h.blk} 座。《雨洲日报》可以每天早上六点半以前送到 ${door}，三个月 27 元，交给您的报贩或到我们在中枢的柜台缴付都可以。星期天那份有戏院场次和分类广告，不另收费。\n\n没兴趣的话不必回复。` : `读者您好：\n\n您订的三个月送报服务将于 1999 年 ${m + 1} 月 ${end} 日到期。如要继续每天早上六点半以前收到报纸，请在到期前把 27 元交给您的报贩，或到我们在中枢的柜台缴付。\n\n星期天那份附有戏院场次和分类广告，不另收费。\n\n如不再订阅，无须办理任何手续，到期自动停送。`,
       } };
   };
 
@@ -339,7 +339,7 @@ function register(v: Pick<Visitor, 'code' | 'origin' | 'dob' | 'since' | 'at'>, 
   if (v.origin === 'G') {
     const a = pick(r, JOBS), b = pick(r, JOBS.filter((j) => j !== a));
     const y1 = Math.min(1995, Math.max(built, by + 18) + Math.floor(r() * 3)), y2 = Math.min(1998, y1 + 2 + Math.floor(r() * 3));
-    lines.push({ en: `Place of birth: GERIMIS`, zh: '出生地：霏微' });
+    lines.push({ en: `Place of birth: ASHMERE`, zh: '出生地：雨洲' });
     lines.push({ en: `Occupation: ${b.en}`, zh: `职业：${b.zh}` });
     lines.push({ en: `Earlier entries at this address: ${y1}, ${a.en}; ${y2}, ${b.en}`, zh: `此地址以往记录：${y1} 年，${a.zh}；${y2} 年，${b.zh}` });
   } else if (v.origin === 'R') {
@@ -349,7 +349,7 @@ function register(v: Pick<Visitor, 'code' | 'origin' | 'dob' | 'since' | 'at'>, 
     lines.push({ en: `Earlier entries: arrived ${d2}; arrived ${d1}`, zh: `以往记录：${d2} 年抵岛；${d1} 年抵岛` });
   } else {
     name = offName(v.code);
-    lines.push({ en: 'Place of birth: GERIMIS', zh: '出生地：霏微' });
+    lines.push({ en: 'Place of birth: ASHMERE', zh: '出生地：雨洲' });
     const first = prev ? prev.since : Math.max(built, 1990) + Math.floor(r() * 4);
     lines.push({ en: `First registered at this address: ${first}`, zh: `首次在此地址登记：${first} 年` });
   }

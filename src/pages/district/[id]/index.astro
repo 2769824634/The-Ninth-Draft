@@ -92,8 +92,8 @@ const sec = () => String(++n).padStart(2, '0');
             >
               <a href={`${base}records/${r.slug}/`}><b>{r.file}</b><span data-l="en">{r.title}</span><span data-l="zh">{r.zh?.title ?? r.title}</span>{a && (
                 <small class="micro">
-                  <span data-l="en">{a.en}{a.postcode && ` · Gerimis ${a.postcode}`}{a.ref && ` · page ${a.ref}`}</span>
-                  <span data-l="zh">{a.zh}{a.postcode && ` · 霏微 ${a.postcode}`}{a.ref && ` · 第 ${a.ref.replace(' ', ' 页 ')}`}</span>
+                  <span data-l="en">{a.en}{a.postcode && ` · Ashmere ${a.postcode}`}{a.ref && ` · page ${a.ref}`}</span>
+                  <span data-l="zh">{a.zh}{a.postcode && ` · 雨洲 ${a.postcode}`}{a.ref && ` · 第 ${a.ref.replace(' ', ' 页 ')}`}</span>
                 </small>
               )}</a>
             </li>

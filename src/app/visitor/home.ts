@@ -68,7 +68,7 @@ export const doorText = (h: Pick<Home, 'postcode' | 'floor' | 'stack'>) => `#${S
 /** "Blk 7 Lorong Lew Lian #03-311", the way a letter is addressed. */
 export const addressLine = (h: Home, zh: boolean) =>
   zh ? `${h.street ? `${h.street} ` : ''}${h.blk} 座 ${doorText(h)}` : `Blk ${h.blk}${h.street ? ` ${h.street}` : ''} ${doorText(h)}`;
-export const postLine = (h: Pick<Home, 'postcode'>, zh: boolean) => (zh ? `霏微 ${h.postcode}` : `Gerimis ${h.postcode}`);
+export const postLine = (h: Pick<Home, 'postcode'>, zh: boolean) => (zh ? `雨洲 ${h.postcode}` : `Ashmere ${h.postcode}`);
 
 /**
  * The row under the date of birth: G, R87, N, and a P after it that nobody
@@ -88,7 +88,7 @@ export function cardNo(v: Pick<Visitor, 'no' | 'code'>) {
 
 /** Where they were born, for the front of the card. */
 export const birthplace = (v: Pick<Visitor, 'origin' | 'from'>, zh: boolean) =>
-  v.origin === 'G' ? (zh ? '霏微' : 'GERIMIS') : v.from?.trim() ? (zh ? v.from.trim() : v.from.trim().toUpperCase()) : zh ? '未申报' : 'NOT DECLARED';
+  v.origin === 'G' ? (zh ? '雨洲' : 'ASHMERE') : v.from?.trim() ? (zh ? v.from.trim() : v.from.trim().toUpperCase()) : zh ? '未申报' : 'NOT DECLARED';
 
 /** Six words → a resident again, once the block is found. */
 export async function restoreHome(p: HomePhrase, base: string): Promise<Visitor | null> {

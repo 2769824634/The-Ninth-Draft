@@ -2,7 +2,7 @@
  * The Records Office library: every book on its shelves is bound at build
  * time from what the archive already holds, so nobody writes a book.
  *
- *   Bay 1  The Gerimis Daily, one volume a month (from daily.ts)
+ *   Bay 1  The Ashmere Daily, one volume a month (from daily.ts)
  *   Bay 2  District gazetteer, one volume a region, a chapter a district
  *   Bay 3  Counter copies: what the Office prints for the public.
  *
@@ -189,7 +189,7 @@ export function buildLibrary(records: ClientRecord[], base: string, books: LibBo
       `GD/99/${mm}`,
       { en: `DAILY ${MON[i]}`, zh: `日报 ${ZH_MONTH[i]}月` },
       both('1999'),
-      { en: `The Gerimis Daily · ${m} 1999`, zh: `《霏微日报》· 1999 年 ${ZH_MONTH[i]}月` },
+      { en: `The Ashmere Daily · ${m} 1999`, zh: `《雨洲日报》· 1999 年 ${ZH_MONTH[i]}月` },
       issues.filter((x) => x.date.startsWith(`1999-${mm}`)),
       {
         en: 'The paper came out every day this month. The Office kept none of it. The binder sewed the covers anyway.',
@@ -206,7 +206,7 @@ export function buildLibrary(records: ClientRecord[], base: string, books: LibBo
         'GD/PRE',
         { en: 'DAILY PRE-99', zh: '日报 旧年' },
         { en: 'Earlier', zh: '往年' },
-        { en: 'The Gerimis Daily · before 1999', zh: '《霏微日报》· 1999 年以前' },
+        { en: 'The Ashmere Daily · before 1999', zh: '《雨洲日报》· 1999 年以前' },
         earlier,
         { en: '', zh: '' },
       ),
@@ -297,7 +297,7 @@ export function buildLibrary(records: ClientRecord[], base: string, books: LibBo
   ];
 
   const bays: LibBay[] = [
-    { id: 'daily', zone: 'rack', code: 'LIB-1', title: { en: 'The Gerimis Daily', zh: '霏微日报' }, books: daily.map(bind) },
+    { id: 'daily', zone: 'rack', code: 'LIB-1', title: { en: 'The Ashmere Daily', zh: '雨洲日报' }, books: daily.map(bind) },
     { id: 'gazetteer', zone: 'stacks', code: 'LIB-2', title: { en: 'District gazetteer', zh: '各区区志' }, books: gazetteer.map(bind) },
     // public-domain books, already bound (src/lib/books.ts)
     ...(books.length ? [{ id: 'books', zone: 'stacks' as const, code: 'LIB-4', title: { en: 'Books', zh: '藏书' }, books }] : []),
@@ -322,8 +322,8 @@ export function buildLibrary(records: ClientRecord[], base: string, books: LibBo
   const paperTitle = (mark: string): L => {
     const mm = mark.match(/\/99\/(\d\d)$/)?.[1];
     return mm
-      ? { en: `The Gerimis Daily, ${MONTHS_EN[Number(mm) - 1]} 1999`, zh: `霏微日报 · 1999 年 ${Number(mm)} 月` }
-      : { en: 'The Gerimis Daily, before 1999', zh: '霏微日报 · 1999 年以前' };
+      ? { en: `The Ashmere Daily, ${MONTHS_EN[Number(mm) - 1]} 1999`, zh: `雨洲日报 · 1999 年 ${Number(mm)} 月` }
+      : { en: 'The Ashmere Daily, before 1999', zh: '雨洲日报 · 1999 年以前' };
   };
   const catalogue: CatDrawer[] = [];
   for (const bay of [...bays].sort((x, y) => x.code.localeCompare(y.code))) {

@@ -1,7 +1,7 @@
 /**
- * The 52 districts of Gerimis, laid out like Singapore's planning areas in
+ * The 52 districts of Ashmere, laid out like Singapore's planning areas in
  * 1999. The gazetteer behind this file is
- * /mnt/project-files/ideas/霏微-地名录.md (project files); keep the two in step.
+ * /mnt/project-files/ideas/雨洲-地名录.md (project files); keep the two in step.
  *
  * Names follow the place: the local name, in both languages, as people said
  * it in 1999. A name that carries a real politician, governor or royal is
@@ -182,7 +182,7 @@ export const DISTRICT_DATA: DistrictData[] = [
     lost: l('The Great World amusement park, closed 1978. From the top of the car park, some nights, the lights of a big wheel.', '大世界游乐场，1978 年关门。有的夜里从停车场顶楼看下去，有摩天轮的灯。'),
   },
   {
-    id: 'gerimis-river', en: 'Gerimis River', zh: '霏微河', region: 'central', kind: 'open', postal: 1, lon: 103.846, lat: 1.289,
+    id: 'gerimis-river', en: 'Ashmere River', zh: '雨洲河', region: 'central', kind: 'open', postal: 1, lon: 103.846, lat: 1.289,
     blurb: l('The river and its three quays. The lighters have gone; the bridges stayed.', '一条河，三段码头。驳船走了，桥还在。'),
     blocks: [
       b('Boat Quay', '驳船码头', 'Shophouse restaurants with someone at every door.', '老店屋改的餐馆，每家门口都有人拉客。'),

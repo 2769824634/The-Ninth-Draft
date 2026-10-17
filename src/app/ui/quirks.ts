@@ -151,7 +151,7 @@ function away(voice: Archivist) {
     if (document.hidden) {
       title = document.title;
       left = Date.now();
-      document.title = t('Gerimis · Backflow in progress…');
+      document.title = t('Ashmere · Backflow in progress…');
     } else {
       document.title = title;
       if (left && Date.now() - left > 8000) setTimeout(() => voice.say('away'), 500);
@@ -159,7 +159,7 @@ function away(voice: Archivist) {
     }
   });
   onLang(() => {
-    if (document.hidden) document.title = t('Gerimis · Backflow in progress…');
+    if (document.hidden) document.title = t('Ashmere · Backflow in progress…');
   });
 }
 
@@ -170,7 +170,7 @@ function copyNote() {
     if (!sel || sel.isCollapsed || !e.clipboardData) return;
     const node = sel.anchorNode instanceof Element ? sel.anchorNode : sel.anchorNode?.parentElement;
     if (!node?.closest('#dossier')) return;
-    const foot = isZh() ? '\n\n—— 霏微记录署 · 已归档' : '\n\n— Records Office, Gerimis · On file';
+    const foot = isZh() ? '\n\n—— 雨洲记录署 · 已归档' : '\n\n— Records Office, Ashmere · On file';
     e.clipboardData.setData('text/plain', sel.toString() + foot);
     e.preventDefault();
   });
@@ -181,5 +181,5 @@ function consoleNote() {
   const s = 'font: 600 13px/1.6 monospace; color: #b8281d';
   const m = 'font: 12px/1.6 monospace; color: inherit';
   // eslint-disable-next-line no-console
-  console.log('%cRECORDS OFFICE · GERIMIS · 1999\n%cIf you are reading this, Heuss would like a word.\n如果你在看这里，Heuss 想见你。', s, m);
+  console.log('%cRECORDS OFFICE · ASHMERE · 1999\n%cIf you are reading this, Heuss would like a word.\n如果你在看这里，Heuss 想见你。', s, m);
 }

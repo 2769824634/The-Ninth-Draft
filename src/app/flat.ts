@@ -59,7 +59,7 @@ export function flat(relang?: () => void) {
   const tick = () => {
     if (!foot) return;
     const zh = isZh(), d = islandNow(), you = visitorClock();
-    foot.textContent = `${zh ? '霏微记录署' : 'Gerimis Records Office'} · ${islandDateLabel(zh)} · ${hms(d.hours, d.minutes)}${you ? ` · ${zh ? '你那边' : 'yours'} ${you}` : ''}`;
+    foot.textContent = `${zh ? '雨洲记录署' : 'Ashmere Records Office'} · ${islandDateLabel(zh)} · ${hms(d.hours, d.minutes)}${you ? ` · ${zh ? '你那边' : 'yours'} ${you}` : ''}`;
   };
   tick();
   window.setInterval(tick, 15000);

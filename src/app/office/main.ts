@@ -33,7 +33,7 @@ import lines from '../../data/archivist.json';
 type L = { en: string; zh: string };
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 /** Every Chinese character the calendar sheets print, loaded before they are drawn. */
-const CAL_GLYPHS = '正二三四五六七八九十冬腊月初廿日一春节元宵端午中秋重阳清明至己卯戊寅年霏微记录署印免费赠阅';
+const CAL_GLYPHS = '正二三四五六七八九十冬腊月初廿日一春节元宵端午中秋重阳清明至己卯戊寅年雨洲记录署印免费赠阅';
 type Program = 'log' | 'year' | 'clocks' | 'backup' | 'console';
 const PROGRAMS: { id: Program; key: string; en: string; zh: string }[] = [
   { id: 'console', key: 'F1', en: 'TERMINAL', zh: '终端' },
@@ -647,7 +647,7 @@ export function office() {
     // the paper for the day is in the library: say where, do not fetch it
     const paper = future
       ? ''
-      : `<p class="of-day__paper">${zh ? `这天的《霏微日报》在资料室 · 报刊架 · ${m + 1} 月那根报杆。` : `The Gerimis Daily for this day is in the library, on the ${MONTHS[m]} stick of the newspaper rack.`}</p>`;
+      : `<p class="of-day__paper">${zh ? `这天的《雨洲日报》在资料室 · 报刊架 · ${m + 1} 月那根报杆。` : `The Ashmere Daily for this day is in the library, on the ${MONTHS[m]} stick of the newspaper rack.`}</p>`;
     slip.innerHTML = `
       <div class="of-day__head"><span class="of-day__date">${d}.${m + 1}.99</span><span class="of-day__sub micro">${esc(sub)}</span>
         <button type="button" class="of-day__x" data-day-close aria-label="${zh ? '取下纸条' : 'Take the slip down'}">×</button></div>
@@ -751,7 +751,7 @@ export function office() {
 
   /* ---------------- the room ---------------- */
   // slides and labels are painted on canvas, which never asks for a font slice itself
-  const warmFonts = () => isZh() && void canvasFontsReady(`${document.getElementById('of-data')?.textContent ?? ''}霏微，按区区图全岛片头本盘完照片个区档案份未分区张`);
+  const warmFonts = () => isZh() && void canvasFontsReady(`${document.getElementById('of-data')?.textContent ?? ''}雨洲，按区区图全岛片头本盘完照片个区档案份未分区张`);
   warmFonts();
   onLang(warmFonts);
   const call = $('of-callout');

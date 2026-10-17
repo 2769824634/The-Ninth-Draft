@@ -10,7 +10,7 @@
 import { currentDistrict } from '../../data/gerimis/legacy';
 import type { DistrictId } from './districts';
 
-/** Born in Gerimis, ordinarily resident since a year, or a new arrival. */
+/** Born in Ashmere, ordinarily resident since a year, or a new arrival. */
 export type Origin = 'G' | 'R' | 'N';
 
 export type Sex = 'M' | 'F';

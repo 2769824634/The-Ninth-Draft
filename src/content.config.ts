@@ -28,7 +28,7 @@ const records = defineCollection({
     date: z.string().optional(),
     place: z.string().optional(),
     /**
-     * Which district of Gerimis the record belongs to (optional). `place` is the
+     * Which district of Ashmere the record belongs to (optional). `place` is the
      * text readers see; this is the fixed key used for the map and for matching
      * a visitor's secret to a file. Keys are in src/data/gerimis/districts.ts.
      */

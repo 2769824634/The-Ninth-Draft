@@ -67,7 +67,7 @@ export const COUNTER = {
 /** What the clerk asks at the window, by the box ticked. `{year}` is filled in. */
 export const INTERVIEW: Record<'G' | 'R' | 'N', L[]> = {
   G: [
-    { en: 'Born at which hospital? It does not matter. The card does not say. It says Gerimis.', zh: '在哪家医院生的？不要紧，证上不写，只写霏微。' },
+    { en: 'Born at which hospital? It does not matter. The card does not say. It says Ashmere.', zh: '在哪家医院生的？不要紧，证上不写，只写雨洲。' },
     { en: 'We look your old block up in the directory. Blocks that were knocked down are still in the directory.', zh: '你小时候那一座，在街道图里查。拆掉了的，街道图里也还在。' },
   ],
   R: [
