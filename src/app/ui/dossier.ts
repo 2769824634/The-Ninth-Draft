@@ -280,7 +280,7 @@ export class Dossier {
 
     swapText($('ds-file'), t('File {file}', { file: rec.file }));
     this.pages.set(rec.file);
-    $('ds-spine').textContent = `Archive terminal // Gerimis // ${cat.code}-${rec.file.split('-')[1] ?? rec.file} // ${rec.stamp}`;
+    $('ds-spine').textContent = `Archive terminal // Ashmere // ${cat.code}-${rec.file.split('-')[1] ?? rec.file} // ${rec.stamp}`;
     $('ds-barcode').innerHTML = barcode(rec.file);
     $('ds-title').textContent = rec.title;
     $('ds-title').dataset.category = rec.category;

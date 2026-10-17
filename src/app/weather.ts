@@ -1,6 +1,6 @@
 /**
  * The island's weather. Every visitor gets the same sky on the same island
- * day: it is worked out from the date, not fetched. Gerimis sits on the
+ * day: it is worked out from the date, not fetched. Ashmere sits on the
  * equator, so a wet day is as common as a dry one, and wetter at the turn of
  * the year when the monsoon comes in.
  */

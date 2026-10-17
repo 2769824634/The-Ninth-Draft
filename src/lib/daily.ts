@@ -1,5 +1,5 @@
 /**
- * The Gerimis Daily: a newspaper built from the archive at build time.
+ * The Ashmere Daily: a newspaper built from the archive at build time.
  *
  * Nobody writes the paper. Every dated thing in the records becomes news on
  * its day: a dated event or program is the front page, a `clipping`
@@ -358,7 +358,7 @@ const LETTERS: Letter[] = [
 const EVENTS: L[] = [
   { en: 'Ang Mo Kio Community Centre: line dancing, Tuesdays 7.30pm. Beginners welcome; the instructor counts to eight.', zh: '宏茂桥民众联络所：排舞，逢星期二晚七点半。欢迎初学者，老师会数到八。' },
   { en: 'Woodlands Library: story hour for children, Saturday 10am. Stories end on time.', zh: '兀兰图书馆：儿童故事会，星期六上午十点。故事准时讲完。' },
-  { en: 'Axis Town Hall: free concert by the Gerimis Brass Band, Sunday 5pm. Umbrellas may be left at the door.', zh: '中枢大会堂：霏微铜管乐队免费音乐会，星期天下午五点。雨伞可寄放门口。' },
+  { en: 'Axis Town Hall: free concert by the Ashmere Brass Band, Sunday 5pm. Umbrellas may be left at the door.', zh: '中枢大会堂：雨洲铜管乐队免费音乐会，星期天下午五点。雨伞可寄放门口。' },
   { en: 'Toa Payoh: getai on the field behind Block 20, nightly this week. The front row is kept free, as usual.', zh: '大巴窑：第 20 座后面空地本周每晚有歌台。照例，第一排的位子空着留给好兄弟。' },
   { en: 'Bukit Merah pool closed on Monday for cleaning. The deep end will be the same depth when it reopens.', zh: '红山游泳池星期一清洗，暂停开放。重新开放时，深水区还是那么深。' },
   { en: 'Serangoon Market: blood donation drive, Saturday 9am to 1pm. A hot drink for every donor.', zh: '实龙岗巴刹：捐血活动，星期六上午九点至下午一点。每位捐血者送热饮一杯。' },

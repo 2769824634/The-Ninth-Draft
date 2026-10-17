@@ -903,7 +903,7 @@ export class StacksRoom {
       this.hits.push(hb);
     }
     // the brass plaque above the switches
-    const plaque = plate([[`700 54px ${KU}`, '霏微记录署 · 档案库', 40, 82], [`600 26px ${DIN}`, 'RECORDS OFFICE · ARCHIVE · EST. 1959', 42, 128], [`600 22px ${KU}`, '本库文件一律不得携出', 42, 168]], 640, 200, '#a8843f', '#2a1a10', '#2a1a10');
+    const plaque = plate([[`700 54px ${KU}`, '雨洲记录署 · 档案库', 40, 82], [`600 26px ${DIN}`, 'RECORDS OFFICE · ARCHIVE · EST. 1959', 42, 128], [`600 22px ${KU}`, '本库文件一律不得携出', 42, 168]], 640, 200, '#a8843f', '#2a1a10', '#2a1a10');
     const pq = this.quad(this.group, 0.62, 0.19, plaque, x0 + 0.02, 1.85, 3.32, Math.PI / 2, 0, 0.3);
     (pq.material as THREE.MeshStandardMaterial).metalness = 0.7;
     // extinguisher

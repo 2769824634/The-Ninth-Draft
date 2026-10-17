@@ -251,7 +251,7 @@ export function coverTexture(b: LibBook, zh: boolean) {
   fit(g, zh ? b.sub.zh : b.sub.en, (px) => `500 ${px}px ${COND}`, 26, W - 160);
   g.fillText(zh ? b.sub.zh : b.sub.en, W / 2, H * 0.36 + 56);
   g.font = `500 18px ${MONO}`;
-  g.fillText(b.imprint ? (zh ? b.imprint.zh : b.imprint.en) : 'RECORDS OFFICE · GERIMIS', W / 2, H * 0.84);
+  g.fillText(b.imprint ? (zh ? b.imprint.zh : b.imprint.en) : 'RECORDS OFFICE · ASHMERE', W / 2, H * 0.84);
   return tex(c);
 }
 
@@ -285,7 +285,7 @@ export function pageTexture(b: LibBook, n: number, head: L | null, zh: boolean, 
     g.fillRect(W / 2 - 40, H * 0.5, 80, 3);
     g.fillStyle = 'rgba(29,27,23,.7)';
     g.font = `500 15px ${MONO}`;
-    g.fillText(b.imprint ? (zh ? b.imprint.zh : b.imprint.en) : zh ? '记录署 · 霏微 · 1999' : 'RECORDS OFFICE · GERIMIS · 1999', W / 2, H * 0.86);
+    g.fillText(b.imprint ? (zh ? b.imprint.zh : b.imprint.en) : zh ? '记录署 · 雨洲 · 1999' : 'RECORDS OFFICE · ASHMERE · 1999', W / 2, H * 0.86);
     return tex(c);
   }
   const m = 56;
@@ -444,7 +444,7 @@ export function woodTexture(seed: number, base = '#4a2f1d', w = 512, h = 512, co
 
 /**
  * The view through an arched window: drizzle sky over the slab blocks of
- * Gerimis. `night` lights a few of their windows.
+ * Ashmere. `night` lights a few of their windows.
  */
 export function windowView(night: boolean, seed: number) {
   const W = 512, H = 768;
@@ -619,8 +619,8 @@ export function newsFrontTexture(b: LibBook, zh: boolean) {
   g.fillStyle = '#1d1b17';
   g.textAlign = 'center';
   g.textBaseline = 'alphabetic';
-  fit(g, zh ? '霏微日报' : 'THE GERIMIS DAILY', (px) => `800 ${px}px ${COND}`, 58, W - 70);
-  g.fillText(zh ? '霏微日报' : 'THE GERIMIS DAILY', W / 2, 92);
+  fit(g, zh ? '雨洲日报' : 'THE ASHMERE DAILY', (px) => `800 ${px}px ${COND}`, 58, W - 70);
+  g.fillText(zh ? '雨洲日报' : 'THE ASHMERE DAILY', W / 2, 92);
   g.fillRect(34, 110, W - 68, 3);
   g.fillRect(34, 118, W - 68, 1);
   g.font = `500 17px ${MONO}`;

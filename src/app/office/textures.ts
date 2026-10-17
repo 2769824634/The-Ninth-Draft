@@ -438,7 +438,7 @@ export function mapTexture() {
   g.textAlign = 'right';
   g.font = `800 22px ${COND}`;
   g.fillStyle = '#1d1b17';
-  g.fillText('GERIMIS 霏微', W - 24, H - 40);
+  g.fillText('ASHMERE 雨洲', W - 24, H - 40);
   g.font = `500 12px ${MONO}`;
   g.fillText('SURVEY SECTION · 1999 EDITION', W - 24, H - 22);
   g.textAlign = 'left';
@@ -513,7 +513,7 @@ export function noticeTexture(n: NoticeInfo, zh: boolean) {
   g.strokeStyle = '#1d1b17';
   // letterhead
   g.font = `600 12px ${MONO}`;
-  g.fillText(zh ? '霏微记录署 · 数据组' : 'RECORDS OFFICE · DATA SECTION', L, 40);
+  g.fillText(zh ? '雨洲记录署 · 数据组' : 'RECORDS OFFICE · DATA SECTION', L, 40);
   g.lineWidth = 1.5;
   g.beginPath(); g.moveTo(L, 52); g.lineTo(R, 52); g.stroke();
   g.font = `800 ${zh ? 34 : 38}px ${COND}`;

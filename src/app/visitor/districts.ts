@@ -1,5 +1,5 @@
 /**
- * The districts of Gerimis, as the site uses them. The gazetteer itself is in
+ * The districts of Ashmere, as the site uses them. The gazetteer itself is in
  * src/data/gerimis/districts.ts; keys there match the `district` field of
  * records (content.config.ts). Here each district gets its place on the
  * survey sheet (`x, y`, viewBox 1000×560) and a clock offset from the Axis

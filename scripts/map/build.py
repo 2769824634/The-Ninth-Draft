@@ -1,5 +1,5 @@
 """
-Build the street map of Gerimis, as surveyed in 1999, from the sources that
+Build the street map of Ashmere, as surveyed in 1999, from the sources that
 scripts/map/fetch.py leaves in .cache/map-src/.
 
   python3 scripts/map/build.py
@@ -295,7 +295,7 @@ UNNAMED = re.compile(r"\b(Raffles|Stamford|Clementi|Nicoll|Sheares|Braddell|Euno
 
 CJK = re.compile(r'[\u3400-\u9fff]')
 
-# Streets of a renamed place take the island's name for it, as the stations do (ideas/霏微-地名录.md):
+# Streets of a renamed place take the island's name for it, as the stations do (ideas/雨洲-地名录.md):
 # the Clementi avenues and streets are West Coast's, the Eunos roads Kampong Melayu's.
 STREET_RENAME = [(re.compile(r'^Clementi (?=(Avenue|Street|West Street) )'), 'West Coast '), (re.compile(r'\bEunos\b'), 'Kampong Melayu')]
 
@@ -317,7 +317,7 @@ def label(en, zh):
 # ---------- rail ----------
 rail = json.load(open(os.path.join(SRC, 'rail.json')))
 STATIONS = {
-    # 1999 network, with the island's own names where the place names were changed (ideas/霏微-地名录.md)
+    # 1999 network, with the island's own names where the place names were changed (ideas/雨洲-地名录.md)
     'ns': ['NS1', 'NS2', 'NS3', 'NS4', 'NS5', 'NS7', 'NS8', 'NS9', 'NS10', 'NS11', 'NS13', 'NS14', 'NS15', 'NS16', 'NS17', 'NS18', 'NS19', 'NS20', 'NS21', 'NS22', 'NS23', 'NS24', 'NS25', 'NS26', 'NS27'],
     'ew': ['EW1', 'EW2', 'EW3', 'EW4', 'EW5', 'EW6', 'EW7', 'EW8', 'EW9', 'EW10', 'EW11', 'EW12', 'EW13', 'EW14', 'EW15', 'EW16', 'EW17', 'EW18', 'EW19', 'EW20', 'EW21', 'EW23', 'EW24', 'EW25', 'EW26', 'EW27'],
     'bp': ['BP1', 'BP2', 'BP3', 'BP4', 'BP5', 'BP6', 'BP7', 'BP8', 'BP9', 'BP10', 'BP11', 'BP12', 'BP13', 'BP14'],
@@ -765,7 +765,7 @@ for name, hits in sorted(named.items()):
 # schools: where OpenStreetMap has them, under the island's own names
 LEVEL = [(r'Primary', 'Primary School', '小学'), (r'Secondary|High School|Methodist Girls|Convent|Institution', 'Secondary School', '中学'),
          (r'Junior College|Centralised Institute', 'Junior College', '初级学院'), (r'Polytechnic', 'Polytechnic', '理工学院')]
-UNI = {'national university of singapore': ('University of Gerimis', '霏微大学'), 'nanyang technological university': ('Jurong Technological University', '裕廊理工大学')}
+UNI = {'national university of singapore': ('University of Ashmere', '雨洲大学'), 'nanyang technological university': ('Jurong Technological University', '裕廊理工大学')}
 schools = {}
 for name, hits in sorted(named.items()):
     en = orig.get(name, name)

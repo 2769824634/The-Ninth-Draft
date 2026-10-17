@@ -75,7 +75,7 @@ export function buildTrays(files: SlideFile[]): Tray[] {
   trays.push({
     id: 'island',
     code: 'T-00',
-    title: { en: 'Gerimis, by district', zh: '霏微，按区' },
+    title: { en: 'Ashmere, by district', zh: '雨洲，按区' },
     ink: '#c08a1e',
     slides: full([
       { kind: 'title', files: files.length, districts: DISTRICTS.length },
@@ -304,7 +304,7 @@ export function drawSlide(s: Slide, n: number, zh: boolean): HTMLCanvasElement {
       header(g, 'RECORDS OFFICE · DATA SECTION', `SLIDE ${no}`);
       g.fillStyle = WHITE;
       g.font = `800 ${zh ? 64 : 72}px ${SANS}`;
-      g.fillText(zh ? '霏微，按区' : 'GERIMIS,', FX + 40, FY + 250);
+      g.fillText(zh ? '雨洲，按区' : 'ASHMERE,', FX + 40, FY + 250);
       if (!zh) g.fillText('BY DISTRICT', FX + 40, FY + 330);
       g.fillStyle = CYAN;
       g.font = `500 24px ${MONO}`;

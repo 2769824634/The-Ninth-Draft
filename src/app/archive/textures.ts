@@ -203,7 +203,7 @@ export function caseFront(title: string, file: string) {
   g.fillStyle = RED;
   g.strokeStyle = RED;
   g.font = `700 20px ${KU}`;
-  g.fillText('霏微记录署', 20, 110);
+  g.fillText('雨洲记录署', 20, 110);
   g.font = `700 22px ${KU}`;
   g.fillText('案 卷', 210, 110);
   g.lineWidth = 2;
@@ -270,9 +270,9 @@ export function mapSheet() {
   g.stroke();
   g.fillStyle = INK;
   g.font = `700 30px ${KU}`;
-  g.fillText('霏微全岛图', 40, 70);
+  g.fillText('雨洲全岛图', 40, 70);
   g.font = `600 15px ${DIN}`;
-  g.fillText('GERIMIS · SURVEY SHEET · 1 : 50 000 · 1999', 40, 94);
+  g.fillText('ASHMERE · SURVEY SHEET · 1 : 50 000 · 1999', 40, 94);
   g.lineWidth = 3;
   g.strokeRect(20, 20, 600, 408);
   return tex(c);
@@ -484,7 +484,7 @@ export function fileCover(file: string, title: string, stamp: string, category: 
   g.fillRect(0, 0, W, 22);
   g.fillStyle = 'rgba(29,27,23,.55)';
   g.font = `600 15px ${DIN}`;
-  g.fillText('GERIMIS RECORDS OFFICE · ARCHIVE', 18, 50, W - 36);
+  g.fillText('ASHMERE RECORDS OFFICE · ARCHIVE', 18, 50, W - 36);
   g.fillStyle = INK;
   g.font = `700 64px ${DINB}`;
   g.fillText(file, 18, 122, W - 36);

@@ -124,7 +124,7 @@ export function sheet(m: number, marks: MonthMarks, today: { m: number; d: numbe
   g.fillText(MONTHS[m], 150, 446);
   g.font = `500 17px ${MONO}`;
   g.fillStyle = 'rgba(29,27,23,.65)';
-  g.fillText('1999 · RECORDS OFFICE · GERIMIS', 152, 478);
+  g.fillText('1999 · RECORDS OFFICE · ASHMERE', 152, 478);
   if (zh) {
     g.fillStyle = RED;
     g.font = `400 44px ${SANS}`;
@@ -199,7 +199,7 @@ export function sheet(m: number, marks: MonthMarks, today: { m: number; d: numbe
   g.textAlign = 'left';
   g.font = `500 13px ${MONO}`;
   g.fillStyle = 'rgba(29,27,23,.5)';
-  g.fillText(zh ? '霏微记录署 印 · 免费赠阅' : 'PRINTED BY THE RECORDS OFFICE · NOT FOR SALE', 28, 884);
+  g.fillText(zh ? '雨洲记录署 印 · 免费赠阅' : 'PRINTED BY THE RECORDS OFFICE · NOT FOR SALE', 28, 884);
   return c;
 }
 

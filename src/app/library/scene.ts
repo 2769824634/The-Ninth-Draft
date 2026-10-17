@@ -346,7 +346,7 @@ export class LibraryScene {
   /** Redraw everything with words on it. */
   async relabel(zh: boolean) {
     this.zh = zh;
-    if (zh) await canvasFontsReady(this.bays.flatMap((b) => [b.title.zh, ...b.books.flatMap((x) => [x.spine.zh, x.sub.zh, ...x.pages.map((p) => p.head.zh)])]).join('') + '霏微日报目录记录署');
+    if (zh) await canvasFontsReady(this.bays.flatMap((b) => [b.title.zh, ...b.books.flatMap((x) => [x.spine.zh, x.sub.zh, ...x.pages.map((p) => p.head.zh)])]).join('') + '雨洲日报目录记录署');
     for (const b of this.books) b.relabel(zh);
     for (const p of this.plates) {
       p.mat.map?.dispose();
