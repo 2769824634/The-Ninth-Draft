@@ -1,6 +1,6 @@
 /**
  * The cassettes in the office, put together at build time: the tapes listed
- * in src/data/tapes.json (music, Heuss's dictation, any recording the author
+ * in src/data/tapes.json (music, a dictation tape, any recording the author
  * adds) and one tape per record, read aloud from its summary. On a record's
  * tape a redacted passage is a tone, the way it was on the real thing; the
  * reading is always the final draft.

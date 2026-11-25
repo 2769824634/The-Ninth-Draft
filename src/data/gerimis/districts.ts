@@ -200,7 +200,7 @@ export const DISTRICT_DATA: DistrictData[] = [
       b('Tekka', '竹脚', 'The market “at the foot of the bamboo”: spice, garlands, cloth upstairs; a shop open late that sells gold and suitcases on one floor.', '竹脚巴刹：香料、花环，楼上卖布；一家开到很晚的百货公司，金子和行李箱在同一层楼。'),
       b('Kampong Glam', '甘榜格南', 'A golden dome, cloth and perfume shops.', '一座金色圆顶，卖布和香水的店。'),
       b('Bugis', '武吉士', 'The old street came down in 1985. A new one was built beside it to look the same.', '原来那条老街 1985 年拆了，九十年代又在旁边照样子盖了一条。'),
-      b('Rochor Centre', '梧槽中心', 'Four blocks, red, yellow, blue and green. Below them five floors of computer parts, where Heuss buys his.', '红黄蓝绿四座组屋。旁边五层楼全是电脑零件，Heuss 在那里买。'),
+      b('Rochor Centre', '梧槽中心', 'Four blocks, red, yellow, blue and green. Below them five floors of computer parts.', '红黄蓝绿四座组屋。旁边五层楼全是电脑零件。'),
       b('Beach Road', '美芝路', 'It ran along the sand once. A stepped old tower with long-distance buses underneath.', '以前就沿着沙滩。一座阶梯形的老大厦，楼下停着长途巴士。'),
     ],
     transit: l('East–West line at Bugis.', '东西线武吉士站。'),

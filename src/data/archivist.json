@@ -12,12 +12,12 @@
     "Morning. Or evening. The clock in here stopped agreeing with me years ago.",
     "Come in, mind the step. The drawers on the left stick, the ones on the right are empty.",
     "Records Office. The files are in the cabinets behind me. If you can see it, you can read it.",
-    "Welcome. Sign the visitor's book if you like. Nobody reads it except Heuss.",
+    "Welcome. Sign the visitor's book if you like. Nobody reads it, but the pen works.",
     "If a street name outside doesn't match your map, go by the street. The map is older."
   ],
   "welcomeBack": [
     "You again. Your chair is where you left it.",
-    "Back already. Heuss changed three files while you were out. Don't ask him which.",
+    "Back already. The dehumidifier ran the whole time you were out.",
     "Welcome back. A road in Ang Mo Kio has a new name since yesterday. Same road.",
     "Oh, it's you. I kept your place."
   ],
@@ -70,7 +70,7 @@
   },
   "draftEarly": [
     "Draft {draft}. Before anyone tidied it up.",
-    "Draft {draft}. Heuss would rather you didn't see this one.",
+    "Draft {draft}. The paper's thinner on this one; they were short of the good stock that month.",
     "Draft {draft}. Look at the margins. That's where the real argument was."
   ],
   "draftFinal": [
@@ -123,7 +123,7 @@
     ],
     "mess": [
       "You've moved half the board. I hope you're taking notes.",
-      "Interesting. Heuss will put it all back tomorrow and say nothing.",
+      "Interesting. Somebody will put it all back tomorrow and say nothing.",
       "If you want to keep it like that, copy it onto paper. The board gets put back."
     ],
     "reset": [
@@ -142,8 +142,8 @@
   ],
   "retrieve": {
     "notes": [
-      "Heuss wrote in the margins of {drafts}. Pull those pages out from under the file.",
-      "There are notes in {drafts}. He signs every one, even the ones he shouldn't.",
+      "Someone wrote in the margins of {drafts}. Pull those pages out from under the file.",
+      "There are notes in {drafts}. Pencil, mostly, and in a hurry.",
       "Check the margins in {drafts}. Nobody else writes that small."
     ],
     "any": [
@@ -151,7 +151,7 @@
       "You can click the black bars. I'd rather you didn't, but you can.",
       "On a keyboard, W takes {file} to the link board, to see who it's connected to.",
       "Anything clipped to the folder can be picked up. Put it back where it was.",
-      "The routing slip shows who had {file} out. It's mostly Heuss.",
+      "The routing slip shows who had {file} out. Mostly the same few desks.",
       "Some files are one page long. That's all anyone wrote down at the time."
     ],
     "personnel": [
@@ -186,8 +186,8 @@
     ]
   },
   "negative": [
-    "The negative. Light is dark, dark is light, and one street sign reads differently.",
-    "Hold it up to the window. That's how Heuss checks his.",
+    "The negative. Light is dark, dark is light, and the grain shows every speck of dust.",
+    "Hold it up to the window. That's how we check ours.",
     "The Office keeps negatives, not prints. Prints fade in this damp."
   ],
   "stamp": {
@@ -196,7 +196,7 @@
       "VERIFIED. Your ink, your name on it."
     ],
     "correct": [
-      "TO BE CORRECTED. Heuss will be thrilled. He lives for corrections.",
+      "TO BE CORRECTED. Somebody upstairs lives for corrections.",
       "{file} goes back for correction. There's a queue."
     ],
     "rejected": [
@@ -236,7 +236,7 @@
   "library": {
     "enter": [
       "The library. Walnut shelves, fifty years old. The damp got into them long ago and then into the books.",
-      "Open stacks. Take anything down you like, just put it back where it was. Heuss never does.",
+      "Open stacks. Take anything down you like, just put it back where it was. Most people don't.",
       "The dehumidifier in here runs all night. It still smells of wet paper."
     ],
     "open": [
@@ -249,12 +249,12 @@
       "Newsprint goes yellow faster than anything else in here. Read it while it's white."
     ],
     "binder": [
-      "Heuss's proposals. They come back, he files them, he writes another.",
+      "Proposals. They come back, they get filed, somebody writes another.",
       "Every one of those came back with a slip on it. He kept the slips."
     ],
     "gap": [
       "That gap's been there since December. Nobody's put anything in it.",
-      "Leave that space alone. Heuss gets funny about it.",
+      "Leave that space alone. It's kept free on purpose.",
       "There's less dust in that spot. Something stood there, or was meant to."
     ],
     "return": [
@@ -304,7 +304,7 @@
       "Basement office. The window's at pavement height, so you get to know people by their shoes."
     ],
     "desk": [
-      "Heuss's desk. The computer's on; it's always on. F1 for the terminal.",
+      "The desk by the window. The computer's on; it's always on. F1 for the terminal.",
       "That screen has been amber since 1987. Nobody asked for green."
     ],
     "sofa": [
@@ -320,7 +320,7 @@
       "{district}. The clock doesn't mind which."
     ],
     "calendar": [
-      "The Office prints its own calendar. The red rings are Heuss's pen; he does them the morning after.",
+      "The Office prints its own calendar. The red rings go on the morning after.",
       "Lift the page from the bottom. The staple at the top has been bent back twice already."
     ],
     "calendar-pin": [
@@ -337,7 +337,7 @@
     ],
     "deck": [
       "The deck's older than the computer. Press play firmly; in the wet season the key sticks.",
-      "Heuss tapes everything: music, files, himself. The cassettes are in the rack on the right."
+      "Somebody here tapes everything: music, files, themselves. The cassettes are in the rack on the right."
     ],
     "tape-music": [
       "{tape}. Nobody knows who made this one. It came in a box of RO-7 forms.",
@@ -348,7 +348,7 @@
       "{tape}. The black bars come out as a beep. Same as the paper, only louder."
     ],
     "tape-dictation": [
-      "That's Heuss. He dictates everything and types none of it."
+      "A dictation tape. Whoever made it never typed a word of it."
     ],
     "tape-file": [
       "{tape}. Somebody brought this one in. The label's in pencil."
@@ -366,7 +366,7 @@
     ],
     "tray": [
       "Check the slides are the right way up. Somebody always loads one upside down before a district briefing.",
-      "The labels are Heuss's typing. He numbers the empty slots too."
+      "The labels are typed. The empty slots are numbered too."
     ],
     "tray-empty": [
       "No tray on. What's on the screen is just the bulb."
@@ -402,11 +402,11 @@
       "The routine side. Ang Mo Kio's drawer sticks, pull it straight. The ones marked spare are empty, in case they ever split a district again."
     ],
     "safe": [
-      "The strong cabinet. The combination's on a card in Heuss's drawer, which is worse than no lock at all.",
+      "The strong cabinet. The combination's on a card in a desk drawer, which is worse than no lock at all.",
       "Top secret goes in there. You can still read it, mind. Just under the tube light, by the regulations."
     ],
     "reel": [
-      "That machine came down from the radio station when they bought new ones. Heuss carried it in himself and his back still hasn't forgiven him.",
+      "That machine came down from the radio station when they bought new ones. Two of us carried it in and my back still hasn't forgiven it.",
       "Put a tape on if you like. Keep it low, though. The reading table is right next to it."
     ],
     "push": [

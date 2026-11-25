@@ -407,7 +407,7 @@ export function accessLogTexture(rec: ArchiveRecord) {
   g.strokeStyle = 'rgba(29,27,23,.35)';
   g.lineWidth = 1;
   const r = rng(s);
-  const names = ['HEUSS', 'L. TAN', 'S. RAHIM', 'K. NAIR', 'HEUSS', 'J. PEREIRA', 'M. LIM'];
+  const names = ['R. ONG', 'L. TAN', 'S. RAHIM', 'K. NAIR', 'R. ONG', 'J. PEREIRA', 'M. LIM'];
   const why = ['REVIEW', 'AUDIT', 'TRANSFER', 'CROSS-REF', 'DECLASS.', 'INQUIRY'];
   let year = 1991 + Math.floor(r() * 3);
   for (let i = 0; i < 11; i++) {

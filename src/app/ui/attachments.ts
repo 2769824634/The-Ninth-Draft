@@ -11,8 +11,8 @@ import { esc } from './text';
 import { isZh, t } from '../i18n';
 import { isFiled } from '../island';
 
-/** Same archivist who signs the margin notes. */
-const NOTE_BY = 'Heuss';
+/** Same placeholder reviewer who signs the margin notes. */
+const noteBy = () => (isZh() ? '审核人' : 'Reviewer');
 
 const pad = (n: number) => String(n).padStart(2, '0');
 
@@ -91,7 +91,7 @@ function body(a: Attachment, rec: ArchiveRecord, i: number) {
     default:
       return `
         <span class="nt__text">${a.text}</span>
-        <span class="nt__by">— ${a.by ?? NOTE_BY}${a.date ? `, ${a.date}` : ''}</span>`;
+        <span class="nt__by">— ${a.by ?? noteBy()}${a.date ? `, ${a.date}` : ''}</span>`;
   }
 }
 
