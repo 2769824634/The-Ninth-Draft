@@ -1,5 +1,5 @@
 /**
- * Island time. Gerimis keeps Singapore time (UTC+8): today's month and day,
+ * Island time. Ashmere keeps Singapore time (UTC+8): today's month and day,
  * this minute, and the year is always 1999. Every clock, calendar and paper on
  * the site reads from here, so they all agree.
  */

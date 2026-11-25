@@ -8,14 +8,14 @@ const base = import.meta.env.BASE_URL;
 const arrow = '<svg viewBox="0 0 24 12" aria-hidden="true"><path d="M0 6h22M17 1l5 5-5 5" /></svg>';
 ---
 
-<Flat title="Residents' register — The Ninth Draft" description="Form RO-9: register as a resident of Gerimis. Tick a box, take a number, get a flat, a card and the keys." page="register">
+<Flat title="Residents' register — The Ninth Draft" description="Form RO-9: register as a resident of Ashmere. Tick a box, take a number, get a flat, a card and the keys." page="register">
   <div class="reg">
     <div>
       <p class="f-kicker micro"><b>Form RO-9</b><span>Records Office · Residents' Register</span></p>
       <h1 class="f-title"><span data-l="en">Application for residence</span><span data-l="zh">居民登记申请表</span></h1>
       <p class="f-lede">
-        <span data-l="en">Every resident of Gerimis has a flat, a card and a letterbox. Fill in the form, take a number, and Window 3 will see you. Born here, you get your old address back; otherwise the drum decides.</span>
-        <span data-l="zh">霏微的每个居民都有一间屋子、一张身份证和一个信箱。填好表，取个号，三号窗口叫到你。本岛出生的按旧址补发，其余的抽签。</span>
+        <span data-l="en">Every resident of Ashmere has a flat, a card and a letterbox. Fill in the form, take a number, and Window 3 will see you. Born here, you get your old address back; otherwise the drum decides.</span>
+        <span data-l="zh">雨洲的每个居民都有一间屋子、一张身份证和一个信箱。填好表，取个号，三号窗口叫到你。本岛出生的按旧址补发，其余的抽签。</span>
       </p>
 
       <div class="receipt" id="already" hidden>
@@ -436,7 +436,7 @@ const arrow = '<svg viewBox="0 0 24 12" aria-hidden="true"><path d="M0 6h22M17 1
         </div>
         <p class="f-qlabel" style="margin-top:1.4rem">${zh ? '4. 在适用的一格内打勾（只勾一格）' : '4. Tick the box that applies (one only)'}</p>
         <div class="tick" role="radiogroup">
-          <label class="tick__o${st.origin === 'G' ? ' is-on' : ''}" data-o="G"><input type="radio" name="o" value="G"${st.origin === 'G' ? ' checked' : ''} /><i></i><b>${zh ? '在本岛出生' : 'Born in Gerimis'}</b></label>
+          <label class="tick__o${st.origin === 'G' ? ' is-on' : ''}" data-o="G"><input type="radio" name="o" value="G"${st.origin === 'G' ? ' checked' : ''} /><i></i><b>${zh ? '在本岛出生' : 'Born in Ashmere'}</b></label>
           <label class="tick__o${st.origin === 'R' ? ' is-on' : ''}" data-o="R"><input type="radio" name="o" value="R"${st.origin === 'R' ? ' checked' : ''} /><i></i><b>${zh ? '通常居于本岛，自' : 'Ordinarily resident since'}<input class="f-input tick__year" id="since" inputmode="numeric" maxlength="4" value="${esc(st.since)}" placeholder="19__" aria-label="${zh ? '年份' : 'Year'}" />${zh ? '年起' : ''}</b></label>
           <label class="tick__o${st.origin === 'N' ? ' is-on' : ''}" data-o="N"><input type="radio" name="o" value="N"${st.origin === 'N' ? ' checked' : ''} /><i></i><b>${zh ? '新抵岛人士' : 'New arrival'}</b><small>${zh ? '须先在渡轮码头填入境卡' : 'Arrival card at the ferry terminal first'}</small></label>
         </div>
@@ -521,7 +521,7 @@ const arrow = '<svg viewBox="0 0 24 12" aria-hidden="true"><path d="M0 6h22M17 1
       panel.innerHTML = `<div class="arrive${st.landed ? ' is-torn' : ''}" id="arrive">
         <div class="arrive__main">
           <h3>DISEMBARKATION CARD · ${zh ? '入境卡' : 'ARRIVAL'}</h3>
-          <p class="micro">${zh ? '霏微渡轮码头 · 入境大厅' : 'Gerimis ferry terminal · Arrival hall'}</p>
+          <p class="micro">${zh ? '雨洲渡轮码头 · 入境大厅' : 'Ashmere ferry terminal · Arrival hall'}</p>
           <div class="arrive__grid">
             <div><span class="micro">${zh ? '姓名' : 'Name'}</span><b>${esc(st.code.trim().toUpperCase())}</b></div>
             <div><span class="micro">${zh ? '抵岛日期' : 'Date of arrival'}</span><b>${dd}</b></div>
@@ -582,7 +582,7 @@ const arrow = '<svg viewBox="0 0 24 12" aria-hidden="true"><path d="M0 6h22M17 1
     } else {
       const v = asVisitor();
       const row = (label: string, val: string, to: Step) => `<li><span class="micro">${esc(label)}</span><b>${esc(val)}</b><button type="button" data-go="${to}">${zh ? '改' : 'Edit'}</button></li>`;
-      const box = st.origin === 'G' ? (zh ? '在本岛出生' : 'Born in Gerimis') : st.origin === 'R' ? (zh ? `通常居于本岛，自 ${st.since} 年起` : `Ordinarily resident since ${st.since}`) : zh ? '新抵岛人士' : 'New arrival';
+      const box = st.origin === 'G' ? (zh ? '在本岛出生' : 'Born in Ashmere') : st.origin === 'R' ? (zh ? `通常居于本岛，自 ${st.since} 年起` : `Ordinarily resident since ${st.since}`) : zh ? '新抵岛人士' : 'New arrival';
       panel.innerHTML = `<p class="f-qlabel">${zh ? '核对一遍，归档以后署里就认这一份。' : 'Read it back. Once filed, this is the version we keep.'}</p>
         <ul class="readback">${[
           row(t('Codename'), st.code.trim(), 'form'),

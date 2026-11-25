@@ -1,4 +1,4 @@
-/** One month of the Gerimis Daily, fetched when its stick is taken off the rack (see src/app/library/paper.ts). */
+/** One month of the Ashmere Daily, fetched when its stick is taken off the rack (see src/app/library/paper.ts). */
 import type { APIRoute, GetStaticPaths } from 'astro';
 import { loadRecords } from '../../../lib/records';
 import { buildIssues, type Issue } from '../../../lib/daily';

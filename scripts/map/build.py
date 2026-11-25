@@ -1,5 +1,5 @@
 """
-Build the street map of Gerimis, as surveyed in 1999, from the sources that
+Build the street map of Ashmere, as surveyed in 1999, from the sources that
 scripts/map/fetch.py leaves in .cache/map-src/.
 
   python3 scripts/map/build.py
@@ -765,7 +765,7 @@ for name, hits in sorted(named.items()):
 # schools: where OpenStreetMap has them, under the island's own names
 LEVEL = [(r'Primary', 'Primary School', '小学'), (r'Secondary|High School|Methodist Girls|Convent|Institution', 'Secondary School', '中学'),
          (r'Junior College|Centralised Institute', 'Junior College', '初级学院'), (r'Polytechnic', 'Polytechnic', '理工学院')]
-UNI = {'national university of singapore': ('University of Gerimis', '霏微大学'), 'nanyang technological university': ('Jurong Technological University', '裕廊理工大学')}
+UNI = {'national university of singapore': ('University of Ashmere', '雨洲大学'), 'nanyang technological university': ('Jurong Technological University', '裕廊理工大学')}
 schools = {}
 for name, hits in sorted(named.items()):
     en = orig.get(name, name)

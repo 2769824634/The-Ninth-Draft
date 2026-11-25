@@ -36,7 +36,7 @@ import { BANK_DRAWERS, ROUTINE_BANKS, ROUTINE_DRAWERS, routineFolders, routineOf
 
 const ZH_CAT: Record<string, string> = { personnel: '人员', events: '事件', programs: '计划' };
 /** Every glyph the room's plates and cards are lettered with. */
-const GLYPHS = '人员事件计划北部东南西兀兰义顺三巴旺实里达宏茂桥后港龙岗盛勿洛淡滨尼白沙樟宜裕廊武吉督蔡厝金文泰署内例行霏微记录档案库本不得携出今日入待归卷目报告司机车票索引卡区年编号全岛图口借出阅档桌';
+const GLYPHS = '人员事件计划北部东南西兀兰义顺三巴旺实里达宏茂桥后港龙岗盛勿洛淡滨尼白沙樟宜裕廊武吉督蔡厝金文泰署内例行雨洲记录档案库本不得携出今日入待归卷目报告司机车票索引卡区年编号全岛图口借出阅档桌';
 /** Files to a drawer before the next one down takes over. */
 const PER = 14;
 /** The routine side's place after the formal categories: its 64 drawers, one a district. */

@@ -5,7 +5,7 @@
  *
  *   v3 (a home)           postcode 20 · origin and year 7 · floor 5 · sex 2 · door 3 · check 11
  *
- * The origin and year are one number: 0 born in Gerimis, 1 new arrival,
+ * The origin and year are one number: 0 born in Ashmere, 1 new arrival,
  * 2 + (year − 1900) resident since that year. The file number is not carried:
  * it follows from the name and the door (homeFileNo), and the district from
  * the block. The date of birth is not carried either: it goes into the check,

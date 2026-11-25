@@ -1,5 +1,5 @@
 /**
- * The Gerimis Daily: a newspaper built from the archive at build time.
+ * The Ashmere Daily: a newspaper built from the archive at build time.
  *
  * Nobody writes the paper. Every dated thing in the records becomes news on
  * its day: a dated event or program is the front page, a `clipping`
@@ -335,7 +335,7 @@ const LETTERS: Letter[] = [
 const EVENTS: L[] = [
   { en: 'Ang Mo Kio Community Centre: line dancing, Tuesdays 7.30pm. Beginners welcome; the instructor counts to eight.', zh: '宏茂桥民众联络所：排舞，逢星期二晚七点半。欢迎初学者，老师会数到八。' },
   { en: 'Woodlands Library: story hour for children, Saturday 10am. Stories end on time.', zh: '兀兰图书馆：儿童故事会，星期六上午十点。故事准时讲完。' },
-  { en: 'Axis Town Hall: free concert by the Gerimis Brass Band, Sunday 5pm. Umbrellas may be left at the door.', zh: '中枢大会堂：霏微铜管乐队免费音乐会，星期天下午五点。雨伞可寄放门口。' },
+  { en: 'Axis Town Hall: free concert by the Ashmere Brass Band, Sunday 5pm. Umbrellas may be left at the door.', zh: '中枢大会堂：雨洲铜管乐队免费音乐会，星期天下午五点。雨伞可寄放门口。' },
   { en: 'Toa Payoh: getai on the field behind Block 20, nightly this week. The front row is kept free, as usual.', zh: '大巴窑：第 20 座后面空地本周每晚有歌台。照例，第一排的位子空着留给好兄弟。' },
   { en: 'Bukit Merah pool closed on Monday for cleaning. The deep end will be the same depth when it reopens.', zh: '红山游泳池星期一清洗，暂停开放。重新开放时，深水区还是那么深。' },
   { en: 'Serangoon Market: blood donation drive, Saturday 9am to 1pm. A hot drink for every donor.', zh: '实龙岗巴刹：捐血活动，星期六上午九点至下午一点。每位捐血者送热饮一杯。' },
@@ -363,11 +363,11 @@ function television(n: number, s: number): L[] {
   const film = FILMS[(n + (s % 3)) % FILMS.length];
   const ep = (n % 40) + 1;
   return [
-    { en: 'GTV 1 · 7.00 News · 7.30 Island Quiz', zh: '霏视一台 · 7:00 新闻 · 7:30 全岛问答' },
-    { en: `GTV 1 · 8.00 Drama: The Kampong Years (ep. ${ep})`, zh: `霏视一台 · 8:00 连续剧《甘榜岁月》第 ${ep} 集` },
-    { en: 'GTV 1 · 9.00 Weather, followed by the news again', zh: '霏视一台 · 9:00 天气预报，接着把新闻再播一遍' },
-    { en: `GTV 2 · 8.30 Block 14 Family · 10.30 Late film: ${film.en}`, zh: `霏视二台 · 8:30 处境剧《十四座一家亲》· 10:30 午夜场《${film.zh}》` },
-    { en: 'GTV 2 · 12.15 Close, then the test card', zh: '霏视二台 · 12:15 收台，之后是测试图' },
+    { en: 'Channel 1 · 7.00 News · 7.30 Island Quiz', zh: '雨视一台 · 7:00 新闻 · 7:30 全岛问答' },
+    { en: `Channel 1 · 8.00 Drama: The Kampong Years (ep. ${ep})`, zh: `雨视一台 · 8:00 连续剧《甘榜岁月》第 ${ep} 集` },
+    { en: 'Channel 1 · 9.00 Weather, followed by the news again', zh: '雨视一台 · 9:00 天气预报，接着把新闻再播一遍' },
+    { en: `Channel 2 · 8.30 Block 14 Family · 10.30 Late film: ${film.en}`, zh: `雨视二台 · 8:30 处境剧《十四座一家亲》· 10:30 午夜场《${film.zh}》` },
+    { en: 'Channel 2 · 12.15 Close, then the test card', zh: '雨视二台 · 12:15 收台，之后是测试图' },
   ];
 }
 

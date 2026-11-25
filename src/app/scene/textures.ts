@@ -694,7 +694,7 @@ export function envelopeTexture(rec: ArchiveRecord, seed: number, stampText = re
   // the flap covers the top third; the print starts below it
   const top = 300;
   g.font = `600 22px ${SANS}`;
-  g.fillText('RECORDS OFFICE  ·  GERIMIS', 64, top);
+  g.fillText('RECORDS OFFICE  ·  ASHMERE', 64, top);
   g.font = `400 15px ${MONO}`;
   g.fillText('FORM 9-E / SECURE ENVELOPE  ·  BY HAND ONLY  ·  DO NOT BEND', 64, top + 26);
   g.lineWidth = 2;
