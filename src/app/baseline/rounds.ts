@@ -38,9 +38,9 @@ export const ROUNDS: Round[] = [
     far: { en: 'The street never had a name.', zh: '那条路从来没有名字。' },
   },
   {
-    say: { en: 'I remember the ninth draft.', zh: '我记得第九稿。' },
-    near: { en: 'I remember a ninth draft.', zh: '我记得有过一份第九稿。' },
-    far: { en: 'I remember the eighth draft.', zh: '我记得第八稿。' },
+    say: { en: 'I remember the last bus.', zh: '我记得末班车。' },
+    near: { en: 'I remember a last bus.', zh: '我记得有过一班末班车。' },
+    far: { en: 'I remember the first bus.', zh: '我记得头班车。' },
   },
   {
     say: { en: 'It rained indoors.', zh: '室内下过雨。' },

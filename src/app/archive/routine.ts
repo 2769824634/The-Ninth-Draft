@@ -231,7 +231,7 @@ export function folder(d: District, m: number, today: string, blocks: HomeBlock[
       const iso = ev.date?.slice(0, 10) ?? '';
       if (!shown(iso) || side.some((sl) => sl.echoes?.includes(ev.file))) continue;
       const place = l(ev.en?.place ?? ev.place ?? d.en, ev.zh?.place ?? ev.place ?? d.zh);
-      s.rows?.push({ day: Number(iso.slice(8, 10)), cells: [place, l('Residents say the place “is not the way it usually is”. Asked what is different, could not say.', '住户反映现场「跟平常不一样」。问哪里不一样，说不上来。'), l('Residents', '住户'), l('Officer sent the same day. Nothing found to repair.', '当天派员查看，没有要修的。')] });
+      s.rows?.push({ day: Number(iso.slice(8, 10)), cells: [place, l(`Test entry for ${ev.file}.`, `${ev.file} 的测试条目。`), l('Test', '测试'), l('Placeholder line.', '占位条目。')] });
     }
     s.rows?.sort((a, b) => a.day - b.day);
     sheets.push({ ...s, m });
@@ -516,23 +516,11 @@ const PATROL: L[] = [
   l('A drunk man asleep on the bench; woke him, he walked home.', '有个醉汉睡在长椅上，叫醒了，自己走回家。'), l('Stray dogs by the market bins.', '巴刹垃圾桶边有野狗。'),
   l('Rain. Nobody about.', '下雨，街上没人。'), l('Door of the electrical room left open; shut it.', '配电房的门没关，关上了。'),
 ];
-const ODD_PATROL: L[] = [
-  l('03:10 every street lamp along the road went out for about a minute and came back on together. The Power Board has no fault on record.', '03:10 整条路的路灯一起熄了大约一分钟，又一起亮回来。电力局没有故障记录。'),
-  l('02:40 a woman at the bus stop asked when the last bus would come. Told her it had gone at midnight; she said she would wait. At 03:30 she was not there. No bus passed.', '02:40 巴士站有个女人问末班车几点来。告诉她十二点已经开走了，她说她等。03:30 再经过，人不在了。这段时间没有车经过。'),
-  l('04:12 the clock at the void deck stopped. Wound it. It stopped again at 04:12 the next night.', '04:12 楼下那个钟停了，上了发条。第二天晚上又停在 04:12。'),
-];
 const patrol: Make = (c) => {
   const rows = days(c, 6 + Math.floor(c.r() * 3)).map((day) => {
     const t = `${two([22, 23, 0, 1, 2, 3, 4][Math.floor(c.r() * 7)])}:${two(Math.floor(c.r() * 60))}`;
     return { day, cells: [t, blkName(someBlock(c), c), pick(c.r, PATROL)] as Cell[] };
   });
-  // now and then a night that does not add up, put down as plainly as the rest
-  if (c.r() < 0.3 && rows.length) {
-    const row = rows[Math.floor(c.r() * rows.length)];
-    const odd = pick(c.r, ODD_PATROL);
-    row.cells[0] = odd.en.slice(0, 5);
-    row.cells[2] = l(odd.en.slice(6), odd.zh.slice(6));
-  }
   return {
     form: 'patrol', issuer: c.office, title: l('Night patrol log', '夜班巡逻日志'), ref: `${c.code}/NP/99${two(c.m)}`,
     cols: [l('Time', '时间'), l('Where', '地点'), l('Seen', '情况')],

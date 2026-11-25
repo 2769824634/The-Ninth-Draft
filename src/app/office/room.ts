@@ -313,7 +313,7 @@ export class Room {
     this.deskLamp.shadow.bias = -0.0008;
     lamp.add(this.deskLamp, this.deskLamp.target);
 
-    // in-tray with papers, Heuss's thermos and a mug
+    // in-tray with papers, a thermos and a mug
     this.box(0.34, 0.06, 0.26, this.steel, -0.6, top + 0.03, -0.15, g);
     this.box(0.3, 0.04, 0.22, new THREE.MeshStandardMaterial({ color: '#efe9d8', roughness: 0.9 }), -0.6, top + 0.06, -0.15, g);
     const thermos = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.26, 20), new THREE.MeshStandardMaterial({ color: '#d7cfb9', roughness: 0.4 }));
@@ -638,7 +638,7 @@ export class Room {
       this.box(0.12, 0.02, 0.03, this.chrome, 0, 0.26 + k * 0.32, 0.315, fc);
       this.box(0.1, 0.04, 0.005, new THREE.MeshStandardMaterial({ color: '#efe9d8' }), 0, 0.3 + k * 0.32, 0.31, fc);
     }
-    // Heuss's year-field proposals in grey binders on top, 01 to 08,
+    // The year-field proposals in grey binders on top, 01 to 08,
     // and a binder's width left empty before the bookend
     const binder = new THREE.MeshStandardMaterial({ color: '#8c8a83', roughness: 0.55 });
     const label = new THREE.MeshStandardMaterial({ color: '#efe9d8', roughness: 0.9 });

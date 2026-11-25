@@ -69,27 +69,11 @@ export function household(d: Door, built = 1975): Household | null {
 export function previousTenant(d: Door, built = 1975, v?: Pick<Visitor, 'code' | 'origin'>): (Household & { left: number }) | null {
   if (built >= 1996) return null;
   const r = rng(hash(`prev#${d.postcode}#${d.floor}#${d.stack}`));
-  let h = makeHousehold(r, built);
-  // a new arrival's flat: the one before had nearly your name (the hidden thread; nobody remarks on it)
-  if (v && v.origin !== 'G' && v.origin !== 'R') {
-    const n = offName(v.code);
-    h = { ...h, plate: n, zh: `${n} 家`, title: { en: n, zh: n } };
-  }
+  const h = makeHousehold(r, built);
   const left = 1997 + (hash(`left#${d.postcode}#${d.stack}`) % 3);
   // they stayed at least three years
   const since = Math.min(h.since, left - 3);
   return { ...h, since: Math.max(built, since), left };
-}
-
-/** Your name with one letter changed: AH BOY → AH BOT. Always the same letter. */
-export function offName(code: string): string {
-  const s = normCode(code).toUpperCase() || 'RESIDENT';
-  const at = [...s].map((c, i) => (/[A-Z]/.test(c) ? i : -1)).filter((i) => i >= 0);
-  if (!at.length) return `${s}E`;
-  const i = at[hash(`off#${s}`) % at.length];
-  const c = s.charCodeAt(i) - 65;
-  const n = String.fromCharCode(65 + ((c + 1 + (hash(`offc#${s}`) % 24)) % 26));
-  return s.slice(0, i) + n + s.slice(i + 1);
 }
 
 /**
@@ -114,7 +98,7 @@ export interface Letter {
   date: string;
   /** The letter itself; paragraphs split on blank lines. */
   body: L;
-  /** Pencil in the margin of a photocopy, in Heuss's hand. */
+  /** Pencil in the margin of a photocopy. */
   pencil?: L;
 }
 
@@ -199,11 +183,12 @@ export function letters(
     const { m, d } = pastDay();
     return `${dd(d)}.${dd(m + 1)}.99`;
   };
+  // a test letter from whoever had the flat before (placeholder since 2026-11-25; the old note is at 27fc6a2)
   const note = (prev: NonNullable<typeof prevT>): Letter => ({
     kind: 'note', from: prev.title, to: 'THE NEW OCCUPANT', date: noteDate(),
     body: {
-      en: `To whoever lives in ${door} now,\n\nWe lived here from ${prev.since} and moved to ${moved.en} in ${prev.left}. We have told most people the new address, but some letters will still come here for a while.\n\nIf you see any addressed to ${prev.plate}, please write "Moved, return to sender" on the envelope and drop it back in the red postbox downstairs. The postman will take care of it. You do not need to keep anything for us.\n\nTwo things about the flat: the kitchen tap drips if you turn it all the way, so turn it back a little. And the switch by the door is for the corridor light, not yours.\n\nThank you, and all the best in the new place.\n${prev.title.en}`,
-      zh: `给现在住在 ${door} 的人：\n\n我们从 ${prev.since} 年住到 ${prev.left} 年，后来搬去${moved.zh}。新地址大部分人都知道了，不过还会有些信寄到这里来，过一阵子才会停。\n\n要是看到寄给 ${prev.plate} 的信，麻烦在信封上写「已搬迁，退回寄件人」，丢回楼下的红色邮筒就好，邮差会处理。不用替我们留着什么。\n\n屋子有两件事说一下：厨房的水龙头开到底会滴水，往回拧一点就好。门边那个开关是走廊的灯，不是你家的。\n\n谢谢，祝你住得开心。\n${prev.title.zh}`,
+      en: `To whoever lives in ${door} now,\n\nThis is a test letter from the previous occupant. It only checks the letterbox and the letter on the table.\n\n${prev.plate}`,
+      zh: `给现在住在 ${door} 的人：\n\n这是前任住户的一封测试信，只用来检查信箱和桌上摊开的信。\n\n${prev.plate}`,
     },
   });
 
@@ -314,57 +299,10 @@ export function letters(
     out.push(welcome(), bill(), draw());
   }
   if (r() < 0.75) out.push(pick(r, fresh ? [paper, licence] : [clinic, draw, licence])());
-  // from the second day you come home: the yearly copy of the register card
-  if (seen.days >= 2) out.push(register(v, h, built, seen.heuss, prev));
+  // the yearly register-card copy (and its pencil note) was part of the old story; cleared 2026-11-25
+  void seen;
   return out;
 }
-
-/**
- * The Residents' Register posts each household a copy of its register card
- * once a year, to check. Yours does not quite match what you told Window 3,
- * the way an old card would not: a new arrival's is made out to nearly your
- * name and says you were born here; a resident's has a different year of
- * arrival; one born here lists jobs you never had, at this same address.
- * The surface reading is a clerical muddle. The pencil note is Heuss's.
- */
-function register(v: Pick<Visitor, 'code' | 'origin' | 'dob' | 'since' | 'at'>, h: Home, built: number, heuss: boolean, prev: Household | null): Letter {
-  const r = rng(hash(`reg#${normCode(v.code)}#${h.postcode}#${v.origin ?? 'N'}`));
-  const now = islandNow(v.at);
-  const me = normCode(v.code).toUpperCase() || 'RESIDENT';
-  const door = `Blk ${h.blk} ${doorText(h)}`, doorZh = `${h.blk} 座 ${doorText(h)}`;
-  const dob = v.dob ? v.dob.split('-').reverse().join('.') : '—';
-  const by = Number((v.dob || '').slice(0, 4)) || 1970;
-  const lines: { en: string; zh: string }[] = [];
-  let name = me;
-  if (v.origin === 'G') {
-    const a = pick(r, JOBS), b = pick(r, JOBS.filter((j) => j !== a));
-    const y1 = Math.min(1995, Math.max(built, by + 18) + Math.floor(r() * 3)), y2 = Math.min(1998, y1 + 2 + Math.floor(r() * 3));
-    lines.push({ en: `Place of birth: GERIMIS`, zh: '出生地：霏微' });
-    lines.push({ en: `Occupation: ${b.en}`, zh: `职业：${b.zh}` });
-    lines.push({ en: `Earlier entries at this address: ${y1}, ${a.en}; ${y2}, ${b.en}`, zh: `此地址以往记录：${y1} 年，${a.zh}；${y2} 年，${b.zh}` });
-  } else if (v.origin === 'R') {
-    const s = v.since ?? 1990;
-    const d1 = Math.max(1900, Math.min(1999, s - 2 - Math.floor(r() * 5))), d2 = Math.max(1900, Math.min(1999, s + 1 + Math.floor(r() * 4)));
-    lines.push({ en: `Ordinarily resident since: ${d1}`, zh: `通常居于本岛，自：${d1} 年` });
-    lines.push({ en: `Earlier entries: arrived ${d2}; arrived ${d1}`, zh: `以往记录：${d2} 年抵岛；${d1} 年抵岛` });
-  } else {
-    name = offName(v.code);
-    lines.push({ en: 'Place of birth: GERIMIS', zh: '出生地：霏微' });
-    const first = prev ? prev.since : Math.max(built, 1990) + Math.floor(r() * 4);
-    lines.push({ en: `First registered at this address: ${first}`, zh: `首次在此地址登记：${first} 年` });
-  }
-  return {
-    kind: 'register', from: { en: 'Records Office, Residents\' Register', zh: '记录署居民登记处' }, to: name,
-    date: `${dd(now.day)}.${dd(now.month + 1)}.99`,
-    body: {
-      en: `Confirmation of particulars\n\nEach year the Residents' Register sends every household a copy of the register card we hold, so that mistakes can be put right. Please check the particulars below.\n\nName: ${name}\nDate of birth: ${dob}\n${lines.map((l) => l.en).join('\n')}\nAddress: ${door}\n\nIf anything is wrong, bring this letter and your identity card to Window 3 at the Records Office in the Axis, Monday to Friday, 9 am to 5 pm. There is no need to reply if everything is correct.\n\nThis is a photocopy of the card. Any handwriting on it is the office's own and may be ignored.`,
-      zh: `登记事项核对\n\n居民登记处每年把署里存的登记卡复印一份寄给每户人家，有错好改。请核对以下事项。\n\n姓名：${name}\n出生日期：${dob}\n${lines.map((l) => l.zh).join('\n')}\n地址：${doorZh}\n\n如有错误，请礼拜一到礼拜五早上九点到下午五点，带着这封信和身份证到中枢记录署三号窗口更正。全部正确的话不必回复。\n\n这是登记卡的复印件，上面如有手写字迹，是署里自己写的，可以不理。`,
-    },
-    ...(heuss ? { pencil: { en: 'Already on the register. Year field conflict; filed as a new registration for now. — Heuss 31.12.99', zh: '此人此前已登记。年份字段冲突，暂按新登记处理。—— Heuss 31.12.99' } } : {}),
-  };
-}
-
-/* ---------- the notice board at the void deck ---------- */
 
 export interface Notice { head: L; text: L; by: L }
 

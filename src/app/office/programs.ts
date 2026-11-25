@@ -75,7 +75,7 @@ export class YearScreen {
     out.insertAdjacentHTML('beforeend', `<li>${line}</li>`);
     while (out.children.length > 5) out.firstElementChild!.remove();
   }
-  /** Heuss's proposals: what came back, and with which slip. */
+  /** The test proposals: what came back, and with which slip. */
   proposals() {
     if (this.busy) return;
     const zh = isZh();
@@ -84,9 +84,8 @@ export class YearScreen {
     this.screen.body.classList.add('is-props');
     const on = PROPOSALS.filter((x) => isFiled(proposalDay(x.date)));
     out.innerHTML = [
-      `<li class="crt__dim">${zh ? '年份字段整改 · 提交人 HEUSS' : 'YEAR-FIELD REMEDIATION · SUBMITTED BY HEUSS'}</li>`,
+      `<li class="crt__dim">${zh ? '年份字段整改 · 测试方案' : 'YEAR-FIELD REMEDIATION · TEST PROPOSALS'}</li>`,
       ...on.map((x, i) => `<li>0${i + 1}  ${x.date}  ${esc(zh ? x.zh : x.en.toUpperCase())}</li>`),
-      on.length === PROPOSALS.length ? `<li class="crt__dim">09  ${zh ? '未提交。' : 'NOT SUBMITTED.'}</li>` : '',
     ].join('');
     audio.tick();
   }
@@ -217,7 +216,7 @@ export class BackupScreen {
         <span>${zh ? '稿' : 'DRAFT'} ${Array.from({ length: 8 }, (_, i) => `<button type="button" class="crt__btn crt__d${i + 1 === this.draft ? ' is-on' : ''}" data-d="${i + 1}">${String(i + 1).padStart(2, '0')}</button>`).join('')}</span>
         <button type="button" class="crt__btn" id="bk-go">[ ${zh ? '从磁带恢复' : 'RESTORE'} ]</button>
       </div>
-      <div class="crt__tape" id="bk-out"><p class="crt__dim">${zh ? '选一份档案、一稿，从磁带恢复，与第九稿对照。' : 'SELECT A FILE AND A DRAFT. RESTORE FROM TAPE. COMPARE WITH DRAFT 09.'}</p></div>`;
+      <div class="crt__tape" id="bk-out"><p class="crt__dim">${zh ? '选一份档案、一稿，从磁带恢复，与定稿对照。' : 'SELECT A FILE AND A DRAFT. RESTORE FROM TAPE. COMPARE WITH THE FINAL COPY.'}</p></div>`;
     const b = this.screen.body;
     b.querySelector<HTMLSelectElement>('#bk-file')!.addEventListener('change', (e) => {
       this.file = this.files.find((f) => f.file === (e.target as HTMLSelectElement).value) ?? null;
@@ -435,8 +434,8 @@ export class ConsoleScreen {
         const r = loadVisitor(), pass = loadPass();
         const v = r ?? (pass ? { code: pass.code, no: pass.no, pass: true } : null);
         p('SESSIONS SINCE 18:00:', '18:00 以来的登录：');
-        this.print('HEUSS     DATA SECTION    TTY2   23:41');
-        this.print('YOSH      BACKUP          TTY4   02:10');
+        this.print('TEST01    DATA SECTION    TTY2   23:41');
+        this.print('TEST02    BACKUP          TTY4   02:10');
         this.print(v ? `${esc(v.code.toUpperCase().slice(0, 9).padEnd(9, ' ')).replace(/ /g, '&nbsp;')} ${'pass' in v ? passNo(v) + '&nbsp;' : fileNo(v)}          TTY1   ${zh ? '现在' : 'NOW'}` : `GUEST     ${zh ? '未登记' : 'UNREGISTERED'}    TTY1   ${zh ? '现在' : 'NOW'}`);
         break;
       }
@@ -452,11 +451,7 @@ export class ConsoleScreen {
       case 'CAT':
       case 'TYPE':
       case 'MORE':
-        // the ninth proposal is not on this machine
-        if (/PROP|09|Y2K|NINTH/.test(args.join(' '))) {
-          p('FILE NOT FOUND.', '找不到文件。');
-          p('LAST MODIFIED: 31.12.99 23:59.', '最后修改：31.12.99 23:59。', 'dim');
-        } else p('NO SUCH FILE. USE OPEN.', '没有这个文件。请用 OPEN。');
+        p('NO SUCH FILE. USE OPEN.', '没有这个文件。请用 OPEN。');
         break;
       default:
         p('UNRECOGNISED COMMAND.', '无法识别的命令。');

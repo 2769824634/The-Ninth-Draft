@@ -71,12 +71,11 @@ export const addressLine = (h: Home, zh: boolean) =>
 export const postLine = (h: Pick<Home, 'postcode'>, zh: boolean) => (zh ? `霏微 ${h.postcode}` : `Gerimis ${h.postcode}`);
 
 /**
- * The row under the date of birth: G, R87, N, and a P after it that nobody
- * at the counter asked for. The clerk says the computer adds it; only a
- * pencil note of Heuss's says why.
+ * The row under the date of birth: G, R87 or N. (The extra P of the old
+ * story was cleared on 2026-11-25; see 27fc6a2.)
  */
 export const codeRow = (v: Pick<Visitor, 'origin' | 'since'>) =>
-  `${v.origin === 'G' ? 'G' : v.origin === 'R' && v.since ? `R${String(v.since % 100).padStart(2, '0')}` : 'N'}P`;
+  `${v.origin === 'G' ? 'G' : v.origin === 'R' && v.since ? `R${String(v.since % 100).padStart(2, '0')}` : 'N'}`;
 
 /** Card number: V, the file number, three digits, a check letter, the way the island's cards are numbered. */
 export function cardNo(v: Pick<Visitor, 'no' | 'code'>) {

@@ -181,5 +181,5 @@ function consoleNote() {
   const s = 'font: 600 13px/1.6 monospace; color: #b8281d';
   const m = 'font: 12px/1.6 monospace; color: inherit';
   // eslint-disable-next-line no-console
-  console.log('%cRECORDS OFFICE · GERIMIS · 1999\n%cIf you are reading this, Heuss would like a word.\n如果你在看这里，Heuss 想见你。', s, m);
+  console.log('%cRECORDS OFFICE · GERIMIS · 1999\n%cIf you are reading this, the counter is open until 5.15pm.\n如果你在看这里：柜台下午五点十五分下班。', s, m);
 }

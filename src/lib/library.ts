@@ -7,7 +7,7 @@
  *   Bay 3  Counter copies: what the Office prints for the public.
  *
  * Only public publications. The Office's own files stay in the archive and
- * its working papers (revision log, Heuss's proposals) in the office; the
+ * its working papers (revision log, the year-field proposals) in the office; the
  * card catalogue lists files by number and says where they are kept.
  *
  * Each book is a list of pages, each page a heading and some HTML, in both

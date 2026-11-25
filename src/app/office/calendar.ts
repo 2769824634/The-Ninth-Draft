@@ -4,7 +4,7 @@
  * lunar days under the dates in Chinese. Turning a month lifts the sheet up
  * over the nail; going back brings the last one down again.
  *
- * Heuss rings the days something happened in red pen and ticks the days a
+ * The Office rings the days something happened in red pen and ticks the days a
  * file, draft or attachment is dated; the days gone by this month are struck
  * through in pencil; today wears the red plastic date marker. A day picked
  * gets a slip pinned up under the calendar.
@@ -51,7 +51,7 @@ export function lunar(m: number, d: number) {
   return { month, day, fest, short: fest ?? (day === 1 ? L_MONTH[month - 1] : L_DAY(day)), long: `农历${L_MONTH[month - 1]}${L_DAY(day)}${fest ? ` · ${fest}` : ''}` };
 }
 
-/** What Heuss has marked on a month: rings for things that happened, ticks for anything dated. */
+/** What the Office has marked on a month: rings for things that happened, ticks for anything dated. */
 export interface MonthMarks {
   ring: number[];
   tick: number[];
@@ -260,7 +260,7 @@ export class WallCalendar {
   private slipMat: THREE.MeshStandardMaterial;
   private pinned = new Spring(0, 9);
 
-  /** Heuss's marks for a month; set by the page once it knows what is on file. */
+  /** The Office's marks for a month; set by the page once it knows what is on file. */
   marks: (m: number) => MonthMarks = () => ({ ring: [], tick: [] });
   private today: { m: number; d: number };
 

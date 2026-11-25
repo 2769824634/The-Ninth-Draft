@@ -121,7 +121,7 @@ export class Dossier {
   private cur = 9;
   /** The earlier drafts lying under this file, oldest first. */
   private sheets: number[] = [];
-  /** Drafts in which Heuss left at least one margin note. */
+  /** Drafts in which the reviewer left at least one margin note. */
   noteDrafts: number[] = [];
 
   constructor(

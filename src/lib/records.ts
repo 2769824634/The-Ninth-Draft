@@ -62,8 +62,8 @@ const esc = (s: string) =>
 const redact = (html: string) =>
   html.replace(/\|\|(.+?)\|\|/g, '<span class="redact" tabindex="0" aria-label="Redacted passage"><span>$1</span></span>');
 
-/** Name signed under every margin note. */
-export const NOTE_SIGNATURE = 'Heuss';
+/** Signed under every margin note, in the file's language. A placeholder until the new cast is written. */
+export const NOTE_SIGNATURE = { en: 'Reviewer', zh: '审核人' };
 
 /**
  * Revision marks (see README):
@@ -73,16 +73,16 @@ export const NOTE_SIGNATURE = 'Heuss';
  *   [[note 4-6: text]] margin note visible in drafts 4–6 (a single number means that draft only)
  */
 const REV = /\[\[\s*(\+|-|#|note\s+)(\d)(?:\s*-\s*(\d))?\s*:\s*([\s\S]+?)\]\]/g;
-const revise = (html: string) =>
+const revise = (html: string, lang: 'en' | 'zh' = 'en') =>
   html.replace(REV, (_m, kind: string, a: string, b: string | undefined, text: string) => {
     const k = kind.trim();
     if (k === '+') return `<span class="rv" data-add="${a}">${text}</span>`;
     if (k === '-') return `<span class="rv" data-del="${a}">${text}</span>`;
     if (k === '#') return `<span class="rv" data-redact="${a}-${b ?? 9}"><span>${text}</span></span>`;
-    return `<span class="rv-note" data-note="${a}-${b ?? a}"><span class="rv-note__t">${text}</span><span class="rv-note__by">— ${NOTE_SIGNATURE}</span></span>`;
+    return `<span class="rv-note" data-note="${a}-${b ?? a}"><span class="rv-note__t">${text}</span><span class="rv-note__by">— ${NOTE_SIGNATURE[lang]}</span></span>`;
   });
 
-const inline = (s: string) => revise(redact(esc(s)));
+const inline = (s: string, lang: 'en' | 'zh' = 'en') => revise(redact(esc(s)), lang);
 
 export const slugOf = (file: string) => file.toLowerCase();
 
@@ -140,9 +140,9 @@ export async function loadRecords(base: string): Promise<ClientRecord[]> {
       date: data.date ?? r.date,
       place: data.place ?? r.place,
       imageCaption: data.imageCaption ?? r.imageCaption,
-      fields: data.fields ? data.fields.map((f) => ({ label: esc(f.label), value: inline(f.value) })) : r.fields,
-      summary: data.summary ? inline(data.summary) : r.summary,
-      body: zhBody ? revise(redact(zhBody)) : r.body,
+      fields: data.fields ? data.fields.map((f) => ({ label: esc(f.label), value: inline(f.value, 'zh') })) : r.fields,
+      summary: data.summary ? inline(data.summary, 'zh') : r.summary,
+      body: zhBody ? revise(redact(zhBody), 'zh') : r.body,
       tags: data.tags ?? r.tags,
       drafts: r.drafts.map((d) => {
         const t = data.drafts?.find((x) => x.n === d.n);
@@ -151,11 +151,11 @@ export async function loadRecords(base: string): Promise<ClientRecord[]> {
       attachments: r.attachments.map((a, i) => {
         const t = data.attachments?.[i];
         if (!t) return a;
-        if (typeof t === 'string') return { ...a, text: inline(t) };
+        if (typeof t === 'string') return { ...a, text: inline(t, 'zh') };
         return {
           ...a,
           title: t.title ? esc(t.title) : a.title,
-          text: t.text ? inline(t.text) : a.text,
+          text: t.text ? inline(t.text, 'zh') : a.text,
           date: t.date ? esc(t.date) : a.date,
           by: t.by ? esc(t.by) : a.by,
         };

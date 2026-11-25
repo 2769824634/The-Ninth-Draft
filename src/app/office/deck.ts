@@ -4,7 +4,7 @@
  * hiss and mains hum underneath), then to the site's sound switch:
  *
  *   music      a song from music.ts, scheduled step by step
- *   reading    a record's summary or Heuss's dictation, spoken by the
+ *   reading    a record's summary or a dictation tape, spoken by the
  *              browser's own voice; a redaction is a 1 kHz tone
  *   recording  an audio file the author put in /public
  *
