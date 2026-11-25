@@ -785,7 +785,7 @@ export function start() {
     const zh = isZh();
     const you = visitorClock();
     yearEl.textContent = islandDateLabel(zh);
-    clock.textContent = `${zh ? '霏微' : 'Gerimis'} ${hms(d.hours, d.minutes, d.seconds)}${you ? ` · ${zh ? '你那边' : 'yours'} ${you}` : ''}`;
+    clock.textContent = `${zh ? '雨洲' : 'Ashmere'} ${hms(d.hours, d.minutes, d.seconds)}${you ? ` · ${zh ? '你那边' : 'yours'} ${you}` : ''}`;
     // Sidereal-ish drift: right ascension advances with the island clock.
     const ra = (d.hours * 3600 + d.minutes * 60 + d.seconds) * 1.0027;
     if (boardCoords && roomTarget === 'wall') return;

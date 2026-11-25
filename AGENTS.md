@@ -1,6 +1,6 @@
 # AGENTS.md · 给 Codex 和其他 AI 助手
 
-你在帮作者 YosH 做 The Ninth Draft：一座 1999 年海峡小岛「霏微」的公共档案馆网站（Astro + Three.js）。Claude 也在这个仓库里干活（两个账号）。这份文件是你的工作规矩，**动手前读完，再完整读一遍 `CLAUDE.md`**。
+你在帮作者 YosH 做 The Ninth Draft：一座 1999 年海峡小岛「雨洲」的公共档案馆网站（Astro + Three.js）。Claude 也在这个仓库里干活（两个账号）。这份文件是你的工作规矩，**动手前读完，再完整读一遍 `CLAUDE.md`**。
 
 ## 0. 哪份文件说了算
 
@@ -74,7 +74,7 @@
 - 不写间谍片腔（特工、绝密行动、法务）。冷战只是视觉风格。
 
 **暗设定不露出**
-- 岛上的人不知道「第九稿」。界面写「霏微记录署 · 公共档案馆」，The Ninth Draft 只出现在浏览器标签和首页封面。主线会由作者和 Claude 分段揭开，**你写的背景文字里不要碰它**。
+- 岛上的人不知道「第九稿」。界面写「雨洲记录署 · 公共档案馆」，The Ninth Draft 只出现在浏览器标签和首页封面。主线会由作者和 Claude 分段揭开，**你写的背景文字里不要碰它**。
 - 「稿 / draft」只用来数修订，**不当时间单位**。
 - 回流 / Backflow、记录署 / Records Office 中英一一对应，不改名。
 - 口号：「本岛一切如常。如有不同，以现场为准。」 / "Everything on the island is normal. Where it differs, go by what you see."

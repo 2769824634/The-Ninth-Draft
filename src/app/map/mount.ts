@@ -33,8 +33,8 @@ export interface MountOptions {
 export interface RecordSpot { file: string; title: [string, string]; href: string; x: number; y: number; addr: [string, string]; postcode?: string }
 
 const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!);
-/** "Gerimis 550007", the way a letter is addressed. */
-export const postText = (pc: string, zh = isZh()) => (zh ? `霏微 ${pc}` : `Gerimis ${pc}`);
+/** "Ashmere 550007", the way a letter is addressed. */
+export const postText = (pc: string, zh = isZh()) => (zh ? `雨洲 ${pc}` : `Ashmere ${pc}`);
 
 /** "112 C3" as the directory prints it. */
 const pageText = (ref: string) => {

@@ -75,7 +75,7 @@ export function coverHtml(rec: ArchiveRecord) {
   if (rec.category === 'personnel') {
     face = `<span class="cv-tab">${esc(rec.file)}</span>
       <i class="cv-holes"></i><i class="cv-fastener"></i>
-      <p class="cv-org">RECORDS OFFICE · GERIMIS <em>霏微记录署</em></p>
+      <p class="cv-org">RECORDS OFFICE · ASHMERE <em>雨洲记录署</em></p>
       <h3 class="cv-head">PERSONNEL RECORD <em>人员档案</em></h3>
       <div class="cv-photo"><span>PHOTO<br>相片</span><i class="cv-clip"></i></div>
       <div class="cv-form">
@@ -131,7 +131,7 @@ export function coverHtml(rec: ArchiveRecord) {
   } else {
     face = `<i class="cv-spine"></i>
       <i class="cv-frame"></i>
-      <p class="cv-org">RECORDS OFFICE · GERIMIS <em>霏微记录署</em></p>
+      <p class="cv-org">RECORDS OFFICE · ASHMERE <em>雨洲记录署</em></p>
       <div class="cv-label">
         <p class="cv-label__kind">PROGRAMME FILE <em>计划卷宗</em></p>
         <h3 class="cv-label__title">${esc(rec.title)}</h3>

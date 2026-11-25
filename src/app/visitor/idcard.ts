@@ -46,7 +46,7 @@ export function cardHTML(v: Partial<Visitor> & { code?: string }, o: { reissued?
   return `
   <div class="idc__face idc__front${kind}">
     ${mark}
-    <p class="idc__band"><b>GERIMIS</b><span>霏微</span><em>IDENTITY CARD · 居民身份证</em></p>
+    <p class="idc__band"><b>ASHMERE</b><span>雨洲</span><em>IDENTITY CARD · 居民身份证</em></p>
     <div class="idc__body">
       <div class="idc__photo"><canvas width="150" height="188" aria-hidden="true"></canvas></div>
       <dl class="idc__fields">
@@ -63,7 +63,7 @@ export function cardHTML(v: Partial<Visitor> & { code?: string }, o: { reissued?
   </div>
   <div class="idc__face idc__back${kind}">
     <dl class="idc__fields">
-      ${row('Address', '住址', home ? `${esc(`BLK ${home.blk}${home.street ? ` ${home.street}` : ''}`.toUpperCase())}<br>${doorText(home)} · GERIMIS ${home.postcode}` : dash, ' idc__addr')}
+      ${row('Address', '住址', home ? `${esc(`BLK ${home.blk}${home.street ? ` ${home.street}` : ''}`.toUpperCase())}<br>${doorText(home)} · ASHMERE ${home.postcode}` : dash, ' idc__addr')}
       ${row('Date of issue', '签发日期', v.at ? issued(v.at) : dash)}
     </dl>
     ${o.reissued ? '<p class="idc__note">REISSUED AT OLD ADDRESS · 按旧址补发</p>' : ''}
@@ -87,7 +87,7 @@ export function cardPhoto(root: HTMLElement, seed: string) {
 export function passHTML(p: Partial<Pass>, zh: boolean) {
   const dash = '<span class="idc__dash">— — —</span>';
   return `
-    <p class="rpass__top micro"><span>Gerimis Records Office · Public Archive</span><b>${p.no ? passNo({ no: p.no }) : 'RC-————'}</b></p>
+    <p class="rpass__top micro"><span>Ashmere Records Office · Public Archive</span><b>${p.no ? passNo({ no: p.no }) : 'RC-————'}</b></p>
     <h3 class="rpass__title">READER'S PASS<span>阅览证</span></h3>
     <dl class="rpass__rows">
       <div><dt class="micro">${zh ? '姓名' : 'Name'}</dt><dd>${p.code?.trim() ? esc(p.code.trim()) : dash}</dd></div>
